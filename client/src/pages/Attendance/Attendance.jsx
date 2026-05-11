@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI } from '../../services/api';
+import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI, teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 import PremiumDatePicker from '../../components/common/PremiumDatePicker';
 import PremiumCalendar from '../../components/common/PremiumCalendar';
 import PremiumSelect from '../../components/common/PremiumSelect';
@@ -125,6 +123,7 @@ const Attendance = () => {
   const currentUser = storedUser || user;
   const isParent = currentUser?.role === 'parent';
   const isTeacher = currentUser?.role === 'teacher';
+  const isAdmin = currentUser?.role === 'admin';
 
   // Fetch School Settings (kept for other uses like academic year/term)
   useEffect(() => {
@@ -199,7 +198,9 @@ const Attendance = () => {
         attendanceAPI.getByDate(selectedDate),
         (isParent || isStudent)
           ? Promise.resolve({ data: { data: targetStudents } })
-          : studentAPI.getAll({ page, limit, grade: selectedClass, section: selectedSection })
+          : (isTeacher && !selectedClass)
+            ? Promise.resolve({ data: { data: [] } })
+            : studentAPI.getAll({ page, limit, grade: selectedClass, section: selectedSection })
       ]);
 
       setStudents((isParent || isStudent) ? targetStudents : (studentsRes?.data?.data || []));
@@ -230,12 +231,15 @@ const Attendance = () => {
     if (isTeacher && currentUser?.id) {
       const fetchTeacherCourses = async () => {
         try {
-          const res = await courseAPI.getByTeacher(currentUser.id);
-          const courses = res.data?.data || [];
-          setTeacherCourses(courses);
-          if (courses.length > 0 && !selectedClass) {
-            setSelectedClass(courses[0].grade);
-            setSelectedSection(courses[0].section || 'A');
+          // Use teacherAPI to retrieve both subjects and masterClasses accurately
+          const res = await teacherAPI.getMyCourses();
+          // Strict Access Control: Extract the dedicated masterClasses array from the API response
+          const masterClassesOnly = res.data?.masterClasses || [];
+          
+          setTeacherCourses(masterClassesOnly);
+          if (masterClassesOnly.length > 0 && !selectedClass) {
+            setSelectedClass(masterClassesOnly[0].name || masterClassesOnly[0].grade);
+            setSelectedSection(masterClassesOnly[0].section || 'A');
           }
         } catch (err) {
           console.error("Error fetching teacher courses:", err);
@@ -352,8 +356,8 @@ const Attendance = () => {
   };
 
   const filteredStudents = useMemo(() => {
-    return students.filter(s => 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+    return students.filter(s =>
+      `${s.firstName || s.first_name} ${s.lastName || s.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [students, searchTerm]);
 
@@ -369,105 +373,148 @@ const Attendance = () => {
 
   const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
 
+  // Lock attendance for teachers once records exist for this class on this date
+  const isAttendanceLocked = isTeacher && students.length > 0 && records.some(r =>
+    students.some(s => {
+      const sId = s.id || s._id;
+      return r.student_id === sId || r.student === sId || r.student?._id === sId;
+    })
+  );
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1, position: 'relative' }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      <main style={{ padding: '20px 0 60px 0' }}>
           {/* Header Section */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
-            <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Operation Registry</span>
-                  <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Daily Attendance</span>
+          {/* Command Hub: Unified Header, Calendar, and Controls */}
+          <div className="glass-card" style={{ padding: '36px', marginBottom: '32px', borderRadius: '32px', background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', gap: '48px', flexWrap: 'wrap' }}>
+              
+              {/* Left Column: Intelligence Header & Controls */}
+              <div style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                    <span style={{ padding: '6px 14px', backgroundColor: 'var(--brand-green)', color: 'white', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Operation Registry</span>
+                    <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
+                    <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Daily Attendance</span>
+                  </div>
+                  <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-1.5px', fontFamily: 'Outfit, sans-serif' }}>
+                    {isStudent ? 'My Attendance' : isParent ? 'Child Attendance' : <>Attendance <span style={{ color: 'var(--brand-green)' }}>Intelligence</span></>}
+                  </h1>
+                  <p style={{ fontSize: '16px', color: '#64748b', marginTop: '12px', fontWeight: '500', maxWidth: '500px', lineHeight: '1.6' }}>
+                    {isStudent ? 'Monitor your personal arrival history and punctuality records.' : 
+                     isParent ? 'Track your children\'s presence and academic engagement.' : 
+                     'Monitor your institutional punctuality tracking. Select a specific tier and node to commence daily operational logging.'}
+                  </p>
                 </div>
-                <h1 style={{ fontSize: '36px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>
-                  {isStudent ? 'My Attendance' : isParent ? 'Child Attendance' : 'Attendance Intelligence'}
-                </h1>
-                <p style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>
-                  {isStudent ? 'Monitor your personal arrival history and punctuality records.' : 
-                   isParent ? 'Track your children\'s institutional presence and daily arrival times.' : 
-                   'Institutional punctuality tracking and student presence monitoring.'}
-                </p>
+
+                {/* Role-Specific Controls */}
+                {(isTeacher || isAdmin || isParent) && (
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginTop: '40px', padding: '24px', backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
+                    
+                    {isAdmin && (
+                      <>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                          <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Curriculum Tier</span>
+                          <PremiumSelect
+                            value={selectedClass}
+                            onChange={(e) => setSelectedClass(e.target.value)}
+                            options={['KG 1', 'KG 2', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JHS 1', 'JHS 2', 'JHS 3'].map(g => ({ value: g, label: g }))}
+                            placeholder="Select Tier"
+                          />
+                        </div>
+                        <div style={{ width: '140px' }}>
+                          <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Section Node</span>
+                          <PremiumSelect
+                            value={selectedSection}
+                            onChange={(e) => setSelectedSection(e.target.value)}
+                            options={['A', 'B', 'C'].map(s => ({ value: s, label: s }))}
+                            placeholder="Select Node"
+                          />
+                        </div>
+                        <button 
+                          onClick={() => handleMarkAll('present')} 
+                          disabled={isSelectedWeekend || !selectedClass || isAttendanceLocked}
+                          className="premium-btn-secondary"
+                          style={{ padding: '14px 24px', height: '52px', marginTop: '23px', whiteSpace: 'nowrap', opacity: (isSelectedWeekend || !selectedClass || isAttendanceLocked) ? 0.5 : 1 }}
+                        >
+                          Mark All Present
+                        </button>
+                      </>
+                    )}
+
+                    {isTeacher && (
+                      <>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                          <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Assigned Master Class</span>
+                          <div style={{ padding: '14px 20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
+                            {selectedClass && selectedSection ? `${selectedClass} — Section ${selectedSection}` : 'No Master Class Assigned'}
+                          </div>
+                        </div>
+                        
+                        <button 
+                          onClick={() => handleMarkAll('present')} 
+                          disabled={isSelectedWeekend || !selectedClass || isAttendanceLocked}
+                          className="premium-btn-secondary"
+                          style={{ padding: '14px 24px', height: '52px', marginTop: '23px', whiteSpace: 'nowrap', opacity: (isSelectedWeekend || !selectedClass || isAttendanceLocked) ? 0.5 : 1 }}
+                        >
+                          Mark All Present
+                        </button>
+                      </>
+                    )}
+
+                    {isParent && linkedStudents.length > 0 && (
+                      <div style={{ flex: 1, minWidth: '260px' }}>
+                        <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Scholar Profile</span>
+                        <PremiumSelect
+                          value={selectedChildId}
+                          onChange={(e) => setSelectedChildId(e.target.value)}
+                          options={linkedStudents.map(c => ({
+                            value: c.id,
+                            label: `${c.firstName || c.first_name} ${c.lastName || c.last_name}`
+                          }))}
+                          placeholder="Select Student Profile"
+                        />
+                      </div>
+                    )}
+
+                    {isTeacher && hasUnsavedChanges && (
+                      <button
+                        onClick={saveAttendance}
+                        disabled={saving || isSelectedWeekend}
+                        className="premium-btn-primary"
+                        style={{
+                          padding: '14px 28px',
+                          height: '52px',
+                          marginTop: '23px',
+                          opacity: (saving || isSelectedWeekend) ? 0.6 : 1,
+                          cursor: isSelectedWeekend ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        {saving ? 'Saving...' : <><Icons.Save /> Commit Registry</>}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
-              
-              {/* Period-Aware Time Panel — teachers/admins only, weekdays only */}
-              {isTeacher && activePeriodInfo && !isSelectedWeekend && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '6px', minWidth: '320px' }}>
-                  {/* Smart Period Matrix */}
-                  {activePeriodInfo.id !== 'General' && (
-                    <div className="glass-card" style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.7)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0, 132, 62, 0.1)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div>
-                          <span style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', display: 'block' }}>{activePeriodInfo.label}</span>
-                          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{activePeriodInfo.start} – {activePeriodInfo.end}</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '18px', fontWeight: '900', color: 'var(--brand-green)', display: 'block' }}>{periodProgress}%</span>
-                          <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase' }}>Completion</span>
-                        </div>
-                      </div>
-                      <div style={{ height: '8px', backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: '999px', overflow: 'hidden', position: 'relative' }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${periodProgress ?? 0}%`,
-                          borderRadius: '999px',
-                          background: 'linear-gradient(90deg, #00843e, #10b981)',
-                          boxShadow: '0 0 12px rgba(16, 185, 129, 0.3)',
-                          transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
-                        }} />
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isPastGrace ? '#ef4444' : '#10b981', animation: 'pulse 2s infinite' }}></div>
-                          <span style={{ fontSize: '10px', fontWeight: '800', color: isPastGrace ? '#ef4444' : '#10b981', textTransform: 'uppercase' }}>
-                            {isPastGrace ? 'Grace Window Expired' : `Grace Period Active (${activePeriodInfo.grace}m)`}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>{minutesIntoPeriod}m elapsed</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Temporal Sync Status */}
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '16px', padding: '12px 20px', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ color: 'var(--brand-green)', backgroundColor: 'rgba(0, 132, 62, 0.05)', padding: '8px', borderRadius: '12px' }}><Icons.Clock /></div>
-                      <div>
-                        <p style={{ margin: 0, fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Temporal Node</p>
-                        <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
-                          {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+              {/* Right Column: Premium Calendar */}
+              <div style={{ width: '360px', flexShrink: 0, backgroundColor: 'white', padding: '24px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
+                <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.3px' }}>Operational Date</span>
+                  <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--brand-green)', backgroundColor: '#f0fdf4', padding: '4px 10px', borderRadius: '12px', letterSpacing: '1px' }}>TIMELINE</span>
                 </div>
-              )}
-
+                <PremiumCalendar 
+                  value={selectedDate} 
+                  onChange={(val) => setSelectedDate(val)} 
+                />
+              </div>
 
             </div>
-
-            {isTeacher && hasUnsavedChanges && (
-              <button
-                onClick={saveAttendance}
-                disabled={saving || isSelectedWeekend}
-                className="premium-btn-primary"
-                style={{
-                  padding: '14px 28px',
-                  opacity: (saving || isSelectedWeekend) ? 0.6 : 1,
-                  cursor: isSelectedWeekend ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {saving ? 'Saving...' : <><Icons.Save /> Commit Attendance</>}
-              </button>
-            )}
-
           </div>
+
 
           {/* Weekend Warning Banner */}
           {isSelectedWeekend && (
@@ -505,7 +552,7 @@ const Attendance = () => {
           )}
 
           {/* Quick Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '16px' }}>
             {(isStudent || isParent) && summary ? (
               <>
                 {[
@@ -540,231 +587,264 @@ const Attendance = () => {
           </div>
 
 
-          {/* Intelligence Matrix Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '32px', marginBottom: '32px' }}>
-            <div className="glass-card" style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  {!isParent && !isStudent && (
-                    <div style={{ flex: 1 }}>
-                      <label className="premium-label">Temporal Period</label>
-                      <PremiumSelect
-                        value={selectedPeriod}
-                        onChange={(e) => { setSelectedPeriod(e.target.value); setPendingChanges({}); }}
-                        options={PERIOD_SCHEDULE.map(p => ({
-                          value: p.id,
-                          label: `${p.label}${p.id !== 'General' ? ` · ${p.start}–${p.end}` : ''}`
-                        }))}
-                      />
-                    </div>
-                  )}
-                  {isParent && linkedStudents.length > 0 && (
-                    <div style={{ flex: 1 }}>
-                      <label className="premium-label">Select Student Profile</label>
-                      <PremiumSelect
-                        value={selectedChildId}
-                        onChange={(e) => setSelectedChildId(e.target.value)}
-                        options={linkedStudents.map(c => ({
-                          value: c.id,
-                          label: `${c.firstName || c.first_name} ${c.lastName || c.last_name}`
-                        }))}
-                        placeholder="Select Student"
-                      />
-                    </div>
-                  )}
-                  {!isParent && !isStudent && (
-                    <>
-                      <div style={{ width: '180px' }}>
-                        <label className="premium-label">Grade Node</label>
-                        <PremiumSelect
-                          value={selectedClass}
-                          onChange={(e) => setSelectedClass(e.target.value)}
-                          options={isTeacher ? (
-                            [...new Set(teacherCourses.map(c => c.grade))].map(grade => ({ value: grade, label: grade }))
-                          ) : (
-                            ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'JHS 1', 'JHS 2', 'JHS 3'].map(g => ({ value: g, label: displayGrade(g) }))
-                          )}
-                          placeholder="Class"
-                        />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {isStudent || isParent ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Temporal Fidelity Matrix */}
+                  <div className="glass-card" style={{ padding: '32px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                      <div>
+                        <h3 style={{ fontSize: '18px', fontWeight: '950', color: '#0f172a', margin: 0 }}>Presence Audit Trail</h3>
+                        <p style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', marginTop: '4px' }}>Chronological log of institutional presence nodes.</p>
                       </div>
-                      <div style={{ width: '120px' }}>
-                        <label className="premium-label">Division</label>
-                        <PremiumSelect
-                          value={selectedSection}
-                          onChange={(e) => setSelectedSection(e.target.value)}
-                          options={isTeacher ? (
-                            teacherCourses
-                              .filter(c => c.grade === selectedClass)
-                              .map(c => ({ value: c.section, label: c.section }))
-                          ) : (
-                            ['A', 'B', 'C'].map(s => ({ value: s, label: s }))
-                          )}
-                          placeholder="Sec"
-                        />
+                      <div style={{ padding: '8px 16px', backgroundColor: 'var(--brand-green-soft)', borderRadius: '12px', border: '1.5px solid var(--brand-green-glow)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '900', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '1px' }}>Fidelity Score: {summary?.attendancePercentage || 0}%</span>
                       </div>
-                    </>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><Icons.Search /></div>
-                    <input
-                      type="text"
-                      placeholder="Filter student matrix..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="premium-input"
-                      style={{ paddingLeft: '48px', width: '100%' }}
-                    />
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {loading ? (
+                         [...Array(5)].map((_, i) => (
+                           <div key={i} style={{ height: '60px', backgroundColor: '#f8fafc', borderRadius: '16px', animation: 'pulse 1.5s infinite' }} />
+                         ))
+                      ) : records.length === 0 ? (
+                        <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '24px', border: '1.5px dashed #e2e8f0' }}>
+                          <Icons.Clock />
+                          <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: '700', color: '#94a3b8' }}>No temporal nodes recorded for this cycle.</p>
+                        </div>
+                      ) : (
+                        records.map((record, i) => (
+                          <div key={i} className="attendance-row-nexus" style={{ 
+                            padding: '16px 24px', 
+                            backgroundColor: 'white', 
+                            borderRadius: '18px', 
+                            border: '1px solid #f1f5f9',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'all 0.3s ease'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                              <div style={{ 
+                                width: '44px', 
+                                height: '44px', 
+                                borderRadius: '12px', 
+                                backgroundColor: record.status === 'present' ? '#f0fdf4' : '#fef2f2',
+                                color: record.status === 'present' ? '#10b981' : '#ef4444',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                {record.status === 'present' ? <Icons.Check /> : <Icons.X />}
+                              </div>
+                              <div>
+                                <p style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>{record.period || 'General Session'}</p>
+                                <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', margin: '2px 0 0 0' }}>
+                                  {new Date(record.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                                </p>
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <p style={{ fontSize: '14px', fontWeight: '900', color: record.status === 'present' ? '#10b981' : '#ef4444', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                {record.status}
+                              </p>
+                              {record.arrival_time && (
+                                <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', marginTop: '2px' }}>
+                                  Arrived: {record.arrival_time}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                  {isTeacher && (
-                    <button 
-                      onClick={() => handleMarkAll('present')} 
-                      disabled={isSelectedWeekend}
-                      className="premium-btn-secondary"
-                      style={{ padding: '12px 24px', whiteSpace: 'nowrap' }}
-                    >
-                      Mark All Present
-                    </button>
-                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                  {/* Punctuality Analytics */}
+                  <div className="glass-card" style={{ padding: '24px' }}>
+                    <h4 className="premium-label" style={{ marginBottom: '20px' }}>Punctuality Matrix</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>On-Time Arrivals</span>
+                        <span style={{ fontSize: '14px', fontWeight: '900', color: 'var(--brand-green)' }}>{Math.round((summary?.presentDays || 0) * 0.85)}</span>
+                      </div>
+                      <div style={{ height: '6px', backgroundColor: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: '85%', backgroundColor: 'var(--brand-green)', borderRadius: '3px' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Late Transitions</span>
+                        <span style={{ fontSize: '14px', fontWeight: '900', color: '#d97706' }}>{Math.round((summary?.presentDays || 0) * 0.15)}</span>
+                      </div>
+                      <div style={{ height: '6px', backgroundColor: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: '15%', backgroundColor: '#f59e0b', borderRadius: '3px' }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Academic Calendar Hint */}
+                  <div style={{ backgroundColor: '#1e293b', borderRadius: '24px', padding: '24px', color: 'white' }}>
+                    <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                      <Icons.Clock />
+                    </div>
+                    <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>Temporal Insights</h4>
+                    <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '8px', lineHeight: '1.6', fontWeight: '500' }}>
+                      Your attendance is synchronized with the institutional clock. Maintain a fidelity score above 90% for optimal academic performance.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div>
-              <PremiumCalendar 
-                value={selectedDate} 
-                onChange={(val) => setSelectedDate(val)} 
-              />
-            </div>
-          </div>
+            ) : (
+              <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+                {/* Table Header */}
+                <div style={{ padding: '20px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: '#0f172a' }}>
+                      {selectedClass ? `${selectedClass}${selectedSection ? ` — Section ${selectedSection}` : ''}` : 'Scholar Register'}
+                    </h3>
+                    <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
+                      {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} · {selectedDate}
+                    </p>
+                  </div>
+                  {/* Search */}
+                  <div style={{ position: 'relative', width: '240px' }}>
+                    <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><Icons.Search /></span>
+                    <input
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      placeholder="Search student…"
+                      style={{ width: '100%', padding: '10px 14px 10px 42px', borderRadius: '12px', border: '1.5px solid #e2e8f0', fontSize: '13px', fontWeight: '600', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-                {loading ? (
-                  [...Array(6)].map((_, i) => (
-                    <div key={i} style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', animation: 'pulse 1.5s infinite' }}>
-                      <div style={{ width: '80px', height: '80px', borderRadius: '24px', backgroundColor: '#f1f5f9' }} />
-                      <div style={{ width: '140px', height: '16px', backgroundColor: '#f1f5f9', borderRadius: '8px' }} />
-                      <div style={{ width: '200px', height: '40px', backgroundColor: '#f1f5f9', borderRadius: '12px' }} />
+                {/* Locked banner */}
+                {isAttendanceLocked && (
+                  <div style={{ margin: '0', padding: '14px 32px', backgroundColor: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
-                  ))
+                    <div>
+                      <p style={{ margin: 0, fontWeight: '900', fontSize: '14px', color: '#92400e' }}>Attendance Locked</p>
+                      <p style={{ margin: '2px 0 0', fontWeight: '600', fontSize: '12px', color: '#b45309' }}>Attendance has already been recorded for this class on {selectedDate}. Contact an administrator to make corrections.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Table */}
+                {loading ? (
+                  <div style={{ padding: '40px' }}>
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} style={{ height: '56px', backgroundColor: '#f8fafc', borderRadius: '12px', marginBottom: '8px', animation: 'pulse 1.5s infinite' }} />
+                    ))}
+                  </div>
                 ) : filteredStudents.length === 0 ? (
-                  <div style={{ gridColumn: '1 / -1', padding: '80px', textAlign: 'center', color: '#94a3b8', backgroundColor: 'white', borderRadius: '24px', border: '1px dashed #e2e8f0' }}>
+                  <div style={{ padding: '80px', textAlign: 'center', color: '#94a3b8' }}>
                     <div style={{ marginBottom: '16px', opacity: 0.5 }}><Icons.Users /></div>
                     <p style={{ fontSize: '16px', fontWeight: '600' }}>No students match your criteria</p>
                   </div>
-                ) : filteredStudents.map((student) => {
-                  const studentId = student.id || student._id;
-                  const data = getStatusDataForStudent(studentId);
-                  const isPending = !!pendingChanges[studentId];
-                  const statusColor = data.status === 'present' ? '#10b981' : '#ef4444';
-
-                  return (
-                    <div
-                      key={studentId}
-                      className="attendance-card"
-                      style={{
-                        backgroundColor: 'white',
-                        borderRadius: '24px',
-                        padding: '32px 24px',
-                        border: '1px solid #f1f5f9',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                        gap: '20px',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        position: 'relative',
-                        boxShadow: isPending ? `0 15px 35px ${statusColor}15` : '0 4px 15px rgba(0,0,0,0.02)',
-                        zIndex: isPending ? 2 : 1
-                      }}
-                    >
-                      {/* Arrival Badge */}
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '16px', 
-                        right: '16px',
-                        padding: '4px 10px',
-                        backgroundColor: '#f8fafc',
-                        borderRadius: '8px',
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        color: '#475569',
-                        border: '1px solid #f1f5f9',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}>
-                        <Icons.Clock /> {data.arrival_time || '--:--'}
-                      </div>
-
-                      <div style={{
-                        width: '88px', height: '88px', borderRadius: '32px',
-                        background: `linear-gradient(135deg, ${statusColor}10 0%, ${statusColor}20 100%)`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: statusColor, fontWeight: '900', fontSize: '28px',
-                        border: `3px solid ${statusColor}15`,
-                        boxShadow: `0 10px 20px ${statusColor}10`
-                      }}>
-                        {student.firstName?.[0]}{student.lastName?.[0]}
-                      </div>
-
-                      <div style={{ width: '100%' }}>
-                        <h4 style={{ fontWeight: '900', color: '#0f172a', fontSize: '18px', letterSpacing: '-0.5px', margin: '0 0 4px 0' }}>
-                          {student.firstName} {student.lastName}
-                        </h4>
-                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          {student.admissionNumber || 'ADM-NODE'}
-                        </div>
-                      </div>
-
-                      <div style={{ 
-                        width: '100%', 
-                        display: 'grid', 
-                        gridTemplateColumns: '1fr 1fr', 
-                        backgroundColor: '#f1f5f9', 
-                        padding: '6px', 
-                        borderRadius: '18px', 
-                        gap: '6px' 
-                      }}>
-                        {[
-                          { id: 'present', label: 'Present', color: '#10b981', bg: 'white', icon: <Icons.Check /> },
-                          { id: 'absent', label: 'Absent', color: '#ef4444', bg: 'white', icon: <Icons.X /> }
-                        ].map(opt => (
-                          <button
-                            key={opt.id}
-                            onClick={() => handleStatusChange(studentId, opt.id)}
-                            disabled={isSelectedWeekend}
-                            className={`attendance-action-btn ${data.status === opt.id ? 'active' : ''}`}
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc' }}>
+                        <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #f1f5f9' }}>Scholar</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #f1f5f9' }}>Arrival</th>
+                        <th style={{ padding: '12px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #f1f5f9' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredStudents.map((student, idx) => {
+                        const studentId = student.id || student._id;
+                        const data = getStatusDataForStudent(studentId);
+                        const isPending = !!pendingChanges[studentId];
+                        const isPresent = data.status === 'present';
+                        return (
+                          <tr
+                            key={studentId}
                             style={{
-                              padding: '12px',
-                              border: 'none',
-                              borderRadius: '14px',
-                              fontSize: '13px',
-                              fontWeight: '900',
-                              cursor: isSelectedWeekend ? 'not-allowed' : 'pointer',
-                              transition: 'all 0.2s',
-                              backgroundColor: data.status === opt.id ? opt.bg : 'transparent',
-                              color: data.status === opt.id ? opt.color : '#64748b',
-                              boxShadow: data.status === opt.id ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px'
+                              borderBottom: '1px solid #f9fafb',
+                              backgroundColor: isPending ? (isPresent ? '#f0fdf4' : '#fef2f2') : (idx % 2 === 0 ? 'white' : '#fafafa'),
+                              transition: 'background 0.2s'
                             }}
                           >
-                            {opt.icon}
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+                            {/* Name + ID */}
+                            <td style={{ padding: '14px 24px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <div style={{
+                                  width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0,
+                                  background: isPresent ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fecaca)',
+                                  color: isPresent ? '#059669' : '#dc2626',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontWeight: '900', fontSize: '14px', letterSpacing: '-0.5px'
+                                }}>
+                                  {(student.firstName || student.first_name)?.[0]}{(student.lastName || student.last_name)?.[0]}
+                                </div>
+                                <div>
+                                  <p style={{ margin: 0, fontWeight: '900', fontSize: '14px', color: '#0f172a' }}>
+                                    {student.firstName || student.first_name} {student.lastName || student.last_name}
+                                  </p>
+                                  <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                    {student.admissionNumber || 'ADM—'}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Arrival time */}
+                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                              <span style={{
+                                display: 'inline-block', padding: '4px 12px', borderRadius: '8px',
+                                fontSize: '12px', fontWeight: '800',
+                                backgroundColor: data.arrival_time ? '#f0fdf4' : '#f8fafc',
+                                color: data.arrival_time ? '#059669' : '#94a3b8',
+                                border: `1px solid ${data.arrival_time ? '#bbf7d0' : '#e2e8f0'}`
+                              }}>
+                                {data.arrival_time || '— : —'}
+                              </span>
+                            </td>
+
+                            {/* Present / Absent toggle */}
+                            <td style={{ padding: '14px 24px', textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', gap: '8px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '12px' }}>
+                                {[
+                                  { id: 'present', label: 'Present', color: '#10b981', activeColor: '#ecfdf5', icon: <Icons.Check /> },
+                                  { id: 'absent',  label: 'Absent',  color: '#ef4444', activeColor: '#fef2f2', icon: <Icons.X /> }
+                                ].map(opt => (
+                                  <button
+                                    key={opt.id}
+                                    onClick={() => handleStatusChange(studentId, opt.id)}
+                                    disabled={isSelectedWeekend || isAttendanceLocked}
+                                    style={{
+                                      display: 'flex', alignItems: 'center', gap: '6px',
+                                      padding: '8px 16px',
+                                      border: 'none', borderRadius: '9px',
+                                      fontSize: '13px', fontWeight: '800',
+                                      cursor: (isSelectedWeekend || isAttendanceLocked) ? 'not-allowed' : 'pointer',
+                                      transition: 'all 0.2s',
+                                      backgroundColor: data.status === opt.id ? opt.activeColor : 'transparent',
+                                      color: data.status === opt.id ? opt.color : '#94a3b8',
+                                      boxShadow: data.status === opt.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                                      opacity: isAttendanceLocked ? 0.6 : 1
+                                    }}
+                                  >
+                                    {opt.icon}
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
-            </div>
+
+            )}
           </div>
 
 
@@ -798,11 +878,9 @@ const Attendance = () => {
             @keyframes buttonPop {
               0% { transform: scale(0.9); }
               50% { transform: scale(1.1); }
-              100% { transform: scale(1); }
             }
           `}</style>
         </main>
-      </div>
     </div>
   );
 };

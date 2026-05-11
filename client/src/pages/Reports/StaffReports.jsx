@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 import { settingsAPI, staffAPI } from '../../services/api';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -112,12 +110,8 @@ const StaffReports = () => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
+    <div>
+      <main>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -336,7 +330,6 @@ const StaffReports = () => {
           @media print { .no-print { display: none !important; } }
           @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         `}</style>
-      </div>
     </div>
   );
 };

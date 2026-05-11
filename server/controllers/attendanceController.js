@@ -15,23 +15,43 @@ const getAllAttendance = asyncHandler(async (req, res) => {
     if (teacherProfile) {
       const teacherId = teacherProfile.id;
       
-      // Get student IDs assigned to this teacher via Class Master or Subject Teacher
-      const { data: masterSections } = await supabase.from(COLLECTIONS.SECTIONS).select('name, class_id').eq('class_master_id', teacherId);
-      const { data: subjectSections } = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).select('section, class_id').eq('teacher_id', teacherId);
+      // Get sections where they are Class Master ONLY
+      const { data: masterSections } = await supabase.from(COLLECTIONS.SECTIONS).select('name, class:class_id(name)').eq('class_master_id', teacherId);
       
       const assignments = [
-        ...(masterSections || []).map(s => ({ class_id: s.class_id, section: s.name })),
-        ...(subjectSections || []).map(s => ({ class_id: s.class_id, section: s.section }))
+        ...(masterSections || []).map(s => ({ grade: s.class?.name, section: s.name }))
       ];
 
       if (assignments.length > 0) {
-        // Fetch student IDs for these assignments
-        const { data: assignedStudents } = await supabase
-          .from(COLLECTIONS.STUDENTS)
-          .select('id')
-          .or(assignments.map(a => `and(class_id.eq.${a.class_id},section.eq.${a.section})`).join(','));
-        
-        const studentIds = (assignedStudents || []).map(s => s.id);
+        const getGradeVariations = (gName) => {
+          const lower = String(gName || '').toLowerCase();
+          const num = lower.replace(/basic|primary|kindergarten|kg|jhs|nursery/g, '').trim();
+          const base = [lower, lower.replace('primary', 'basic'), lower.replace('basic', 'primary'), num];
+          const toTitleCase = (str) => str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+          const expanded = new Set();
+          base.forEach(n => { if (n) { expanded.add(n); expanded.add(n.toUpperCase()); expanded.add(toTitleCase(n)); }});
+          return Array.from(expanded);
+        };
+
+        let assignedStudents = [];
+        for (const a of assignments) {
+          if (!a.grade) continue;
+          const gradesToSearch = getGradeVariations(a.grade);
+          const targetSec = String(a.section || 'A').toLowerCase().replace('section', '').trim();
+
+          const { data: st } = await supabase
+            .from(COLLECTIONS.STUDENTS)
+            .select('id, section')
+            .in('grade', gradesToSearch);
+            
+          const matched = (st || []).filter(s => {
+            const dbSec = String(s.section || '').toLowerCase().replace('section', '').trim();
+            return dbSec === targetSec || String(s.section || '').toLowerCase() === String(a.section || 'A').toLowerCase();
+          });
+          assignedStudents.push(...matched);
+        }
+
+        const studentIds = [...new Set(assignedStudents.map(s => s.id))];
         if (studentIds.length > 0) {
           query = query.in('student_id', studentIds);
         } else {
@@ -59,7 +79,10 @@ const getAllAttendance = asyncHandler(async (req, res) => {
   }
   
   if (date) {
-    const dateStr = new Date(date).toISOString().split('T')[0];
+    // Check if date is already in YYYY-MM-DD format, else parse it
+    const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(String(date)) 
+      ? String(date) 
+      : new Date(date).toISOString().split('T')[0];
     query = query.eq('date', dateStr);
   }
 
@@ -140,16 +163,8 @@ const recordAttendance = asyncHandler(async (req, res) => {
       .eq('name', studentData.section)
       .eq('class_master_id', teacherId);
     
-    // Check if teacher teaches a subject in student's section
-    const { data: teachesSubject } = await supabase
-      .from(COLLECTIONS.CLASS_SUBJECTS)
-      .select('id')
-      .eq('class_id', classId)
-      .eq('section', studentData.section)
-      .eq('teacher_id', teacherId);
-
-    if ((!isMaster || isMaster.length === 0) && (!teachesSubject || teachesSubject.length === 0)) {
-        return res.status(403).json({ message: 'Access denied. You can only mark attendance for your assigned classes or sections.' });
+    if (!isMaster || isMaster.length === 0) {
+        return res.status(403).json({ message: 'Access denied. You can only mark attendance for the class where you are the designated Master.' });
     }
   }
 

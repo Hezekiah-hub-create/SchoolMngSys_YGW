@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { teacherAPI, gradeAPI, timetableAPI, courseAPI, settingsAPI, studentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 
 // Icon components for premium feel
 const Icons = {
@@ -252,33 +250,19 @@ const TeacherDashboard = () => {
   const currentUser = storedUser || user;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        :root { --brand-green: #00843e; --brand-green-dark: #006831; --brand-green-light: #dcfce7; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .dashboard-content { animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-      `}</style>
-      
-      <RoleBasedSidebar user={currentUser} onLogout={logout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-
-      <div style={{ marginLeft: '260px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <TopNav user={currentUser} onLogout={logout} title="Teacher Console" />
-
-        <main className="dashboard-content" style={{ padding: '100px 40px 40px 40px', flex: 1 }}>
+    <div className="teacher-dashboard-content">
+      <div style={{ padding: '0 0 60px 0', animation: 'fadeIn 0.5s ease-out' }}>
           
           {/* Header Section */}
           <div style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ padding: '4px 12px', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Faculty Ledger</span>
+                <span style={{ padding: '4px 12px', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Staff Ledger</span>
                 <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
                 <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Academic Operations</span>
               </div>
               <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>
-                Faculty <span style={{ color: 'var(--brand-green)' }}>Console</span>
+                Teacher <span style={{ color: 'var(--brand-green)' }}>Console</span>
               </h1>
               <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
                 Welcome, <span style={{ color: '#0f172a', fontWeight: '800' }}>{currentUser?.first_name || currentUser?.firstName || 'Teacher'}</span>. 
@@ -319,6 +303,28 @@ const TeacherDashboard = () => {
                   <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', fontWeight: '500', maxWidth: '600px' }}>
                     You are currently serving as the Lead Faculty for <span style={{ fontWeight: '800', color: '#fff' }}>{masterClasses.map(c => `${c.name} ${c.section}`).join(' & ')}</span>.
                   </p>
+                  <button 
+                    onClick={() => navigate('/reports/academic')}
+                    style={{
+                      marginTop: '20px',
+                      padding: '12px 24px',
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      borderRadius: '12px',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                    onMouseOver={e => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = 'var(--brand-green)'; }}
+                    onMouseOut={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = 'white'; }}
+                  >
+                    <Icons.Clipboard /> Generate Class Reports
+                  </button>
                 </div>
                 <div style={{ width: '80px', height: '80px', borderRadius: '24px', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -338,6 +344,17 @@ const TeacherDashboard = () => {
               subtitle="Active"
               onClick={() => navigate('/classes')}
             />
+            {masterClasses.length > 0 && (
+              <StatCard
+                icon={<Icons.Users />}
+                title="Master Class Students" 
+                value={masterClasses.reduce((sum, c) => sum + (c.studentCount || 0), 0)} 
+                color="#db2777" 
+                loading={loading} 
+                subtitle="Class Master"
+                onClick={() => navigate('/students')}
+              />
+            )}
             <StatCard
               icon={<Icons.Users />}
               title="Students" 
@@ -498,8 +515,7 @@ const TeacherDashboard = () => {
 
             </div>
           </div>
-        </main>
-      </div>
+        </div>
     </div>
   );
 };

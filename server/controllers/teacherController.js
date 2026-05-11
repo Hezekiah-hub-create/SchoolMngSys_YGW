@@ -685,18 +685,30 @@ const getMyCourses = asyncHandler(async (req, res) => {
 
     if (error) throw error;
 
-    const transformedAssignments = await Promise.all(assignments.map(async (item) => {
-      // Fetch student count for this specific class and section
-      const gradeName = item.class?.name || '';
-      const gradesToSearch = [gradeName];
-      if (gradeName.includes('Basic')) gradesToSearch.push(gradeName.replace('Basic', 'Primary'));
-      else if (gradeName.includes('Primary')) gradesToSearch.push(gradeName.replace('Primary', 'Basic'));
+    const getGradeVariations = (gName) => {
+      const lower = String(gName || '').toLowerCase();
+      const num = lower.replace(/basic|primary|kindergarten|kg|jhs|nursery/g, '').trim();
+      const base = [lower, lower.replace('primary', 'basic'), lower.replace('basic', 'primary'), num];
+      const toTitleCase = (str) => str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+      const expanded = new Set();
+      base.forEach(n => { if (n) { expanded.add(n); expanded.add(n.toUpperCase()); expanded.add(toTitleCase(n)); }});
+      return Array.from(expanded);
+    };
 
-      const { count } = await supabase
+    const transformedAssignments = await Promise.all(assignments.map(async (item) => {
+      const gradeName = item.class?.name || '';
+      const gradesToSearch = getGradeVariations(gradeName);
+      const targetSec = String(item.section || 'A').toLowerCase().replace('section', '').trim();
+
+      const { data: studentsInGrade } = await supabase
         .from(COLLECTIONS.STUDENTS)
-        .select('*', { count: 'exact', head: true })
-        .in('grade', gradesToSearch)
-        .eq('section', item.section || 'A');
+        .select('section')
+        .in('grade', gradesToSearch);
+        
+      const matchingStudents = (studentsInGrade || []).filter(s => {
+        const dbSec = String(s.section || '').toLowerCase().replace('section', '').trim();
+        return dbSec === targetSec || String(s.section || '').toLowerCase() === String(item.section || 'A').toLowerCase();
+      });
 
       return {
         id: item.id,
@@ -706,16 +718,33 @@ const getMyCourses = asyncHandler(async (req, res) => {
         grade: item.class?.name || 'N/A',
         section: item.section || 'A',
         academic_year: item.academic_year,
-        studentCount: count || 0,
+        studentCount: matchingStudents.length,
         students: []
       };
     }));
 
-    const transformedMasterClasses = (masterSections || []).map(s => ({
-      id: s.id,
-      name: s.class?.name || 'Class',
-      section: s.name,
-      academic_year: s.class?.academic_year || '2024/2025'
+    const transformedMasterClasses = await Promise.all((masterSections || []).map(async (s) => {
+      const gradeName = s.class?.name || '';
+      const gradesToSearch = getGradeVariations(gradeName);
+      const targetSec = String(s.name || 'A').toLowerCase().replace('section', '').trim();
+
+      const { data: studentsInGrade } = await supabase
+        .from(COLLECTIONS.STUDENTS)
+        .select('section')
+        .in('grade', gradesToSearch);
+        
+      const matchingStudents = (studentsInGrade || []).filter(st => {
+        const dbSec = String(st.section || '').toLowerCase().replace('section', '').trim();
+        return dbSec === targetSec || String(st.section || '').toLowerCase() === String(s.name || 'A').toLowerCase();
+      });
+
+      return {
+        id: s.id,
+        name: gradeName || 'Class',
+        section: s.name,
+        academic_year: s.class?.academic_year || '2024/2025',
+        studentCount: matchingStudents.length
+      };
     }));
 
     res.json({

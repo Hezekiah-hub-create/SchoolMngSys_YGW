@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { incomeAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
-import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
-import TopNav from '../../../components/layout/TopNav';
 
 // Premium Icon Components
 const Icons = {
@@ -98,14 +96,11 @@ const Income = () => {
   );
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        <main style={{ padding: '100px 40px 40px' }}>
+    <div>
+      <main>
           
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div>
               <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Revenue Analysis</h1>
               <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>In-depth view of institutional income, grants, and miscellaneous revenue</p>
@@ -129,7 +124,7 @@ const Income = () => {
           )}
 
           {/* Stats Overview */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '24px' }}>
             <StatCard 
               title="Total Revenue" 
               value={`₵ ${(stats.totalRevenue || 0).toLocaleString()}`} 
@@ -226,74 +221,73 @@ const Income = () => {
             </div>
           </div>
         </main>
-      </div>
 
-      {/* Record Income Modal */}
-      {showModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '500px', padding: '32px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideUp 0.3s ease-out' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Record New Revenue</h2>
-              <button onClick={() => setShowModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}><Icons.X /></button>
+        {/* Record Income Modal */}
+        {showModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
+            <div style={{ backgroundColor: 'white', borderRadius: '24px', width: '100%', maxWidth: '500px', padding: '32px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideUp 0.3s ease-out' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Record New Revenue</h2>
+                <button onClick={() => setShowModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}><Icons.X /></button>
+              </div>
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Description</label>
+                  <input name="description" value={formData.description} onChange={handleInputChange} placeholder="e.g. Government Grant - Q2" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }} required />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Category</label>
+                    <select name="category" value={formData.category} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                      <option>Grant</option>
+                      <option>Donation</option>
+                      <option>Fundraising</option>
+                      <option>Asset Sale</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Amount (₵)</label>
+                    <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} placeholder="0.00" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none', fontWeight: '700' }} required />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Source</label>
+                  <input name="source" value={formData.source} onChange={handleInputChange} placeholder="e.g. Ministry of Education" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Date</label>
+                    <input type="date" name="date" value={formData.date} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }} required />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Status</label>
+                    <select name="status" value={formData.status} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                      <option>Received</option>
+                      <option>Pending</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" disabled={submitting} style={{ marginTop: '12px', padding: '14px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 10px 20px rgba(0, 132, 62, 0.2)', transition: 'all 0.2s', opacity: submitting ? 0.7 : 1 }}>
+                  {submitting ? 'Processing...' : 'Record Revenue'}
+                </button>
+              </form>
             </div>
-
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Description</label>
-                <input name="description" value={formData.description} onChange={handleInputChange} placeholder="e.g. Government Grant - Q2" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }} required />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Category</label>
-                  <select name="category" value={formData.category} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }}>
-                    <option>Grant</option>
-                    <option>Donation</option>
-                    <option>Fundraising</option>
-                    <option>Asset Sale</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Amount (₵)</label>
-                  <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} placeholder="0.00" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none', fontWeight: '700' }} required />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Source</label>
-                <input name="source" value={formData.source} onChange={handleInputChange} placeholder="e.g. Ministry of Education" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Date</label>
-                  <input type="date" name="date" value={formData.date} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }} required />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Status</label>
-                  <select name="status" value={formData.status} onChange={handleInputChange} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none' }}>
-                    <option>Received</option>
-                    <option>Pending</option>
-                  </select>
-                </div>
-              </div>
-
-              <button type="submit" disabled={submitting} style={{ marginTop: '12px', padding: '14px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 10px 20px rgba(0, 132, 62, 0.2)', transition: 'all 0.2s', opacity: submitting ? 0.7 : 1 }}>
-                {submitting ? 'Processing...' : 'Record Revenue'}
-              </button>
-            </form>
           </div>
-        </div>
-      )}
+        )}
 
-      <style>{`
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-    </div>
-  );
-};
+        <style>{`
+          @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+          @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        `}</style>
+      </div>
+    );
+  };
 
 const StatCard = ({ title, value, icon, color, gradient, loading }) => (
   <div style={{ 

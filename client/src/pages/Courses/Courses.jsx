@@ -5,6 +5,7 @@ import { courseAPI, teacherAPI, studentAPI, parentAPI, academicClassesAPI, acade
 import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
+import { useAlert } from '../../context/AlertContext';
 import './Courses.css';
 
 const normalizeGrade = (g) => {
@@ -31,6 +32,7 @@ const displayGrade = (g) => {
 const Courses = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { showAlert } = useAlert();
   const [activeMenu, setActiveMenu] = useState('Courses');
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -57,6 +59,7 @@ const Courses = () => {
   const [fetchingStudents, setFetchingStudents] = useState(false);
   const [selectedCourseName, setSelectedCourseName] = useState('');
   const [dbGrades, setDbGrades] = useState([]);
+  const [uniqueStudentCount, setUniqueStudentCount] = useState(0);
 
   useEffect(() => {
     fetchCourses();
@@ -107,8 +110,10 @@ const Courses = () => {
       let fetched = Array.isArray(response.data) ? response.data : (response.data?.data || []);
 
       if (isAdmin) {
-        const studentRes = await studentAPI.getAll({ limit: 1000 });
+        const studentRes = await studentAPI.getAll({ limit: 2000 });
         const allStudents = studentRes.data?.data || [];
+        setUniqueStudentCount(allStudents.length);
+        
         fetched = fetched.map(c => ({
           ...c,
           studentCount: allStudents.filter(s => normalizeGrade(s.grade) === normalizeGrade(c.grade) && (c.section === 'All' || !c.section || s.section === c.section)).length
@@ -148,10 +153,10 @@ const Courses = () => {
     const uniqueSubjects = new Set(filteredCourses.map(c => `${c.name}-${c.grade}`));
     return {
       total: uniqueSubjects.size,
-      totalStudents: filteredCourses.reduce((acc, c) => acc + (c.studentCount || 0), 0),
+      totalStudents: uniqueStudentCount,
       activeTeachers: new Set(filteredCourses.map(c => c.teacher_id || (typeof c.teacher === 'string' ? c.teacher : c.teacher?.id)).filter(Boolean)).size
     };
-  }, [filteredCourses]);
+  }, [filteredCourses, uniqueStudentCount]);
 
   const openModal = (groupedCourse = null) => {
     if (groupedCourse) {
@@ -216,17 +221,32 @@ const Courses = () => {
       fetchCourses();
     } catch (e) { 
       console.error(e);
-      alert('Error synchronizing allocations'); 
+      showAlert({
+        title: 'Allocation Failed',
+        message: 'Failed to synchronize subject allocations with the curriculum grid.',
+        type: 'error'
+      });
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Terminate this subject allocation?')) {
-      try {
-        await courseAPI.delete(id);
-        fetchCourses();
-      } catch (e) { alert('Error deleting allocation'); }
-    }
+    showAlert({
+      title: 'Terminate Allocation',
+      message: 'Are you sure you want to dissolve this subject-teacher assignment? This will remove the link from the class curriculum.',
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          await courseAPI.delete(id);
+          fetchCourses();
+        } catch (e) { 
+          showAlert({
+            title: 'System Error',
+            message: 'Failed to delete allocation.',
+            type: 'error'
+          });
+        }
+      }
+    });
   };
 
   const viewStudents = async (course) => {
@@ -244,13 +264,10 @@ const Courses = () => {
 
   return (
     <div className="courses-container" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Outfit', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
+      <div style={{ flex: 1, padding: '24px' }}>
         
-        <main style={{ padding: '100px 40px 40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+        <main>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Institutional Flow</span>
@@ -288,7 +305,7 @@ const Courses = () => {
         </div>
 
         {/* Improved Filter Bar */}
-        <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="glass-card" style={{ padding: '24px', marginBottom: '24px', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <input 
               type="text" 

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 import { timetableAPI, teacherAPI, courseAPI, parentAPI, academicSubjectsAPI } from '../../services/api';
 import PremiumSelect from '../../components/common/PremiumSelect';
+import { useAlert } from '../../context/AlertContext';
 
 const displayGrade = (g) => {
   if (!g) return 'N/A';
@@ -33,6 +32,7 @@ const DEFAULT_PERIODS = [
 const Timetable = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { showAlert } = useAlert();
   const [activeMenu, setActiveMenu] = useState('Timetable');
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState(user?.role === 'teacher' ? 'teacher' : 'class');
@@ -344,8 +344,11 @@ const Timetable = () => {
       setEditModalOpen(false);
       setEditingCell(null);
     } catch (error) {
-      console.error('Error saving period:', error);
-      alert('Failed to save. Please try again.');
+      showAlert({
+        title: 'Temporal Error',
+        message: 'Failed to save period. Please verify connectivity.',
+        type: 'error'
+      });
     } finally {
       setSaving(false);
     }
@@ -353,53 +356,64 @@ const Timetable = () => {
 
   const handleInitializeFromSchema = async () => {
     if (!selectedGrade || !selectedSection) {
-      alert('Please select a grade and section first');
+      showAlert({
+        title: 'Configuration Error',
+        message: 'Please select a specific grade and section node first.',
+        type: 'warning'
+      });
       return;
     }
-    if (!window.confirm(`Initialize ${selectedGrade}${selectedSection} timetable from default schema? This will set up the time slots but you will still need to allocate subjects.`)) return;
 
-    try {
-      setSaving(true);
-      const configRes = await timetableAPI.getByClass('CONFIGURATION');
-      const configPeriods = configRes.data?.data?.schedule?.periods || DEFAULT_PERIODS;
-      
-      const newSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] };
-      
-      // We don't necessarily need to fill rows for every day if they are empty, 
-      // but we want the UI to show the periods. 
-      // The periods state is already synced with CONFIGURATION.
-      // So initialization here might just mean ensuring the periods are correct.
-      
-      // If we want to pre-populate breaks:
-      configPeriods.forEach(p => {
-        if (p.isBreak) {
-          days.forEach(day => {
-            newSchedule[day].push({
-              period: p.period,
-              subject: p.name,
-              isBreak: true,
-              startTime: p.startTime || p.time?.split(' - ')[0] || '',
-              endTime: p.endTime || p.time?.split(' - ')[1] || ''
-            });
+    showAlert({
+      title: 'Initialize Chronos Matrix',
+      message: `Initialize ${selectedGrade}${selectedSection} timetable from default schema? This will set up the institutional time slots.`,
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          setSaving(true);
+          const configRes = await timetableAPI.getByClass('CONFIGURATION');
+          const configPeriods = configRes.data?.data?.schedule?.periods || DEFAULT_PERIODS;
+          
+          const newSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] };
+          
+          configPeriods.forEach(p => {
+            if (p.isBreak) {
+              days.forEach(day => {
+                newSchedule[day].push({
+                  period: p.period,
+                  subject: p.name,
+                  isBreak: true,
+                  startTime: p.startTime || p.time?.split(' - ')[0] || '',
+                  endTime: p.endTime || p.time?.split(' - ')[1] || ''
+                });
+              });
+            }
           });
+
+          await timetableAPI.create({ 
+            class: selectedClass, 
+            grade: selectedGrade, 
+            section: selectedSection, 
+            schedule: newSchedule 
+          });
+
+          fetchData();
+          showAlert({
+            title: 'Synchronization Complete',
+            message: 'Timetable initialized with institutional schema breaks and periods.',
+            type: 'success'
+          });
+        } catch (error) {
+          showAlert({
+            title: 'System Failure',
+            message: 'Failed to initialize temporal nodes.',
+            type: 'error'
+          });
+        } finally {
+          setSaving(false);
         }
-      });
-
-      await timetableAPI.create({ 
-        class: selectedClass, 
-        grade: selectedGrade, 
-        section: selectedSection, 
-        schedule: newSchedule 
-      });
-
-      fetchData();
-      alert('Timetable initialized with default schema breaks and periods.');
-    } catch (error) {
-      console.error('Error initializing from schema:', error);
-      alert('Failed to initialize.');
-    } finally {
-      setSaving(false);
-    }
+      }
+    });
   };
 
   const handleRemovePeriod = async () => {
@@ -425,31 +439,38 @@ const Timetable = () => {
 
   const handleResetTimetable = async () => {
     const classLabel = viewMode === 'class' ? `${selectedGrade}${selectedSection}` : 'selected faculty';
-    if (!window.confirm(`Are you sure you want to purge the ${classLabel} timetable? This cannot be undone.`)) return;
     
-    try {
-      setResetting(true);
-      if (viewMode === 'class' && selectedGrade && selectedSection) {
-        // Delete specifically for this class
-        const idToDelete = `${selectedGrade}-${selectedSection}`;
-        await timetableAPI.delete(idToDelete);
-      } else {
-        // If it's a specific record ID
-        await timetableAPI.delete(timetableId);
+    showAlert({
+      title: 'Confirm Temporal Purge',
+      message: `Are you sure you want to purge the ${classLabel} timetable? This action is permanent.`,
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          setResetting(true);
+          if (viewMode === 'class' && selectedGrade && selectedSection) {
+            const idToDelete = `${selectedGrade}-${selectedSection}`;
+            await timetableAPI.delete(idToDelete);
+          } else {
+            await timetableAPI.delete(timetableId);
+          }
+          await fetchData();
+          setTimetableId(null);
+          showAlert({
+            title: 'Purge Successful',
+            message: 'Timetable has been purged and synchronized.',
+            type: 'success'
+          });
+        } catch (error) {
+          showAlert({
+            title: 'Purge Failed',
+            message: 'Failed to purge timetable records.',
+            type: 'error'
+          });
+        } finally {
+          setResetting(false);
+        }
       }
-      
-      // Save empty state to database (actually delete is enough)
-      // and fetch back to ensure UI is in sync
-      await fetchData();
-      
-      setTimetableId(null);
-      alert('Timetable has been purged and synchronized.');
-    } catch (error) {
-      console.error('Error resetting timetable:', error);
-      alert('Failed to purge timetable');
-    } finally {
-      setResetting(false);
-    }
+    });
   };
 
   const handleTeacherSelect = (teacherId) => {
@@ -482,10 +503,17 @@ const Timetable = () => {
       setPeriods(editingPeriods);
       setPeriodModalOpen(false);
       await fetchData();
-      alert('Period schema synchronized successfully.');
+      showAlert({
+        title: 'Axis Synchronized',
+        message: 'Period schema synchronized successfully.',
+        type: 'success'
+      });
     } catch (error) {
-      console.error('Error saving periods:', error);
-      alert('Failed to save periods.');
+      showAlert({
+        title: 'Save Failed',
+        message: 'Failed to save period schema.',
+        type: 'error'
+      });
     } finally {
       setSaving(false);
     }
@@ -562,13 +590,8 @@ const Timetable = () => {
   const nextPeriod = getNextPeriod();
 
   return (
-    <div className="timetable-container">
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      
-      <div className="timetable-content">
-        <TopNav user={user} onLogout={handleLogout} />
-
-        <main>
+    <div className="timetable-module-content">
+      <main>
           <div className="timetable-header">
             <div>
               <div className="badge-academic">Temporal Flow Alpha</div>
@@ -913,8 +936,7 @@ const Timetable = () => {
             </div>
           )}
         </main>
-      </div>
-
+      
       {editModalOpen && editingCell && (
         <div className="premium-modal-overlay">
           <div className="premium-modal-content" style={{ width: '550px' }}>

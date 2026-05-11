@@ -156,27 +156,50 @@ const assignSubjects = asyncHandler(async (req, res) => {
   const { subjectIds } = req.body;
   const classId = req.params.id;
 
-  // Fetch all sections for this class
-  const { data: sections } = await supabase.from(COLLECTIONS.SECTIONS).select('name').eq('class_id', classId);
-  const sectionNames = sections && sections.length > 0 ? sections.map(s => s.name) : ['A'];
+  // 1. Get current assignments for this class
+  const { data: currentAssignments } = await supabase
+    .from(COLLECTIONS.CLASS_SUBJECTS)
+    .select('subject_id')
+    .eq('class_id', classId);
+  
+  const currentSubjectIds = Array.from(new Set((currentAssignments || []).map(a => a.subject_id)));
+  
+  // 2. Determine changes
+  const subjectsToAdd = subjectIds.filter(id => !currentSubjectIds.includes(id));
+  const subjectsToRemove = currentSubjectIds.filter(id => !subjectIds.includes(id));
 
-  for (const subjectId of subjectIds) {
-    for (const sectionName of sectionNames) {
-      try {
-        await supabaseService.create(COLLECTIONS.CLASS_SUBJECTS, {
-          class_id: classId,
-          subject_id: subjectId,
-          section: sectionName
-        });
-      } catch (err) {
-        // Ignore conflict errors
+  // 3. Remove subjects no longer assigned
+  if (subjectsToRemove.length > 0) {
+    await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .delete()
+      .eq('class_id', classId)
+      .in('subject_id', subjectsToRemove);
+  }
+
+  // 4. Add new subjects for all sections
+  if (subjectsToAdd.length > 0) {
+    const { data: sections } = await supabase.from(COLLECTIONS.SECTIONS).select('name').eq('class_id', classId);
+    const sectionNames = sections && sections.length > 0 ? sections.map(s => s.name) : ['A'];
+
+    for (const subjectId of subjectsToAdd) {
+      for (const sectionName of sectionNames) {
+        try {
+          await supabaseService.create(COLLECTIONS.CLASS_SUBJECTS, {
+            class_id: classId,
+            subject_id: subjectId,
+            section: sectionName
+          });
+        } catch (err) {
+          // Ignore conflict errors
+        }
       }
     }
   }
 
   res.json({
     success: true,
-    message: 'Subjects assigned successfully'
+    message: 'Curriculum synchronized successfully'
   });
 });
 

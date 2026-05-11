@@ -131,7 +131,7 @@ const ExamResults = () => {
       <div style={{ marginLeft: '260px', flex: 1 }}>
         <TopNav user={currentUser} onLogout={handleLogout} />
         
-        <main style={{ padding: '100px 40px 40px' }}>
+        <main style={{ padding: '120px 40px 40px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>

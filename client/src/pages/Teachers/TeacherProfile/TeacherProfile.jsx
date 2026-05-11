@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { teacherAPI, courseAPI, staffAPI, academicClassesAPI, academicSubjectsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
-import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
-import TopNav from '../../../components/layout/TopNav';
 
 // Modern Icon Components
 const displayGrade = (g) => {
@@ -47,12 +45,12 @@ const gradeOptions = [
   { value: 'KG 1', label: 'KG 1' },
   { value: 'KG 2', label: 'KG 2' },
   { value: 'KG 3', label: 'KG 3' },
-  { value: 'Primary 1', label: 'Basic 1' },
-  { value: 'Primary 2', label: 'Basic 2' },
-  { value: 'Primary 3', label: 'Basic 3' },
-  { value: 'Primary 4', label: 'Basic 4' },
-  { value: 'Primary 5', label: 'Basic 5' },
-  { value: 'Primary 6', label: 'Basic 6' },
+  { value: 'Basic 1', label: 'Basic 1' },
+  { value: 'Basic 2', label: 'Basic 2' },
+  { value: 'Basic 3', label: 'Basic 3' },
+  { value: 'Basic 4', label: 'Basic 4' },
+  { value: 'Basic 5', label: 'Basic 5' },
+  { value: 'Basic 6', label: 'Basic 6' },
   { value: 'Basic 7', label: 'Basic 7' },
   { value: 'Basic 8', label: 'Basic 8' },
   { value: 'Basic 9', label: 'Basic 9' },
@@ -93,9 +91,9 @@ const FormSection = ({ title, icon, children }) => (
 
 const FormGroup = ({ label, name, value, onChange, type = 'text', options = [] }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-    <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>{label}</label>
+    <label className="premium-label">{label}</label>
     {type === 'select' ? (
-      <select name={name} value={value || ''} onChange={onChange} style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', backgroundColor: 'white', transition: 'all 0.2s' }}>
+      <select name={name} value={value || ''} onChange={onChange} className="premium-input" style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', backgroundColor: 'white', transition: 'all 0.2s' }}>
         <option value="">Select Option</option>
         {options.map((opt, idx) => (
           <option key={idx} value={opt.v || opt.value || ''}>
@@ -104,7 +102,7 @@ const FormGroup = ({ label, name, value, onChange, type = 'text', options = [] }
         ))}
       </select>
     ) : (
-      <input type={type} name={name} value={value || ''} onChange={onChange} style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', transition: 'all 0.2s' }} />
+      <input type={type} name={name} value={value || ''} onChange={onChange} className="premium-input" style={{ width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', transition: 'all 0.2s' }} />
     )}
   </div>
 );
@@ -166,7 +164,6 @@ const TeacherProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { logout, user } = useAuth();
-  const [activeMenu, setActiveMenu] = useState('Staff');
   const [activeTab, setActiveTab] = useState('personal');
   const [loading, setLoading] = useState(true);
   const [teacher, setTeacher] = useState(null);
@@ -207,28 +204,19 @@ const TeacherProfile = () => {
         res = await teacherAPI.getById(id);
       } catch (err) {
         if (err.response?.status === 404) {
-          // Fallback: check if this is a staff member
           try {
             const staffRes = await staffAPI.getById(id);
             if (staffRes.data) {
               res = staffRes;
               setIsStaff(true);
-            } else {
-              throw err;
-            }
-          } catch (sErr) {
-            throw err;
-          }
-        } else {
-          throw err;
-        }
+            } else { throw err; }
+          } catch (sErr) { throw err; }
+        } else { throw err; }
       }
 
       if (res.data?.success || res.data) {
         const data = res.data.data || res.data;
         setTeacher(data);
-
-        // Fetch actual course assignments for academic matrix
         try {
           const coursesRes = await courseAPI.getByTeacher(id);
           if (coursesRes.data?.success) {
@@ -290,32 +278,7 @@ const TeacherProfile = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const teacherData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        gender: formData.gender,
-        dateOfBirth: formData.dateOfBirth,
-        nationality: formData.nationality,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        emergencyContact: formData.emergencyContact,
-        subject: formData.subject,
-        subjects: formData.subjects || [],
-        grades: formData.grades || [],
-        qualifications: formData.qualifications,
-        salary: formData.salary,
-        dateOfEmployment: formData.dateOfEmployment,
-        contractType: formData.contractType,
-        socialSecurity: formData.socialSecurity,
-        status: formData.status,
-        bankAccount: formData.bankAccount,
-        position: formData.position,
-        specialization: formData.specialization,
-        experience: formData.experience,
-        bio: formData.bio
-      };
-      
+      const teacherData = { ...formData };
       if (isStaff) {
         await staffAPI.update(id, formData);
       } else {
@@ -331,281 +294,333 @@ const TeacherProfile = () => {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}><div className="spinner"></div></div>;
+  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}><div className="premium-loader"></div></div>;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
-          {/* Header Action Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      <div style={{ maxWidth: '1600px', padding: '0 0 60px 0' }}>
+          {/* Header Section */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
               <button 
                 onClick={() => navigate('/teachers')} 
-                className="premium-btn-secondary"
-                style={{ width: '48px', height: '48px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: '16px', 
+                  border: '1px solid var(--brand-slate-200)', 
+                  backgroundColor: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: 'var(--brand-slate-600)'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-slate-50)'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
               >
                 <Icons.ArrowLeft />
               </button>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Faculty Node</span>
-                  <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Faculty Ledger</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Faculty Portfolio</span>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand-slate-300)' }}></div>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--brand-slate-500)' }}>{teacher?.employeeId || 'Staff'}</span>
                 </div>
-                <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>
+                <h1 style={{ fontSize: '32px', fontWeight: '800', color: 'var(--brand-slate-900)', margin: 0, letterSpacing: '-0.02em' }}>
                   {teacher?.firstName} <span style={{ color: 'var(--brand-green)' }}>{teacher?.lastName}</span>
                 </h1>
-                <p style={{ fontSize: '16px', color: '#475569', marginTop: '8px', fontWeight: '500' }}>Institutional profile and professional standing for node {teacher?.employeeId || 'N/A'}.</p>
               </div>
             </div>
+
             <div style={{ display: 'flex', gap: '12px' }}>
               {editing ? (
                 <>
-                  <button onClick={handleSave} disabled={saving} className="premium-btn-primary">
-                    {saving ? <div className="mini-spinner"></div> : <Icons.Check />}
-                    Commit Profile
+                  <button onClick={() => setEditing(false)} className="premium-btn-secondary" style={{ backgroundColor: 'white', border: '1px solid var(--brand-slate-200)', boxShadow: 'none' }}>
+                    <Icons.X /> Cancel
                   </button>
-                  <button onClick={() => setEditing(false)} className="premium-btn-secondary">
-                    <Icons.X />
-                    Abort
+                  <button onClick={handleSave} disabled={saving} className="premium-btn-primary">
+                    {saving ? <div className="mini-spinner"></div> : <Icons.Check />} Save Profile
                   </button>
                 </>
               ) : (
                 <button onClick={startEdit} className="premium-btn-primary">
-                  <Icons.Edit />
-                  Update Credentials
+                  <Icons.Edit /> Edit Credentials
                 </button>
               )}
             </div>
           </div>
 
+          {success && (
+            <div style={{ 
+              backgroundColor: '#ecfdf5', 
+              color: '#065f46', 
+              padding: '16px 24px', 
+              borderRadius: '16px', 
+              marginBottom: '32px', 
+              border: '1px solid #d1fae5', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              fontWeight: '600',
+              animation: 'slideDown 0.4s cubic-bezier(0, 0, 0.2, 1)'
+            }}>
+              <Icons.Check /> {success}
+            </div>
+          )}
 
-          {success && <div style={{ backgroundColor: '#ecfdf5', color: '#065f46', padding: '16px 24px', borderRadius: '12px', marginBottom: '24px', borderLeft: '4px solid #10b981', fontWeight: '500', animation: 'slideIn 0.3s ease-out' }}>{success}</div>}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '32px' }}>
-            {/* Profile Sidebar */}
-            <aside>
-              <div className="glass-card" style={{ padding: '40px 32px', textAlign: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '32px', alignItems: 'start' }}>
+            {/* Sidebar Card */}
+            <div className="glass-card" style={{ padding: '40px 32px', position: 'sticky', top: '110px' }}>
+              <div style={{ position: 'relative', width: '140px', height: '140px', margin: '0 auto 24px' }}>
                 <div style={{ 
-                  width: '140px', 
-                  height: '140px', 
-                  borderRadius: '40px', 
+                  width: '100%', 
+                  height: '100%', 
+                  borderRadius: '48px', 
                   backgroundColor: 'var(--brand-green)', 
-                  margin: '0 auto 28px', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  color: 'white', 
                   fontSize: '48px', 
-                  fontWeight: '900', 
-                  boxShadow: '0 20px 40px rgba(0, 132, 62, 0.2)',
-                  border: '4px solid white'
+                  fontWeight: '800', 
+                  color: 'white',
+                  border: '4px solid white',
+                  boxShadow: '0 10px 25px rgba(0, 132, 62, 0.2)'
                 }}>
                   {teacher?.firstName?.[0]}{teacher?.lastName?.[0]}
                 </div>
-                <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '8px', letterSpacing: '-0.5px' }}>{teacher?.firstName} {teacher?.lastName}</h2>
-                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '24px', fontWeight: '600' }}>{teacher?.position || 'Teacher'}</p>
                 <div style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: '8px 20px', 
-                  borderRadius: '20px', 
-                  backgroundColor: teacher?.status === 'active' ? '#ecfdf5' : '#fef2f2', 
-                  color: teacher?.status === 'active' ? '#065f46' : '#991b1b', 
-                  fontSize: '11px', 
-                  fontWeight: '900', 
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  border: `1px solid ${teacher?.status === 'active' ? '#d1fae5' : '#fee2e2'}`
-                }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'currentColor' }}></span>
-                  {teacher?.status || 'Active'}
-                </div>
-
-                <div style={{ marginTop: '40px', borderTop: '1px solid var(--brand-slate-100)', paddingTop: '40px', textAlign: 'left' }}>
-                  <h3 style={{ fontSize: '11px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '24px' }}>Communication Nodes</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <InfoRow icon={<Icons.Mail />} label="Electronic Mail" value={teacher?.email} />
-                    <InfoRow icon={<Icons.Phone />} label="Institutional Line" value={teacher?.phone} />
-                    <InfoRow icon={<Icons.Briefcase />} label="Employee ID" value={teacher?.employeeId} />
-                    <InfoRow icon={<Icons.MapPin />} label="Geographic Node" value={teacher?.address?.city} />
-                  </div>
-                </div>
+                  position: 'absolute', 
+                  bottom: '5px', 
+                  right: '5px', 
+                  width: '32px', 
+                  height: '32px', 
+                  borderRadius: '10px', 
+                  backgroundColor: teacher?.status === 'active' ? '#10b981' : '#ef4444',
+                  border: '3px solid white',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                }}></div>
               </div>
-            </aside>
 
+              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--brand-slate-900)', margin: '0 0 8px 0' }}>{teacher?.firstName} {teacher?.lastName}</h2>
+                <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--brand-slate-500)', margin: 0 }}>{teacher?.position || 'Teacher'}</p>
+              </div>
 
-            {/* Main Content Area */}
-            <section>
-              <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-                {!editing && (
-                  <div style={{ display: 'flex', padding: '0 32px', backgroundColor: 'var(--brand-slate-50)', borderBottom: '1px solid var(--brand-slate-100)' }}>
-                    {['personal', 'professional', 'academic'].map(tab => (
-                      <button 
-                        key={tab} 
-                        onClick={() => setActiveTab(tab)} 
-                        style={{ 
-                          padding: '24px 32px', 
-                          border: 'none', 
-                          background: 'none', 
-                          fontSize: '13px', 
-                          fontWeight: '900', 
-                          color: activeTab === tab ? 'var(--brand-green)' : '#94a3b8', 
-                          borderBottom: activeTab === tab ? '3px solid var(--brand-green)' : '3px solid transparent', 
-                          cursor: 'pointer', 
-                          transition: 'all 0.2s', 
-                          textTransform: 'uppercase',
-                          letterSpacing: '1px'
-                        }}
-                      >
-                        {tab} Matrix
-                      </button>
-                    ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderTop: '1px solid var(--brand-slate-100)', paddingTop: '32px' }}>
+                <QuickInfo icon={<Icons.Mail />} label="Email Address" value={teacher?.email} />
+                <QuickInfo icon={<Icons.Phone />} label="Phone Number" value={teacher?.phone} />
+                <QuickInfo icon={<Icons.Briefcase />} label="Employee ID" value={teacher?.employeeId} />
+                <QuickInfo icon={<Icons.MapPin />} label="Location" value={teacher?.address?.city} />
+              </div>
+            </div>
+
+            {/* Main Content Card */}
+            <div className="glass-card" style={{ padding: 0, overflow: 'hidden', minHeight: '600px' }}>
+              <div style={{ display: 'flex', padding: '0 32px', borderBottom: '1px solid var(--brand-slate-100)', backgroundColor: '#fcfdfe' }}>
+                {[
+                  { id: 'personal', label: 'Personal Information', icon: <Icons.User /> },
+                  { id: 'professional', label: 'Professional Career', icon: <Icons.Briefcase /> },
+                  { id: 'academic', label: 'Academic Assignments', icon: <Icons.Book /> }
+                ].map(tab => (
+                  <button 
+                    key={tab.id} 
+                    onClick={() => setActiveTab(tab.id)} 
+                    style={{ 
+                      padding: '24px 24px', 
+                      border: 'none', 
+                      background: 'none', 
+                      fontSize: '14px', 
+                      fontWeight: '700', 
+                      color: activeTab === tab.id ? 'var(--brand-green)' : 'var(--brand-slate-400)', 
+                      borderBottom: activeTab === tab.id ? '3px solid var(--brand-green)' : '3px solid transparent', 
+                      cursor: 'pointer', 
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <span style={{ opacity: activeTab === tab.id ? 1 : 0.6 }}>{tab.icon}</span>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ padding: '40px' }}>
+                {editing ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                      <div style={{ gridColumn: 'span 3' }}><SectionTitle title="Identity & Personal" /></div>
+                      <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
+                      <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label className="premium-label">Gender</label>
+                        <select name="gender" value={formData.gender || ''} onChange={handleChange} className="premium-input">
+                          <option value="">Select Gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                        </select>
+                      </div>
+                      <FormGroup label="Date of Birth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} type="date" />
+                      <FormGroup label="Nationality" name="nationality" value={formData.nationality} onChange={handleChange} />
+                      <FormGroup label="SSNIT Number" name="socialSecurity" value={formData.socialSecurity} onChange={handleChange} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                      <div style={{ gridColumn: 'span 3' }}><SectionTitle title="Contact & Residence" /></div>
+                      <FormGroup label="Email" name="email" value={formData.email} onChange={handleChange} />
+                      <FormGroup label="Phone" name="phone" value={formData.phone} onChange={handleChange} />
+                      <FormGroup label="Street" name="address.street" value={formData.address?.street} onChange={handleChange} />
+                      <FormGroup label="City" name="address.city" value={formData.address?.city} onChange={handleChange} />
+                      <FormGroup label="Emergency Contact" name="emergencyContact.name" value={formData.emergencyContact?.name} onChange={handleChange} />
+                      <FormGroup label="Emergency Phone" name="emergencyContact.phone" value={formData.emergencyContact?.phone} onChange={handleChange} />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                      <SectionTitle title="Professional Details" />
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <label className="premium-label">Primary Subject</label>
+                          <select name="subject" value={formData.subject || ''} onChange={handleChange} className="premium-input">
+                            <option value="">Select Subject</option>
+                            {(dbSubjects.length > 0 ? dbSubjects.map(s => s.name) : subjectOptions.map(s => s.value)).map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <FormGroup label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} />
+                        <FormGroup label="Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
+                        <FormGroup label="Position" name="position" value={formData.position} onChange={handleChange} />
+                        <FormGroup label="Experience (Years)" name="experience" value={formData.experience} onChange={handleChange} type="number" />
+                        <FormGroup label="Employment Date" name="dateOfEmployment" value={formData.dateOfEmployment} onChange={handleChange} type="date" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                    {activeTab === 'personal' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+                        <DetailBlock label="Gender" value={teacher?.gender} icon={<Icons.User />} />
+                        <DetailBlock label="Date of Birth" value={teacher?.dateOfBirth ? new Date(teacher.dateOfBirth).toLocaleDateString() : 'N/A'} icon={<Icons.Calendar />} />
+                        <DetailBlock label="Nationality" value={teacher?.nationality} icon={<Icons.Shield />} />
+                        <DetailBlock label="SSNIT ID" value={teacher?.socialSecurity} icon={<Icons.Shield />} />
+                        <DetailBlock label="Residential Address" value={`${teacher?.address?.street}, ${teacher?.address?.city}`} icon={<Icons.MapPin />} fullWidth />
+                        <DetailBlock label="Emergency Contact" value={`${teacher?.emergencyContact?.name} (${teacher?.emergencyContact?.phone})`} icon={<Icons.Phone />} fullWidth />
+                      </div>
+                    )}
+                    {activeTab === 'professional' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+                        <DetailBlock label="Employment Date" value={teacher?.dateOfEmployment ? new Date(teacher.dateOfEmployment).toLocaleDateString() : 'N/A'} icon={<Icons.Calendar />} />
+                        <DetailBlock label="Contract Type" value={teacher?.contractType} icon={<Icons.Briefcase />} />
+                        <DetailBlock label="Highest Qualification" value={teacher?.qualifications} icon={<Icons.Award />} />
+                        <DetailBlock label="Specialization" value={teacher?.specialization} icon={<Icons.Book />} />
+                        <DetailBlock label="Monthly Salary" value={teacher?.salary ? `GHS ${teacher.salary.toLocaleString()}` : 'N/A'} icon={<Icons.Briefcase />} />
+                        <DetailBlock label="Professional Experience" value={`${teacher?.experience || 0} Years`} icon={<Icons.Award />} />
+                      </div>
+                    )}
+                    {activeTab === 'academic' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
+                        <div>
+                          <SectionTitle title="Assigned Curriculum Nodes" />
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => c.name || c.subject))] : (teacher?.subjects || [])).map((s, i) => (
+                              <Badge key={i} text={s} color="var(--brand-green)" />
+                            ))}
+                            {teacherCourses.length === 0 && (!teacher?.subjects || teacher.subjects.length === 0) && <p style={{ color: 'var(--brand-slate-400)', fontSize: '14px' }}>No subjects assigned</p>}
+                          </div>
+                        </div>
+                        <div>
+                          <SectionTitle title="Teaching Grade Matrix" />
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => `${c.grade} ${c.section || 'A'}`))] : (teacher?.grades || [])).map((g, i) => (
+                              <Badge key={i} text={g} color="#6366f1" />
+                            ))}
+                            {teacherCourses.length === 0 && (!teacher?.grades || teacher.grades.length === 0) && <p style={{ color: 'var(--brand-slate-400)', fontSize: '14px' }}>No grades assigned</p>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-
-
-                <div style={{ padding: '40px' }}>
-                  {editing ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-                      <FormSection title="Identity & Personal" icon={<Icons.User />}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                          <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
-                          <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
-                          <FormGroup label="Gender" name="gender" value={formData.gender} onChange={handleChange} type="select" options={[{v:'male', l:'Male'}, {v:'female', l:'Female'}]} />
-                          <FormGroup label="Date of Birth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} type="date" />
-                          <FormGroup label="Nationality" name="nationality" value={formData.nationality} onChange={handleChange} />
-                          <FormGroup label="SSNIT Number" name="socialSecurity" value={formData.socialSecurity} onChange={handleChange} />
-                        </div>
-                      </FormSection>
-
-                      <FormSection title="Contact & Residence" icon={<Icons.MapPin />}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                          <FormGroup label="Personal Email" name="email" value={formData.email} onChange={handleChange} />
-                          <FormGroup label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
-                          <FormGroup label="Street Address" name="address.street" value={formData.address?.street} onChange={handleChange} />
-                          <FormGroup label="City" name="address.city" value={formData.address?.city} onChange={handleChange} />
-                          <FormGroup label="Emergency Contact" name="emergencyContact.name" value={formData.emergencyContact?.name} onChange={handleChange} />
-                          <FormGroup label="Emergency Phone" name="emergencyContact.phone" value={formData.emergencyContact?.phone} onChange={handleChange} />
-                        </div>
-                      </FormSection>
-
-                      <FormSection title="Professional Career" icon={<Icons.Briefcase />}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                          <FormGroup 
-                            label="Primary Subject" 
-                            name="subject" 
-                            value={formData.subject} 
-                            onChange={handleChange} 
-                            type="select" 
-                            options={dbSubjects.length > 0 ? dbSubjects.map(s => ({v:s.name, l:s.name})) : subjectOptions.map(s => ({v:s.value, l:s.label}))} 
-                          />
-                          <MultiSelect 
-                            label="All Subjects" 
-                            name="subjects" 
-                            value={formData.subjects || []} 
-                            onChange={(val) => setFormData(prev => ({ ...prev, subjects: val }))} 
-                            options={dbSubjects.length > 0 ? dbSubjects.map(s => ({value:s.name, label:s.name})) : subjectOptions} 
-                          />
-                          <MultiSelect 
-                            label="Teaching Grades" 
-                            name="grades" 
-                            value={formData.grades || []} 
-                            onChange={(val) => setFormData(prev => ({ ...prev, grades: val }))} 
-                            options={dbGrades.length > 0 ? dbGrades.map(g => ({value:g.name, label:g.name})) : gradeOptions} 
-                          />
-                          <FormGroup label="Contract" name="contractType" value={formData.contractType} onChange={handleChange} type="select" options={[{v:'permanent', l:'Permanent'}, {v:'contract', l:'Contract'}]} />
-                          <FormGroup label="Highest Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} type="select" options={qualificationOptions.map(q => ({v:q.value, l:q.label}))} />
-                          <FormGroup label="Monthly Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
-                          <FormGroup label="Specialization" name="specialization" value={formData.specialization} onChange={handleChange} />
-                          <FormGroup label="Years of Experience" name="experience" value={formData.experience} onChange={handleChange} type="number" />
-                          <FormGroup label="Position/Role" name="position" value={formData.position} onChange={handleChange} />
-                          <FormGroup label="Employment Date" name="dateOfEmployment" value={formData.dateOfEmployment} onChange={handleChange} type="date" />
-                          <FormGroup label="Employment Status" name="status" value={formData.status} onChange={handleChange} type="select" options={[{v:'active', l:'Active'}, {v:'inactive', l:'Inactive'}]} />
-                        </div>
-                      </FormSection>
-                    </div>
-                  ) : (
-                    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-                      {activeTab === 'personal' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
-                          <DataBlock label="Gender Specification" value={teacher?.gender} />
-                          <DataBlock label="Temporal Birth" value={teacher?.dateOfBirth} />
-                          <DataBlock label="National Identity" value={teacher?.nationality} />
-                          <DataBlock label="SSNIT Identifier" value={teacher?.socialSecurity} />
-                          <DataBlock label="Residential Node" value={`${teacher?.address?.street}, ${teacher?.address?.city}`} fullWidth />
-                          <DataBlock label="Emergency Protocol" value={`${teacher?.emergencyContact?.name} (${teacher?.emergencyContact?.phone})`} fullWidth />
-                        </div>
-                      )}
-                      {activeTab === 'professional' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
-                          <DataBlock label="Commission Date" value={teacher?.dateOfEmployment} />
-                          <DataBlock label="Contract Status" value={teacher?.contractType} badge />
-                          <DataBlock label="Highest Qualification" value={teacher?.qualifications} />
-                          <DataBlock label="Professional Specialization" value={teacher?.specialization} />
-                          <DataBlock label="Institutional Remuneration" value={teacher?.salary ? `GHS ${teacher.salary.toLocaleString()}` : 'N/A'} />
-                          <DataBlock label="Faculty Experience" value={`${teacher?.experience || 0} Years`} />
-                        </div>
-                      )}
-                      {activeTab === 'academic' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                          <div>
-                            <p style={{ fontSize: '11px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '24px' }}>Allocated Curriculum Nodes</p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                              {teacherCourses.length > 0 ? (
-                                [...new Set(teacherCourses.map(c => c.name || c.subject))].map((s, i) => (
-                                  <div key={i} style={{ padding: '12px 24px', backgroundColor: 'var(--brand-slate-50)', color: 'var(--brand-green)', borderRadius: '14px', fontSize: '14px', fontWeight: '700', border: '1px solid var(--brand-slate-100)' }}>{s}</div>
-                                ))
-                              ) : (
-                                (teacher?.subjects || []).map((s, i) => (
-                                  <div key={i} style={{ padding: '12px 24px', backgroundColor: 'var(--brand-slate-50)', color: 'var(--brand-green)', borderRadius: '14px', fontSize: '14px', fontWeight: '700', border: '1px solid var(--brand-slate-100)' }}>{s}</div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <p style={{ fontSize: '11px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '24px' }}>Teaching Grade Matrix</p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                              {teacherCourses.length > 0 ? (
-                                [...new Set(teacherCourses.map(c => `${c.grade} ${c.section || 'A'}`))].map((g, i) => (
-                                  <div key={i} style={{ padding: '12px 24px', backgroundColor: 'var(--brand-slate-50)', color: '#6366f1', borderRadius: '14px', fontSize: '14px', fontWeight: '700', border: '1px solid var(--brand-slate-100)' }}>{g}</div>
-                                ))
-                              ) : (
-                                (teacher?.grades || []).map((g, i) => (
-                                  <div key={i} style={{ padding: '12px 24px', backgroundColor: 'var(--brand-slate-50)', color: '#6366f1', borderRadius: '14px', fontSize: '14px', fontWeight: '700', border: '1px solid var(--brand-slate-100)' }}>{g}</div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                  )}
-                </div>
               </div>
-            </section>
+            </div>
           </div>
-        </main>
       </div>
-      
-      {/* Styles & Animations */}
+
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
-        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--brand-green); borderRadius: 50%; animation: spin 1s linear infinite; }
-        .mini-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; borderRadius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        input:focus, select:focus { border-color: var(--brand-green) !important; box-shadow: 0 0 0 4px rgba(0, 132, 62, 0.1) !important; outline: none !important; }
-        .user-profile-trigger:hover { background-color: #f8fafc; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .mini-spinner { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
 };
+
+// Helper Components
+const QuickInfo = ({ icon, label, value }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+    <div style={{ 
+      width: '40px', 
+      height: '40px', 
+      borderRadius: '12px', 
+      backgroundColor: 'var(--brand-slate-50)', 
+      color: 'var(--brand-green)', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      border: '1px solid var(--brand-slate-100)'
+    }}>{icon}</div>
+    <div>
+      <p style={{ margin: 0, fontSize: '11px', color: 'var(--brand-slate-400)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+      <p style={{ margin: '2px 0 0', fontSize: '14px', color: 'var(--brand-slate-900)', fontWeight: '700' }}>{value || 'N/A'}</p>
+    </div>
+  </div>
+);
+
+const DetailBlock = ({ label, value, icon, fullWidth = false }) => (
+  <div style={{ gridColumn: fullWidth ? 'span 2' : 'auto' }}>
+    <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: 'var(--brand-slate-400)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+      <span style={{ color: 'var(--brand-green)', marginTop: '2px', opacity: 0.6 }}>{icon}</span>
+      <p style={{ margin: 0, fontSize: '16px', color: 'var(--brand-slate-900)', fontWeight: '600', lineHeight: 1.5 }}>{value || 'Not provided'}</p>
+    </div>
+  </div>
+);
+
+const SectionTitle = ({ title }) => (
+  <h3 style={{ 
+    fontSize: '14px', 
+    fontWeight: '800', 
+    color: 'var(--brand-slate-900)', 
+    textTransform: 'uppercase', 
+    letterSpacing: '0.1em', 
+    margin: '0 0 24px 0',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  }}>
+    {title}
+    <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--brand-slate-100)' }}></div>
+  </h3>
+);
+
+
+const Badge = ({ text, color }) => (
+  <div style={{ 
+    padding: '10px 20px', 
+    backgroundColor: 'white', 
+    color: color, 
+    borderRadius: '14px', 
+    fontSize: '14px', 
+    fontWeight: '700', 
+    border: '1px solid var(--brand-slate-100)',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+  }}>
+    {text}
+  </div>
+);
 
 export default TeacherProfile;

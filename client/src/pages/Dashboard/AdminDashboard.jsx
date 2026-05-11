@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentAPI, teacherAPI, courseAPI, feeAPI, parentAPI, academicSubjectsAPI } from '../../services/api';
+import { studentAPI, teacherAPI, courseAPI, feeAPI, parentAPI, attendanceAPI, staffAPI, academicSubjectsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
-
 // Icon components
 const Icons = {
   Users: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
@@ -62,7 +59,6 @@ const MetricCard = ({ title, value, icon, color, onClick, subtitle }) => (
       <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1.2px' }}>{title}</h3>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
         <p style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>{value || 0}</p>
-        <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--brand-green)' }}>↑ 12%</span>
       </div>
     </div>
   </div>
@@ -138,7 +134,7 @@ const AdminDashboard = () => {
   const { logout, isAuthenticated, loading: authLoading, user } = useAuth();
   const [activeMenu, setActiveMenu] = useState('Dashboard');
   const [storedUser, setStoredUser] = useState(null);
-  const [stats, setStats] = useState({ students: 0, teachers: 0, courses: 0, revenue: 0, parents: 0 });
+  const [stats, setStats] = useState({ students: 0, teachers: 0, nonTeachingStaff: 0, subjects: 0, revenue: 0, parents: 0, attendanceRate: 0 });
   const [loading, setLoading] = useState(true);
   const [recentStudents, setRecentStudents] = useState([]);
   const [recentTeachers, setRecentTeachers] = useState([]);
@@ -158,27 +154,36 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, teachersRes, coursesRes, parentsRes, subjectsRes] = await Promise.all([
+      const today = new Date().toISOString().split('T')[0];
+      const [studentsRes, teachersRes, subjectsRes, parentsRes, staffRes, attendanceRes] = await Promise.all([
         studentAPI.getAll({ limit: 1000 }),
         teacherAPI.getAll({ limit: 1000 }),
-        courseAPI.getAll({ limit: 100 }),
+        academicSubjectsAPI.getAll().catch(e => { console.warn('Subjects API failed'); return { data: { data: [] } }; }),
         parentAPI.getAll({ limit: 1000 }).catch(e => { console.warn('Parent API failed'); return null; }),
-        academicSubjectsAPI.getAll().catch(e => { console.warn('Subjects API failed'); return null; })
+        staffAPI.getAll({ limit: 1000 }).catch(e => { console.warn('Staff API failed'); return { data: { data: [] } }; }),
+        attendanceAPI.getAll({ date: today }).catch(e => { console.warn('Attendance API failed'); return { data: { data: [] } }; })
       ]);
 
       const students = studentsRes?.data?.data || [];
       const teachers = teachersRes?.data?.data || [];
-      const courses = coursesRes?.data?.data || [];
-      const parents = parentsRes?.data?.data || [];
-
       const subjects = subjectsRes?.data?.data || [];
+      const parents = parentsRes?.data?.data || [];
+      const staff = staffRes?.data?.data || [];
+      const attendance = attendanceRes?.data?.data || [];
+
+      // Calculate attendance rate
+      const totalAttended = attendance.length;
+      const presentCount = attendance.filter(r => r.status === 'present').length;
+      const attendanceRate = totalAttended > 0 ? Math.round((presentCount / totalAttended) * 100) : 0;
 
       setStats({
         students: students.length,
         teachers: teachers.length,
-        courses: subjects.length, // Show total subjects instead of assignments
+        nonTeachingStaff: staff.length,
+        subjects: subjects.length,
         revenue: 0,
-        parents: parents.length
+        parents: parents.length,
+        attendanceRate: attendanceRate
       });
 
       // Get recent students (last 5)
@@ -204,21 +209,15 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-        <div style={{ marginLeft: '260px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="spinner"></div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px' }}>
+        <div className="spinner"></div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: 'var(--main-margin)', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
+    <div className="admin-dashboard-content">
+      <main style={{ padding: '0 0 60px 0', animation: 'fadeIn 0.5s ease-out' }}>
           {/* Header */}
           <div style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
@@ -249,10 +248,17 @@ const AdminDashboard = () => {
               onClick={() => navigate('/students')}
             />
             <MetricCard 
-              title="Total Staff" 
+              title="Total Number of Teachers" 
               value={stats.teachers} 
               icon={<Icons.Graduation />}
               color="#00843e"
+              onClick={() => navigate('/staff')}
+            />
+            <MetricCard 
+              title="Non-Teaching Staff" 
+              value={stats.nonTeachingStaff} 
+              icon={<Icons.Users />}
+              color="#64748b"
               onClick={() => navigate('/staff')}
             />
             <MetricCard 
@@ -265,7 +271,7 @@ const AdminDashboard = () => {
 
             <MetricCard 
               title="Total Subjects" 
-              value={stats.courses} 
+              value={stats.subjects} 
               icon={<Icons.Book />}
               color="var(--brand-yellow)"
               onClick={() => navigate('/subjects')}
@@ -273,10 +279,10 @@ const AdminDashboard = () => {
 
             <MetricCard 
               title="Attendance" 
-              value="94%" 
+              value={`${stats.attendanceRate || 0}%`} 
               icon={<Icons.Activity />}
               color="#06b6d4"
-              subtitle="Today"
+              subtitle="Today's Performance"
             />
           </div>
 
@@ -384,7 +390,6 @@ const AdminDashboard = () => {
             </div>
           </div>
         </main>
-      </div>
     </div>
   );
 };

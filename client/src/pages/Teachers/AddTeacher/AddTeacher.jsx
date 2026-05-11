@@ -145,7 +145,7 @@ const AddTeacher = () => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
       <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
+      <div style={{ marginLeft: '10px', flex: 1 }}>
         <TopNav user={user} onLogout={handleLogout} />
         <div style={{ padding: '100px 30px 30px 30px' }}>
           <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

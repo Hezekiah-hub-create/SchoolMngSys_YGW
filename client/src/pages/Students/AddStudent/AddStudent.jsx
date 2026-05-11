@@ -198,12 +198,8 @@ const AddStudent = () => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: 'var(--main-margin)', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px var(--content-padding) var(--content-padding)' }}>
+    <div className="add-student-page-content">
+      <main style={{ padding: '20px 0 40px 0' }}>
           <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -353,11 +349,7 @@ const AddStudent = () => {
           </form>
         </main>
       </div>
-      <style>{`
-        .form-input:focus { border-color: var(--brand-green) !important; box-shadow: 0 0 0 4px var(--brand-green-light) !important; }
-      `}</style>
-    </div>
-  );
+    );
 };
 
 export default AddStudent;

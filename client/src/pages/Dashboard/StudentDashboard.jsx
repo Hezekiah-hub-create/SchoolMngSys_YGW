@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentAPI, gradeAPI, attendanceAPI, assignmentAPI, feeAPI, courseAPI, eventAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 
 // ─── Shared helpers ────────────────────────────────────────────────
 const Section = ({ title, action, actionPath, children, navigate }) => (
@@ -152,19 +150,8 @@ const StudentDashboard = () => {
   const gradeColor = s => s >= 80 ? { bg: '#dcfce7', color: '#00843e' } : s >= 60 ? { bg: '#fef3c7', color: '#d97706' } : { bg: '#fee2e2', color: '#dc2626' };
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', backgroundColor:'#f8fafc', fontFamily:'system-ui,sans-serif' }}>
-      <style>{`
-        :root{--brand-green:#00843e;--brand-green-dark:#006831;--brand-green-light:#dcfce7;}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-        @keyframes spin{to{transform:rotate(360deg)}}
-      `}</style>
-      <RoleBasedSidebar user={currentUser} onLogout={logout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-
-      <div style={{ marginLeft:'260px', flex:1 }}>
-        <TopNav user={currentUser} onLogout={logout} title="Student Portal" />
-
-        <div style={{ padding:'100px 28px 40px', animation:'fadeIn 0.4s ease-out' }}>
+    <div className="student-dashboard-content">
+      <div style={{ padding: '0 0 40px 0', animation: 'fadeIn 0.4s ease-out' }}>
 
           {/* ── Welcome ─────────────────────────────────── */}
           <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
@@ -423,7 +410,6 @@ const StudentDashboard = () => {
           </div>
 
         </div>
-      </div>
     </div>
   );
 };

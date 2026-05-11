@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 import { settingsAPI } from '../../services/api';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -84,14 +82,10 @@ const FinancialReports = () => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
+    <div>
+      <main>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div>
               <h1 style={{ fontSize: '32px', fontWeight: '900', color: '#1e293b', margin: 0, letterSpacing: '-0.5px' }}>Financial Reporting</h1>
               <p style={{ fontSize: '15px', color: '#64748b', marginTop: '6px' }}>Analyze school revenue, expenses, and fee collection performance.</p>
@@ -116,7 +110,7 @@ const FinancialReports = () => {
           </div>
 
           {/* Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
             <PremiumStatCard title="Total Revenue" value={`GH₵ ${reportData.stats.revenue.value}`} change={reportData.stats.revenue.change} color="#00843e" icon={reportData.stats.revenue.icon} />
             <PremiumStatCard title="Total Expenses" value={`GH₵ ${reportData.stats.expenses.value}`} change={reportData.stats.expenses.change} color="#ef4444" icon={reportData.stats.expenses.icon} />
             <PremiumStatCard title="Outstanding Fees" value={`GH₵ ${reportData.stats.outstanding.value}`} change={reportData.stats.outstanding.change} color="#f59e0b" icon={reportData.stats.outstanding.icon} />
@@ -126,7 +120,7 @@ const FinancialReports = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
             {/* Revenue Visualization */}
             <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Revenue Analysis by Category</h3>
                 <select style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px', fontWeight: '600', color: '#64748b', outline: 'none' }}>
                   <option>Current Term</option>
@@ -153,8 +147,8 @@ const FinancialReports = () => {
 
             {/* Collection Status */}
             <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '32px' }}>Collection Status</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '24px' }}>Collection Status</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {reportData.collectionStatus.map((item, i) => (
                   <div key={i}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -254,7 +248,6 @@ const FinancialReports = () => {
           @media print { .no-print { display: none !important; } }
           @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         `}</style>
-      </div>
     </div>
   );
 };

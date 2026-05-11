@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentAPI, parentAPI, dashboardAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 
 // Icon components
 const Icons = {
@@ -120,12 +118,8 @@ const AdmissionDashboard = () => {
   if (loading) return null;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: 'var(--main-margin)', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px var(--content-padding) var(--content-padding)' }}>
+    <div className="admission-dashboard-content">
+      <main style={{ padding: '0 0 40px 0', animation: 'fadeIn 0.5s ease-out' }}>
           <div style={{ marginBottom: '32px' }}>
             <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Admission Portal</h1>
             <p style={{ fontSize: '15px', color: '#64748b', marginTop: '4px' }}>Welcome, {user.firstName}. Manage student enrollments and records.</p>
@@ -183,7 +177,6 @@ const AdmissionDashboard = () => {
             </div>
           </div>
         </main>
-      </div>
     </div>
   );
 };

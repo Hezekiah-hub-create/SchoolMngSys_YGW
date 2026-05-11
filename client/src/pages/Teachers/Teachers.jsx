@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
-
 const Teachers = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated, loading: authLoading, user } = useAuth();
@@ -51,22 +48,18 @@ const Teachers = () => {
   const handleAddTeacher = () => navigate('/teachers/add');
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      <main style={{ padding: '0 0 60px 0' }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '48px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Faculty Directory</span>
+                <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Faculty Directory</span>
                 <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Teaching Staff</span>
+                <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Teaching Staff</span>
               </div>
-              <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>Faculty <span style={{ color: 'var(--brand-green)' }}>Management</span></h1>
-              <p style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>Manage and oversee all teaching staff members.</p>
+              <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>Faculty <span style={{ color: 'var(--brand-green)' }}>Registry</span></h1>
+              <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>Manage institutional educators and academic specialists.</p>
             </div>
             {isAdmin && (
               <button 
@@ -81,7 +74,7 @@ const Teachers = () => {
 
 
           {/* Search */}
-          <div style={{ marginBottom: '32px' }}>
+          <div style={{ marginBottom: '24px' }}>
             <div style={{ position: 'relative', maxWidth: '450px' }}>
               <svg style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5">
                 <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
@@ -195,8 +188,7 @@ const Teachers = () => {
               ))}
             </div>
           )}
-        </main>
-      </div>
+          </main>
     </div>
   );
 };

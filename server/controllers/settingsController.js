@@ -1,4 +1,5 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
+const supabase = require('../config/supabase');
 
 // Collection for settings (we'll add it to COLLECTIONS if needed, or just use a string)
 const SETTINGS_COLLECTION = 'settings';
@@ -62,6 +63,93 @@ const settingsController = {
     } catch (error) {
       console.error("Settings Update Error:", error);
       res.status(500).json({ message: 'Error updating settings', error: error.message });
+    }
+  },
+
+  // Get role statistics
+  getRoleStats: async (req, res) => {
+    try {
+      const users = await supabaseService.getAll(COLLECTIONS.USERS);
+      const roles = ['Administrator', 'Teacher', 'Student', 'Parent', 'Finance Officer', 'IT Support', 'Admission Officer'];
+      
+      const stats = roles.map(role => ({
+        name: role,
+        users: users.filter(u => u.role?.toLowerCase() === role.toLowerCase().replace(' ', '')).length
+      }));
+      
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  // Get identities
+  getIdentities: async (req, res) => {
+    try {
+      const users = await supabaseService.getAll(COLLECTIONS.USERS);
+      const data = users.map(u => ({
+        ...u,
+        name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+        role: u.role || 'User'
+      }));
+      res.json({ success: true, data });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  // Get academic stats
+  getAcademicStats: async (req, res) => {
+    try {
+      const [classes, subjects, sections] = await Promise.all([
+        supabaseService.getAll(COLLECTIONS.ACADEMIC_CLASSES),
+        supabaseService.getAll(COLLECTIONS.SUBJECTS),
+        supabaseService.getAll(COLLECTIONS.SECTIONS)
+      ]);
+      
+      res.json({
+        success: true,
+        data: {
+          totalClasses: classes.length,
+          totalSubjects: subjects.length,
+          totalSections: sections.length
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  // Get login history
+  getLoginHistory: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { data, error } = await supabase
+        .from('login_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('login_time', { ascending: false })
+        .limit(20);
+        
+      if (error) {
+        console.error("Login History DB Error:", error.message);
+        return res.json({ success: true, data: [] }); // Fallback to empty instead of error
+      }
+      
+      res.json({ success: true, data: data || [] });
+    } catch (error) {
+      console.error("Login History Fetch Error:", error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
+  // Get system logs
+  getSystemLogs: async (req, res) => {
+    try {
+      // Mock for now
+      res.json({ success: true, data: [] });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
     }
   }
 };

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { academicClassesAPI, academicSectionsAPI, studentAPI, teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
 
 const normalizeGrade = (g) => {
@@ -119,114 +117,108 @@ const Sections = () => {
   const filteredStudents = allStudents.filter(s => normalizeGrade(s.grade) === normalizeGrade(currentGradeName));
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Outfit', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Institutional Flow</span>
-                <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Academic Hierarchy</span>
-              </div>
-              <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>Class <span style={{ color: 'var(--brand-green)' }}>Divisions</span></h1>
-              <p style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>Coordinate scholar rosters and divisional leadership across academic tiers.</p>
+    <>
+      <main>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Institutional Flow</span>
+              <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Academic Hierarchy</span>
             </div>
+            <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>Class <span style={{ color: 'var(--brand-green)' }}>Divisions</span></h1>
+            <p style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>Coordination scholar rosters and divisional leadership across academic tiers.</p>
           </div>
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
-            <div className="glass-card" style={{ padding: '24px' }}>
-              <p className="premium-label" style={{ marginBottom: '12px' }}>Academic Tiers</p>
-              <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{stats.totalClasses}</p>
-              <div style={{ width: '40px', height: '4px', backgroundColor: 'var(--brand-green)', borderRadius: '2px', marginTop: '16px' }}></div>
-            </div>
-            <div className="glass-card" style={{ padding: '24px' }}>
-              <p className="premium-label" style={{ marginBottom: '12px' }}>Active Sections</p>
-              <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{stats.totalSections}</p>
-              <div style={{ width: '40px', height: '4px', backgroundColor: '#3b82f6', borderRadius: '2px', marginTop: '16px' }}></div>
-            </div>
-            <div className="glass-card" style={{ padding: '24px' }}>
-              <p className="premium-label" style={{ marginBottom: '12px' }}>Allocation Rate</p>
-              <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{stats.assignedPercent}%</p>
-              <div style={{ width: '40px', height: '4px', backgroundColor: '#facc15', borderRadius: '2px', marginTop: '16px' }}></div>
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <p className="premium-label" style={{ marginBottom: '12px' }}>Academic Tiers</p>
+            <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{stats.totalClasses}</p>
+            <div style={{ width: '40px', height: '4px', backgroundColor: 'var(--brand-green)', borderRadius: '2px', marginTop: '16px' }}></div>
           </div>
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <p className="premium-label" style={{ marginBottom: '12px' }}>Active Sections</p>
+            <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{stats.totalSections}</p>
+            <div style={{ width: '40px', height: '4px', backgroundColor: '#3b82f6', borderRadius: '2px', marginTop: '16px' }}></div>
+          </div>
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <p className="premium-label" style={{ marginBottom: '12px' }}>Allocation Rate</p>
+            <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{stats.assignedPercent}%</p>
+            <div style={{ width: '40px', height: '4px', backgroundColor: '#facc15', borderRadius: '2px', marginTop: '16px' }}></div>
+          </div>
+        </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '100px' }}><div className="premium-loader"></div></div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '30px' }}>
-              {classes.map(cls => {
-                const tierSections = sections.filter(s => s.class_id === cls.id);
-                const tierScholars = allStudents.filter(st => normalizeGrade(st.grade) === normalizeGrade(cls.name)).length;
-                return (
-                  <div key={cls.id} className="glass-card class-node">
-                    <div className="node-header">
-                      <div className="node-icon">{cls.name.charAt(0)}</div>
-                      <div style={{ flex: 1 }}>
-                        <h3 className="node-title">{displayGrade(cls.name)}</h3>
-                        <div className="master-assignment">
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Academic Tier Configuration</span>
-                        </div>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '100px' }}><div className="premium-loader"></div></div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '30px' }}>
+            {classes.map(cls => {
+              const tierSections = sections.filter(s => s.class_id === cls.id);
+              const tierScholars = allStudents.filter(st => normalizeGrade(st.grade) === normalizeGrade(cls.name)).length;
+              return (
+                <div key={cls.id} className="glass-card class-node">
+                  <div className="node-header">
+                    <div className="node-icon">{cls.name.charAt(0)}</div>
+                    <div style={{ flex: 1 }}>
+                      <h3 className="node-title">{displayGrade(cls.name)}</h3>
+                      <div className="master-assignment">
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Academic Tier Configuration</span>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                        <div className="session-badge">2024-2025 Session</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                      <div className="session-badge">2024-2025 Session</div>
+                    </div>
+                  </div>
+
+                  <div className="node-content">
+                    <div className="content-segment">
+                      <div className="segment-header">
+                        <span className="segment-label">Divisional Sections</span>
+                        <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--brand-green)' }}>{tierSections.length} Sections</span>
+                      </div>
+                      <div className="pill-container">
+                        {tierSections.length > 0 ? tierSections.map(section => {
+                          const count = allStudents.filter(st => normalizeGrade(st.grade) === normalizeGrade(cls.name) && st.section === section.name).length;
+                          return (
+                            <div key={section.id} className="section-pill-container" onClick={() => openRosterModal(section)}>
+                              <span className="glass-pill section-pill">Section {section.name} <span style={{ opacity: 0.6, marginLeft: '4px' }}>({count})</span></span>
+                              <div className="section-master-hint" onClick={(e) => { e.stopPropagation(); setSelectedSection(section); setMasterFormData({ class_master_id: section.class_master_id || '' }); setShowMasterModal(true); }}>
+                                {getTeacherName(section.class_master_id)}
+                              </div>
+                            </div>
+                          );
+                        }) : <span className="empty-state">No divisions configured</span>}
                       </div>
                     </div>
 
-                    <div className="node-content">
-                      <div className="content-segment">
-                        <div className="segment-header">
-                          <span className="segment-label">Divisional Sections</span>
-                          <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--brand-green)' }}>{tierSections.length} Sections</span>
-                        </div>
-                        <div className="pill-container">
-                          {tierSections.length > 0 ? tierSections.map(section => {
-                            const count = allStudents.filter(st => normalizeGrade(st.grade) === normalizeGrade(cls.name) && st.section === section.name).length;
-                            return (
-                              <div key={section.id} className="section-pill-container" onClick={() => openRosterModal(section)}>
-                                <span className="glass-pill section-pill">Section {section.name} <span style={{ opacity: 0.6, marginLeft: '4px' }}>({count})</span></span>
-                                <div className="section-master-hint" onClick={(e) => { e.stopPropagation(); setSelectedSection(section); setMasterFormData({ class_master_id: section.class_master_id || '' }); setShowMasterModal(true); }}>
-                                  {getTeacherName(section.class_master_id)}
-                                </div>
-                              </div>
-                            );
-                          }) : <span className="empty-state">No divisions configured</span>}
-                        </div>
+                    <div className="content-segment" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
+                      <div className="segment-header">
+                        <span className="segment-label">Allocation Metrics</span>
                       </div>
-
-                      <div className="content-segment" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
-                        <div className="segment-header">
-                          <span className="segment-label">Allocation Metrics</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '24px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{tierScholars}</span>
+                            <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Scholars</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{Math.round((tierScholars / (tierSections.length * 40 || 1)) * 100)}%</span>
+                            <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Density</span>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', gap: '24px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{tierScholars}</span>
-                              <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Scholars</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{Math.round((tierScholars / (tierSections.length * 40 || 1)) * 100)}%</span>
-                              <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Density</span>
-                            </div>
-                          </div>
-                          <div style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', fontSize: '11px', fontWeight: '800', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                            Active Node
-                          </div>
+                        <div style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', fontSize: '11px', fontWeight: '800', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                          Active Node
                         </div>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </main>
-      </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
 
       {/* Roster Modal */}
       {showRosterModal && (
@@ -573,7 +565,7 @@ const Sections = () => {
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       `}</style>
-    </div>
+    </>
   );
 };
 

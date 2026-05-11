@@ -175,7 +175,12 @@ export const attendanceAPI = {
   update: (id, data) => api.put(`/api/attendance/${id}`, data),
   delete: (id) => api.delete(`/api/attendance/${id}`),
   getByStudent: (studentId, params) => api.get(`/api/attendance/student/${studentId}`, { params }),
-  getByDate: (date) => api.get('/api/attendance', { params: { date } }),
+  getByDate: (date) => {
+    const dateStr = date instanceof Date 
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` 
+      : date;
+    return api.get('/api/attendance', { params: { date: dateStr } });
+  },
   getByCourse: (courseId, date) => api.get('/api/attendance/course', { params: { courseId, date } }),
   markBulk: (data) => api.post('/api/attendance/bulk', data),
   getSummary: (studentId) => api.get(`/api/attendance/student/${studentId}/summary`)
@@ -284,18 +289,21 @@ export const timetableAPI = {
 // ==================== SETTINGS API ====================
 export const settingsAPI = {
   getSettings: () => api.get('/api/settings'),
-  updateSettings: (data) => api.put('/api/settings', data)
+  updateSettings: (data) => api.put('/api/settings', data),
+  getRoleStats: () => api.get('/api/settings/roles/stats'),
+  getIdentities: () => api.get('/api/settings/identities'),
+  getAcademicStats: () => api.get('/api/settings/academic/stats'),
+  getLoginHistory: () => api.get('/api/settings/login-history'),
+  getSystemLogs: () => api.get('/api/settings/system-logs')
 };
 
 // ==================== EXAM API ====================
 export const examAPI = {
-  getAll: (params) => api.get('/api/exams', { params }),
-  getById: (id) => api.get(`/api/exams/${id}`),
-  create: (data) => api.post('/api/exams', data),
-  update: (id, data) => api.put(`/api/exams/${id}`, data),
-  delete: (id) => api.delete(`/api/exams/${id}`),
-  getResults: (params) => api.get('/api/exams/results', { params }),
-  getSchedule: (params) => api.get('/api/exams/schedule', { params })
+  getSchedule: (params) => api.get('/api/exams/schedule', { params }),
+  createSchedule: (data) => api.post('/api/exams/schedule', data),
+  updateSchedule: (id, data) => api.put(`/api/exams/schedule/${id}`, data),
+  deleteSchedule: (id) => api.delete(`/api/exams/schedule/${id}`),
+  getResults: (params) => api.get('/api/exams/results', { params })
 };
 
 export default api;

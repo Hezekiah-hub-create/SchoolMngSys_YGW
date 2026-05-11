@@ -13,8 +13,16 @@ const toOrdinal = (num) => {
   return `${n}th`;
 };
 
-const getInterpretation = (score) => {
+const getInterpretation = (score, settings) => {
   const s = Number(score);
+  const gradingSystem = settings?.grading_system || [];
+  
+  if (gradingSystem.length > 0) {
+    const match = gradingSystem.find(g => s >= g.minScore && s <= g.maxScore);
+    if (match) return match.remark || match.interpretation || 'N/A';
+  }
+
+  // Fallback
   if (s >= 90) return 'Highest';
   if (s >= 80) return 'Higher';
   if (s >= 70) return 'High';
@@ -26,8 +34,16 @@ const getInterpretation = (score) => {
   return 'Lowest';
 };
 
-const fallbackGradeBand = (score) => {
+const fallbackGradeBand = (score, settings) => {
   const s = Number(score);
+  const gradingSystem = settings?.grading_system || [];
+
+  if (gradingSystem.length > 0) {
+    const match = gradingSystem.find(g => s >= g.minScore && s <= g.maxScore);
+    if (match) return match.grade || match.letter_grade || '--';
+  }
+
+  // Fallback
   if (s >= 90) return 'A';
   if (s >= 80) return 'B';
   if (s >= 70) return 'C';
@@ -39,8 +55,16 @@ const fallbackGradeBand = (score) => {
   return 'I';
 };
 
-const getGradeValue = (score) => {
+const getGradeValue = (score, settings) => {
   const s = Number(score);
+  const gradingSystem = settings?.grading_system || [];
+
+  if (gradingSystem.length > 0) {
+    const match = gradingSystem.find(g => s >= g.minScore && s <= g.maxScore);
+    if (match) return match.gradePoint || match.value || 1;
+  }
+
+  // Fallback
   if (s >= 90) return 1;
   if (s >= 80) return 2;
   if (s >= 70) return 3;
@@ -101,7 +125,7 @@ const mapSubjectRows = (grades) => {
   return rows;
 };
 
-const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, academicYear, month }) => {
+const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, academicYear, month }, options = {}) => {
   const supabase = require('../config/supabase');
   
   // Normalize term (e.g., "FIRST TERM" -> "1st")
@@ -113,11 +137,15 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     return t;
   };
   const term = normalizeTerm(rawTerm);
+  
+  // 1. Use pre-fetched Settings or fetch if missing
+  const settings = options.settings || (await supabaseService.getAll('settings'))?.[0] || {};
+  const schoolName = settings.school_name || 'UHAS BASIC SCHOOL';
 
-  // 1. Fetch Class ID with normalization
+  // 2. Fetch Class ID with normalization
   let classId = student.class_id;
   if (student.grade) {
-    const { data: allClasses } = await supabase.from(COLLECTIONS.ACADEMIC_CLASSES).select('id, name');
+    const allClasses = options.allClasses || (await supabase.from(COLLECTIONS.ACADEMIC_CLASSES).select('id, name')).data;
     const targetGrade = String(student.grade).toLowerCase().trim();
     
     const clean = (s) => s.toLowerCase().replace(/basic|primary|kindergarten|kg/g, '').trim();
@@ -136,17 +164,15 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     if (matchedClass) classId = matchedClass.id;
   }
 
-  // 2. Fetch All Subjects for this Class Level (Highly Aggressive Discovery)
+  // 3. Fetch All Subjects for this Class Level (Highly Aggressive Discovery)
   let classSubjects = [];
   try {
-    // Strategy A: Fetch via Class-Subject Relationship
-    const { data: allDefinitions } = await supabase.from(COLLECTIONS.CLASS_SUBJECTS)
-      .select('*, subject:subject_id(id, name, category), class:class_id(name)');
+    // Strategy A: Fetch via Class-Subject Relationship (Dynamic Subject Update)
+    const allDefinitions = options.allDefinitions || (await supabase.from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('*, subject:subject_id(id, name, category), class:class_id(name)')).data;
     
     if (allDefinitions && allDefinitions.length > 0) {
       const targetGrade = String(student.grade || '').toLowerCase().trim();
-      const targetSec = String(student.section || '').replace(/section\s*/i, '').trim().toLowerCase();
-      
       const clean = (s) => s.toLowerCase().replace(/basic|primary|kindergarten|kg/g, '').trim();
       const targetClean = clean(targetGrade);
 
@@ -162,43 +188,23 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
                clean(dbClassName) === targetClean;
       });
 
-      // Collect all subjects for this grade level across all sections
       classSubjects = matched;
     }
 
-    // Strategy B: Fallback to Courses table (Active Teaching Assignments)
+    // Fallbacks preserved for resilience...
     if (classSubjects.length === 0 && student.grade) {
       const { data: courseData } = await supabase.from(COLLECTIONS.COURSES)
         .select('*')
         .ilike('grade', `%${student.grade}%`);
       
       if (courseData && courseData.length > 0) {
-        const courseSubjects = courseData.map(c => ({
+        classSubjects = courseData.map(c => ({
           subject: { name: c.name, category: c.category || 'CORE' },
-          section: c.section,
-          academic_year: c.academic_year
+          section: c.section
         }));
-        classSubjects = [...classSubjects, ...courseSubjects];
       }
     }
 
-    // Strategy C: Final Global Recovery
-    if (classSubjects.length === 0) {
-       const { data: fallbackSubjects } = await supabase.from(COLLECTIONS.SUBJECTS)
-         .select('id, name, category');
-       
-       if (fallbackSubjects) {
-         const commonCores = [
-           'Mathematics', 'English', 'Science', 'Social Studies', 'ICT', 'French', 'RME', 'Creative Arts', 'History',
-           'Numeracy', 'Literacy', 'Environmental Studies', 'Our World Our People', 'Religious and Moral Education'
-         ];
-         classSubjects = fallbackSubjects
-           .filter(s => commonCores.some(core => s.name.toLowerCase().includes(core.toLowerCase())))
-           .map(s => ({ subject: s }));
-       }
-    }
-
-    // Final Cleanup and Deduplication
     const seen = new Set();
     classSubjects = classSubjects.filter(item => {
       const name = item.subject?.name;
@@ -211,7 +217,7 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     console.error('Subject Discovery Failure:', err.message);
   }
 
-  // 3. Fetch Student Grades for this term with flexible term matching
+  // 4. Fetch Student Grades for this term...
   const termVariants = [term, rawTerm];
   if (term === '1st') termVariants.push('First Term', 'Term 1');
   if (term === '2nd') termVariants.push('Second Term', 'Term 2');
@@ -224,39 +230,33 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
   
   if (academicYear) gradesQuery = gradesQuery.eq('academic_year', academicYear);
   
-  let { data: gradesData } = await gradesQuery;
+  let gradesData = options.allGrades ? options.allGrades.filter(g => g.student_id === student.id) : (await gradesQuery).data;
   const grades = gradesData || [];
 
-  // Subject Category Helper
-  const getSubjectCategory = (subject) => {
-    if (subject?.category) {
-      const cat = String(subject.category).toUpperCase();
-      if (cat.includes('CORE')) return 'CORE';
-      if (cat.includes('ELECTIVE')) return 'ELECTIVE';
-    }
-    const coreKeywords = [
-      'MATH', 'ENGLISH', 'SCIENCE', 'SOCIAL', 'ICT', 'RME', 'RELIGIOUS', 'OWOP', 
-      'ARTS', 'FRENCH', 'GHANAIAN', 'PHYSICAL', 'HISTORY', 'COMPUTING', 'OUR WORLD'
-    ];
-    const upperName = String(subject?.name || '').toUpperCase();
-    return coreKeywords.some(key => upperName.includes(key)) ? 'CORE' : 'ELECTIVE';
-  };
-
-  // 4. Robust Subject Merging: Use class definition OR actual grades found
+  // 5. Robust Subject Merging: Dynamic updates from CLASS_SUBJECTS
   const subjectMap = new Map();
-
-  // Add from Class Subjects first (the template)
   classSubjects.forEach(cs => {
     const sName = cs.subject?.name || 'Unknown Subject';
+    const cat = (cs.subject?.category || 'CORE').toUpperCase();
     subjectMap.set(sName, {
       id: cs.subject_id || cs.id,
       name: sName,
-      category: getSubjectCategory(cs.subject),
-      isFromDefinition: true
+      category: cat.includes('ELECTIVE') ? 'ELECTIVE' : 'CORE'
     });
   });
 
-  // Add from Grades (in case subjects are not in definition or names are missing)
+  // Global Recovery Fallback for missing definitions
+  if (subjectMap.size === 0) {
+    const { data: globalSubs } = await supabase.from(COLLECTIONS.SUBJECTS).select('name, category');
+    if (globalSubs) {
+      globalSubs.forEach(s => {
+        const cat = (s.category || 'CORE').toUpperCase();
+        subjectMap.set(s.name, { name: s.name, category: cat.includes('ELECTIVE') ? 'ELECTIVE' : 'CORE' });
+      });
+    }
+  }
+
+  // Fetch missing subject names from grades
   const unknownGradeCourseIds = grades
     .filter(g => !g.course_name && !g.subject_name)
     .map(g => g.course_id)
@@ -275,11 +275,11 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     const sName = g.course_name || g.subject_name || gsDetail?.subject?.name || 'Unknown Subject';
     
     if (!subjectMap.has(sName)) {
+      const cat = (gsDetail?.subject?.category || 'CORE').toUpperCase();
       subjectMap.set(sName, {
         id: g.course_id,
         name: sName,
-        category: getSubjectCategory(gsDetail?.subject || { name: sName }),
-        isFromDefinition: false
+        category: cat.includes('ELECTIVE') ? 'ELECTIVE' : 'CORE'
       });
     }
   });
@@ -288,146 +288,109 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
   for (const sInfo of subjectMap.values()) {
     const grade = grades.find(g => 
       (g.course_id && String(g.course_id) === String(sInfo.id)) || 
-      (g.course_name && g.course_name === sInfo.name) ||
-      (g.subject_name && g.subject_name === sInfo.name) ||
+      (g.course_name === sInfo.name) || (g.subject_name === sInfo.name) ||
       (gradeSubjectNames.find(gs => String(gs.id) === String(g.course_id))?.subject?.name === sInfo.name)
     );
     
-    // Calculate scores from various possible structures
-    let classScore = 0;
-    let examScore = 0;
-
-    const assessments = grade?.assessments;
-    if (Array.isArray(assessments)) {
-      // Handle array structure from bulkCreateGrades
-      const cs = assessments.find(a => /class/i.test(a.name));
-      const es = assessments.find(a => /exam/i.test(a.name) || /final/i.test(a.name));
-      classScore = Number(cs?.score || 0);
-      examScore = Number(es?.score || 0);
-    } else if (assessments && typeof assessments === 'object') {
-      // Handle object structure from seed or manual entry
-      classScore = Number(assessments.classwork || 0) + Number(assessments.homework || 0) + Number(assessments.midterm || 0);
-      examScore = Number(assessments.finalExam || assessments.final || 0);
-    }
-
-    // Fallback to direct columns if available
-    classScore = grade?.class_score ?? classScore;
-    examScore = grade?.exam_score ?? examScore;
+    let classScore = grade?.class_score ?? 0;
+    let examScore = grade?.exam_score ?? 0;
     
-    const total = Number(grade?.total_score ?? (classScore + examScore));
-
-    // Dynamic position calculation if not provided
-    let subjectPosition = grade?.position;
-    if (!subjectPosition && total > 0 && sInfo.id) {
-      try {
-        const { count: higherScores } = await supabase.from(COLLECTIONS.GRADES)
-          .select('*', { count: 'exact', head: true })
-          .eq('course_id', sInfo.id)
-          .in('term', termVariants)
-          .in('academic_year', [academicYear, academicYear?.replace('/', '-'), academicYear?.replace('-', '/')].filter(Boolean))
-          .gt('total_score', total);
-        
-        subjectPosition = (higherScores || 0) + 1;
-      } catch (e) {
-        console.warn('Failed to calculate dynamic rank:', e.message);
+    // Support assessments object or array (Dynamic Extraction)
+    if (grade?.assessments && typeof grade.assessments === 'object') {
+      if (Array.isArray(grade.assessments)) {
+        // Handle Array format: [{ name: "Class Score", score: 20 }, ...]
+        let cs = 0;
+        let es = 0;
+        grade.assessments.forEach(a => {
+          const name = String(a.name || '').toLowerCase();
+          const score = Number(a.score || 0);
+          if (name.includes('class') || name.includes('homework') || name.includes('midterm') || name.includes('test')) {
+            cs += score;
+          } else if (name.includes('exam') || name.includes('final')) {
+            es += score;
+          }
+        });
+        // Only override if we found actual data
+        if (cs > 0 || es > 0) {
+          classScore = cs;
+          examScore = es;
+        }
+      } else {
+        // Handle Legacy Object format: { classwork: 10, homework: 5, ... }
+        const a = grade.assessments;
+        const cs = (Number(a.classwork || 0) + Number(a.homework || 0) + Number(a.midterm || 0));
+        const es = Number(a.finalExam || a.final || 0);
+        if (cs > 0 || es > 0) {
+          classScore = cs;
+          examScore = es;
+        }
       }
     }
+
+    const total = Number(grade?.total_score ?? (classScore + examScore));
 
     mergedSubjects.push({
       name: sInfo.name,
       category: sInfo.category,
-      classScore: classScore || 0,
-      examScore: examScore || 0,
-      total: total || 0,
-      position: toOrdinal(subjectPosition),
-      grade: grade?.letter_grade || (total > 0 ? fallbackGradeBand(total) : '--'),
-      gradeValue: total > 0 ? getGradeValue(total) : '--',
-      interpretation: total > 0 ? getInterpretation(total) : '--'
+      classScore,
+      examScore,
+      total,
+      position: toOrdinal(grade?.position),
+      grade: grade?.letter_grade || (total > 0 ? fallbackGradeBand(total, settings) : '--'),
+      gradeValue: total > 0 ? getGradeValue(total, settings) : '--',
+      interpretation: total > 0 ? getInterpretation(total, settings) : '--'
     });
   }
 
-  const totalAggregate = mergedSubjects.reduce((sum, s) => sum + Number(s.total || 0), 0);
-
-  // 5. Fetch Attendance Summary
-  let attendanceQuery = supabase.from(COLLECTIONS.ATTENDANCE)
-    .select('status')
-    .eq('student_id', student.id)
-    .in('term', termVariants);
-    
-  if (academicYear) {
-    const y1 = academicYear.replace('/', '-');
-    const y2 = academicYear.replace('-', '/');
-    attendanceQuery = attendanceQuery.in('academic_year', [academicYear, y1, y2]);
-  }
-  
-  const { data: attendanceData } = await attendanceQuery;
-  const attendancePresent = attendanceData ? attendanceData.filter(r => ['present', 'Present', 'late', 'Late'].includes(r.status)).length : 0;
-  
-  // 6. Fetch Report Card Metadata (Remarks, Conduct, etc.)
-  let reportMetadata = {};
-  try {
-    const { data: meta } = await supabase.from('report_cards')
-      .select('*')
+  // 6. Fetch Attendance
+  let attendanceData = [];
+  if (options.allAttendance) {
+    attendanceData = options.allAttendance.filter(a => a.student_id === student.id);
+  } else {
+    let attendanceQuery = supabase.from(COLLECTIONS.ATTENDANCE)
+      .select('status')
       .eq('student_id', student.id)
-      .in('term', termVariants)
-      .maybeSingle();
-    if (meta) reportMetadata = meta;
-  } catch (e) {}
+      .in('term', termVariants);
+    if (academicYear) attendanceQuery = attendanceQuery.eq('academic_year', academicYear);
+    const { data } = await attendanceQuery;
+    attendanceData = data || [];
+  }
+  const attendancePresent = attendanceData ? attendanceData.filter(r => ['present', 'late'].includes(String(r.status || '').toLowerCase())).length : 0;
 
-  // 7. Fetch School Settings & Total Days
-  const allSettings = await supabaseService.getAll('settings');
-  const settings = (allSettings && allSettings.length > 0) ? allSettings[0] : {};
-  const schoolName = settings.school_name || 'UHAS BASIC SCHOOL';
-  const totalSchoolDays = settings.total_days || reportMetadata.total_days || (attendanceData ? attendanceData.length : 0);
-
-  // 8. Fallback Remarks from Grades
-  if (!reportMetadata.teacher_remarks && grades.length > 0) {
-    const remarkGrade = grades.find(g => g.teacher_remarks || g.remarks);
-    reportMetadata.teacher_remarks = remarkGrade?.teacher_remarks || remarkGrade?.remarks;
+  // 7. Remarks and Metadata
+  let reportMetadata = options.allReportCards ? options.allReportCards.find(rc => rc.student_id === student.id) : null;
+  if (!reportMetadata) {
+    try {
+      const { data: meta } = await supabase.from('report_cards')
+        .select('*')
+        .eq('student_id', student.id)
+        .in('term', termVariants)
+        .maybeSingle();
+      if (meta) reportMetadata = meta;
+    } catch (e) {}
   }
 
-  // 9. Fetch Class Master Name
+  // 8. Class Master & Position
   let teacherName = 'CLASS TEACHER';
   try {
     const { data: sectionInfo } = await supabase.from(COLLECTIONS.SECTIONS)
       .select('teacher:class_master_id(first_name, last_name), class_id')
       .eq('name', student.section);
-      
     let bestSection = sectionInfo?.find(s => s.class_id === classId) || sectionInfo?.[0];
-    if (bestSection?.teacher) {
-      teacherName = `${bestSection.teacher.first_name} ${bestSection.teacher.last_name}`;
-    }
+    if (bestSection?.teacher) teacherName = `${bestSection.teacher.first_name} ${bestSection.teacher.last_name}`;
   } catch (e) {}
 
-  // 10. Calculate Class Position (Rank)
   let classPosition = '--';
   try {
-    const { data: sectionStudents } = await supabase.from(COLLECTIONS.STUDENTS)
-      .select('id')
-      .eq('grade', student.grade)
-      .eq('section', student.section);
-    
-    if (sectionStudents && sectionStudents.length > 0) {
+    const { data: sectionStudents } = await supabase.from(COLLECTIONS.STUDENTS).select('id').eq('grade', student.grade).eq('section', student.section);
+    if (sectionStudents?.length > 0) {
       const studentIds = sectionStudents.map(s => s.id);
-      const { data: allGrades } = await supabase.from(COLLECTIONS.GRADES)
-        .select('student_id, total_score')
-        .in('student_id', studentIds)
-        .in('term', termVariants)
-        .eq('academic_year', academicYear);
-      
-      const studentAggregates = {};
-      allGrades?.forEach(g => {
-        studentAggregates[g.student_id] = (studentAggregates[g.student_id] || 0) + Number(g.total_score || 0);
-      });
-      
-      const sortedAggregates = Object.entries(studentAggregates)
-        .map(([id, agg]) => ({ id, agg }))
-        .sort((a, b) => b.agg - a.agg);
-      
-      const rank = sortedAggregates.findIndex(s => s.id === student.id) + 1;
-      if (rank > 0) {
-        classPosition = `${toOrdinal(rank)} of ${sectionStudents.length}`;
-      }
+      const { data: allGrades } = await supabase.from(COLLECTIONS.GRADES).select('student_id, total_score').in('student_id', studentIds).in('term', termVariants).eq('academic_year', academicYear);
+      const aggregates = {};
+      allGrades?.forEach(g => aggregates[g.student_id] = (aggregates[g.student_id] || 0) + Number(g.total_score || 0));
+      const sorted = Object.entries(aggregates).map(([id, agg]) => ({ id, agg })).sort((a, b) => b.agg - a.agg);
+      const rank = sorted.findIndex(s => s.id === student.id) + 1;
+      if (rank > 0) classPosition = `${toOrdinal(rank)} of ${sectionStudents.length}`;
     }
   } catch (e) {}
 
@@ -450,11 +413,11 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     subjects: mergedSubjects.filter(s => s.category === 'CORE'),
     electives: mergedSubjects.filter(s => s.category === 'ELECTIVE'),
     attendance: attendancePresent > 0 ? attendancePresent : '--',
-    totalDays: totalSchoolDays > 0 ? totalSchoolDays : '--',
-    conduct: (reportMetadata.conduct || student.conduct || 'VERY GOOD').toUpperCase(),
-    attitude: (reportMetadata.attitude || student.attitude || 'CONSISTENT').toUpperCase(),
-    interest: (reportMetadata.interest || student.interest || 'ACADEMIC EXCELLENCE').toUpperCase(),
-    teacherRemarks: reportMetadata.teacher_remarks || 'A very good performance. Keep it up.',
+    totalDays: settings.total_days || (reportMetadata ? reportMetadata.total_days : 0) || (attendanceData ? attendanceData.length : 0) || '--',
+    conduct: (reportMetadata?.conduct || 'VERY GOOD').toUpperCase(),
+    attitude: (reportMetadata?.attitude || 'CONSISTENT').toUpperCase(),
+    interest: (reportMetadata?.interest || 'ACADEMIC EXCELLENCE').toUpperCase(),
+    teacherRemarks: reportMetadata?.teacher_remarks || 'A very good performance. Keep it up.',
     teacherName: teacherName.toUpperCase()
   };
 };
@@ -478,18 +441,23 @@ const getStudentReport = asyncHandler(async (req, res) => {
     const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     
-    // Check if the student belongs to any of the teacher's courses
-    const teacherCourses = await supabaseService.getAll(COLLECTIONS.COURSES);
-    const assignedCourses = teacherCourses.filter(c => c.teacher_id === teacherProfile.id);
+    // Check if the student belongs to the section the teacher is Class Master of
+    const { data: masteredSections } = await supabase
+      .from(COLLECTIONS.SECTIONS)
+      .select('id, name, class_id, class:class_id(name)')
+      .eq('class_master_id', teacherProfile.id);
     
-    const assignedStudentIds = new Set();
-    assignedCourses.forEach(c => {
-      const ids = c.student_ids || [];
-      ids.forEach(id => assignedStudentIds.add(id));
+    const isMasterOfStudent = (masteredSections || []).some(s => {
+      const matchesGrade = String(s.class?.name).toLowerCase() === String(student.grade).toLowerCase() || String(s.class_id) === String(student.class_id);
+      
+      const dbSec = String(s.name).toLowerCase().replace('section', '').trim();
+      const stSec = String(student.section).toLowerCase().replace('section', '').trim();
+      
+      return matchesGrade && dbSec === stSec;
     });
 
-    if (!assignedStudentIds.has(studentId)) {
-      return res.status(403).json({ message: 'Access denied. You can only generate reports for your own students.' });
+    if (!isMasterOfStudent) {
+      return res.status(403).json({ message: 'Access denied. You can only generate reports for students in the section you are the Class Master of.' });
     }
   }
 
@@ -518,40 +486,92 @@ const getClassReport = asyncHandler(async (req, res) => {
     const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     
-    // Check if the grade requested is one the teacher teaches
-    const teacherCourses = await supabaseService.getAll(COLLECTIONS.COURSES);
-    const hasAssignedGrade = teacherCourses.some(c => 
-      c.teacher_id === teacherProfile.id && c.grade === grade
-    );
+    // Check if teacher teaches this grade OR is Class Master for a section in this grade
+    const { data: masteredSections } = await supabase
+      .from(COLLECTIONS.SECTIONS)
+      .select('id, name, class_id, class:class_id(name)')
+      .eq('class_master_id', teacherProfile.id);
+    
+    // Check if teacher is Class Master for this grade and section
+    const isMasterOfGrade = (masteredSections || []).some(s => {
+      const matchesGrade = String(s.class?.name).toLowerCase() === String(grade).toLowerCase() || String(s.class_id) === String(grade);
+      if (section && section !== 'All') {
+        const targetSec = String(section).toLowerCase().replace('section', '').trim();
+        const dbSec = String(s.name).toLowerCase().replace('section', '').trim();
+        return matchesGrade && dbSec === targetSec;
+      }
+      return matchesGrade;
+    });
 
-    if (!hasAssignedGrade) {
-      return res.status(403).json({ message: 'Access denied. You can only generate class reports for classes you handle.' });
+    if (!isMasterOfGrade) {
+      return res.status(403).json({ message: 'Access denied. You can only generate reports for the class and section you are the Class Master of.' });
     }
   }
 
   const gradeName = String(grade).toLowerCase();
-  const gradeNumber = gradeName.replace(/basic|primary|kindergarten|kg/g, '').trim();
+  const gradeNumber = gradeName.replace(/basic|primary|kindergarten|kg|jhs|nursery/g, '').trim();
   
-  const possibleNames = [
+  let baseNames = [
     gradeName,
     gradeName.replace('primary', 'basic'),
     gradeName.replace('basic', 'primary'),
-    gradeName.replace('primary ', 'basic '),
-    gradeName.replace('basic ', 'primary '),
-    gradeNumber // Also try just the number (e.g. "3" for "Basic 3")
+    gradeNumber
   ];
 
+  const toTitleCase = (str) => str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+  
+  const expandedNames = new Set();
+  baseNames.forEach(n => {
+    if (!n) return;
+    expandedNames.add(n);
+    expandedNames.add(n.toUpperCase());
+    expandedNames.add(toTitleCase(n));
+  });
+
+  const possibleNames = Array.from(expandedNames);
+
+  // Targeted student fetch
   const { data: studentsData } = await supabase.from(COLLECTIONS.STUDENTS)
-    .select('*');
+    .select('*')
+    .in('grade', possibleNames);
   
   let students = studentsData || [];
   
+  if (section && section !== 'All') {
+    students = students.filter(s => s.section === section);
+  }
+  
   // Robust case-insensitive filtering for grade
-  const searchNames = possibleNames.map(n => n.toLowerCase().trim());
+  const searchNames = possibleNames.filter(n => n !== gradeNumber).map(n => n.toLowerCase().trim());
   students = students.filter(s => {
     const sGrade = String(s.grade || '').toLowerCase().trim();
-    const sGradeNumber = sGrade.replace(/basic|primary|kindergarten|kg/g, '').trim();
-    return searchNames.includes(sGrade) || (gradeNumber && sGradeNumber === gradeNumber);
+    
+    // First, try exact matches with known variants
+    if (searchNames.includes(sGrade) || sGrade === gradeName.toLowerCase().trim()) return true;
+    
+    // If no exact match, try the number match ONLY if the tier (Basic/JHS/KG) also matches
+    const sGradeNumber = sGrade.replace(/basic|primary|kindergarten|kg|jhs|nursery/g, '').trim();
+    if (gradeNumber && sGradeNumber === gradeNumber) {
+      const isBasic = gradeName.includes('basic') || gradeName.includes('primary');
+      const isJHS = gradeName.includes('jhs');
+      const isKG = gradeName.includes('kg') || gradeName.includes('kindergarten');
+      const isNursery = gradeName.includes('nursery');
+      
+      const sIsBasic = sGrade.includes('basic') || sGrade.includes('primary');
+      const sIsJHS = sGrade.includes('jhs');
+      const sIsKG = sGrade.includes('kg') || sGrade.includes('kindergarten');
+      const sIsNursery = sGrade.includes('nursery');
+      
+      if (isBasic && sIsBasic) return true;
+      if (isJHS && sIsJHS) return true;
+      if (isKG && sIsKG) return true;
+      if (isNursery && sIsNursery) return true;
+      
+      // If neither has a clear tier, allow number match as fallback
+      if (!isBasic && !isJHS && !isKG && !sIsBasic && !sIsJHS && !sIsKG) return true;
+    }
+    
+    return false;
   });
   
   if (section) {
@@ -567,11 +587,51 @@ const getClassReport = asyncHandler(async (req, res) => {
 
   students.sort((a, b) => `${a.last_name || ''}${a.first_name || ''}`.localeCompare(`${b.last_name || ''}${b.first_name || ''}`));
 
+  // 2. BULK DATA RETRIEVAL (The "Needed Data")
+  console.log(`[REPORT] Starting bulk retrieval for ${students.length} students...`);
+  const studentIds = students.map(s => s.id);
+  const termVariants = [term];
+  if (term === 'First Term' || term === '1st') termVariants.push('First Term', '1st', 'Term 1');
+  if (term === 'Second Term' || term === '2nd') termVariants.push('Second Term', '2nd', 'Term 2');
+  if (term === 'Third Term' || term === '3rd') termVariants.push('Third Term', '3rd', 'Term 3');
+
+  const [
+    settingsResult,
+    classesResult,
+    definitionsResult,
+    allGradesResult,
+    allAttendanceResult,
+    allReportCardsResult
+  ] = await Promise.all([
+    supabaseService.getAll('settings'),
+    supabase.from(COLLECTIONS.ACADEMIC_CLASSES).select('id, name'),
+    supabase.from(COLLECTIONS.CLASS_SUBJECTS).select('*, subject:subject_id(id, name, category), class:class_id(name)'),
+    supabase.from(COLLECTIONS.GRADES).select('*').in('student_id', studentIds).in('term', termVariants).eq('academic_year', academicYear),
+    supabase.from(COLLECTIONS.ATTENDANCE).select('*').in('student_id', studentIds).in('term', termVariants).eq('academic_year', academicYear),
+    supabase.from('report_cards').select('*').in('student_id', studentIds).in('term', termVariants)
+  ]);
+
+  const bulkOptions = {
+    settings: settingsResult?.[0] || {},
+    allClasses: classesResult?.data || [],
+    allDefinitions: definitionsResult?.data || [],
+    allGrades: allGradesResult?.data || [],
+    allAttendance: allAttendanceResult?.data || [],
+    allReportCards: allReportCardsResult?.data || []
+  };
+
   const reports = [];
   for (const student of students) {
-    const payload = await buildStudentReportPayload({ student, reportType: finalReportType, term, academicYear, month });
-    payload.numberOnRoll = students.length;
-    reports.push(payload);
+    try {
+      const payload = await buildStudentReportPayload(
+        { student, reportType: finalReportType, term, academicYear, month },
+        bulkOptions
+      );
+      payload.numberOnRoll = students.length;
+      reports.push(payload);
+    } catch (err) {
+      console.error(`[REPORT] Synthesis failed for ${student.id}:`, err.message);
+    }
   }
 
   const classAverage = reports.length

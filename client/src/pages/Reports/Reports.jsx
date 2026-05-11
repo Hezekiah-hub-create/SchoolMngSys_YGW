@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import PremiumDatePicker from '../../components/common/PremiumDatePicker';
+import { useAlert } from '../../context/AlertContext';
 import { 
   Users, 
   FileText, 
@@ -40,6 +39,7 @@ import './Reports.css';
 const Reports = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
   const [activeMenu, setActiveMenu] = useState('Reports');
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
@@ -60,10 +60,16 @@ const Reports = () => {
   const [selectedYear, setSelectedYear] = useState('2024/2025');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const isTeacher = user?.role === 'teacher';
+
+
   const isGradeMatch = (g1, g2) => {
     if (!g1 || !g2) return false;
-    const clean = (s) => String(s).toLowerCase().replace(/basic|primary|kindergarten|kg/g, '').trim();
-    return clean(g1) === clean(g2);
+    const normalize = (s) => String(s).toLowerCase()
+      .replace(/primary|basic/g, 'basic')
+      .replace(/kindergarten|kg/g, 'kg')
+      .trim();
+    return normalize(g1) === normalize(g2);
   };
 
   const filteredSections = sections.filter(s => isGradeMatch(s.grade, selectedGrade));
@@ -102,10 +108,19 @@ const Reports = () => {
       setGrades(Array.isArray(classData) ? classData : []);
       
       if (classData.length > 0 && !selectedGrade) {
-        setSelectedGrade(classData[0].name);
+        let defaultGrade = classData[0].name;
+        if (user?.role === 'teacher') {
+          const teacherId = user?.id;
+          const masteredSectionsList = secData.filter(s => s.class_master_id === teacherId);
+          const mastered = masteredSectionsList.length > 0 ? masteredSectionsList : (user?.masteredSections || []);
+          const masteredClassIds = mastered.map(m => String(m.class_id));
+          const allowed = classData.filter(g => masteredClassIds.includes(String(g.id)));
+          if (allowed.length > 0) defaultGrade = allowed[0].name;
+        }
+        setSelectedGrade(defaultGrade);
       }
     } catch (error) {
-      console.error('Reports: Infrastructure fetch failure:', error);
+      console.error('Reports: Infra fetch failure:', error);
     }
   };
 
@@ -152,7 +167,20 @@ const Reports = () => {
 
   const generateSynthesis = async () => {
     if (operationalScope === 'Individual' && selectedStudents.length === 0) {
-      alert('Please select at least one scholar node for synthesis.');
+      showAlert({
+        title: 'Selection Required',
+        message: 'Please select at least one scholar node for synthesis.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    if (operationalScope === 'Cohort-Wide' && !selectedSection) {
+      showAlert({
+        title: 'Node Unspecified',
+        message: 'Please select a specific section node for cohort-wide synthesis.',
+        type: 'warning'
+      });
       return;
     }
 
@@ -193,7 +221,7 @@ const Reports = () => {
         
         const res = await reportAPI.getClassReport(selectedGrade, {
           ...commonParams,
-          section: sectionName
+          section: sectionName || undefined
         });
         if (res.data?.success) {
           const rawReports = res.data.data.reports || res.data.data || [];
@@ -206,13 +234,21 @@ const Reports = () => {
       }
       
       if (reports.length === 0) {
-        alert('No data found for the selected parameters.');
+        showAlert({
+          title: 'Empty Dataset',
+          message: 'No data found for the selected parameters. Ensure grades and attendance are recorded.',
+          type: 'info'
+        });
       } else {
         setGeneratedReports(reports);
       }
     } catch (error) {
       console.error('Synthesis Failure:', error);
-      alert('Academic synthesis failed. Please check node connectivity.');
+      showAlert({
+        title: 'Synthesis Failed',
+        message: 'Academic synthesis failed. Please check node connectivity and database state.',
+        type: 'error'
+      });
     } finally {
       setGenerating(false);
     }
@@ -226,7 +262,6 @@ const Reports = () => {
     const element = reportRef.current;
     if (!element) return;
     
-    // Using simple approach first - jspdf + html2canvas
     const html2canvas = (await import('html2canvas')).default;
     const jsPDF = (await import('jspdf')).default;
     
@@ -252,197 +287,193 @@ const Reports = () => {
     setStudents([]);
   };
 
-  const gradeOptions = grades.map(g => ({ 
+  let allowedGrades = grades;
+  let allowedSections = filteredSections;
+
+  if (isTeacher) {
+    const teacherId = user?.id; // Profile ID
+    // Derive mastered sections directly from freshly fetched infrastructure data
+    const masteredSectionsList = sections.filter(s => s.class_master_id === teacherId);
+    
+    // Fallback to AuthContext if needed, though API data is preferred
+    const mastered = masteredSectionsList.length > 0 ? masteredSectionsList : (user?.masteredSections || []);
+    
+    const masteredClassIds = mastered.map(m => String(m.class_id));
+    const masteredSectionIds = mastered.map(m => String(m.id));
+    
+    allowedGrades = grades.filter(g => masteredClassIds.includes(String(g.id)));
+    allowedSections = filteredSections.filter(s => masteredSectionIds.includes(String(s.id)));
+  }
+
+  const gradeOptions = allowedGrades.map(g => ({ 
     value: g.name, 
     label: g.name.replace(/Primary|Basic/i, 'Basic') 
   }));
-  const sectionOptions = filteredSections.map(s => ({ value: s.id, label: s.name }));
+
+  const sectionOptions = allowedSections.map(s => ({ value: s.id, label: s.name }));
   const monthOptions = [
     'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 
     'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
   ].map(m => ({ value: m, label: m }));
 
-  const termOptions = [
-    { value: 'First Term', label: 'First Term' },
-    { value: 'Second Term', label: 'Second Term' },
-    { value: 'Third Term', label: 'Third Term' }
-  ];
-
-  const yearOptions = [
-    { value: '2023/2024', label: '2023/2024' },
-    { value: '2024/2025', label: '2024/2025' },
-    { value: '2025/2026', label: '2025/2026' }
-  ];
-
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--slate-50)' }}>
-      <RoleBasedSidebar user={user} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1, position: 'relative' }}>
-        <TopNav user={user} />
-        <div className="reports-container" style={{ paddingTop: '100px' }}>
+    <div>
+      <div className="reports-container">
           <div className="reports-main">
-            <header className="reports-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <span style={{ padding: '6px 14px', backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)', borderRadius: '30px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1.2px', border: '1px solid rgba(0,132,62,0.1)' }}>
-                  <Zap size={12} style={{ display: 'inline', marginRight: '6px', marginBottom: '2px' }} />
-                  Intelligence Workspace
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <div>
-                  <h1 style={{ fontSize: '42px', fontWeight: '950', color: 'var(--slate-900)', margin: 0, letterSpacing: '-2px' }}>
-                    Academic <span style={{ color: 'var(--brand-green)' }}>Synthesis</span>
-                  </h1>
-                  <p style={{ fontSize: '17px', color: 'var(--slate-500)', marginTop: '8px', fontWeight: '500' }}>
-                    Compile performance vectors and generate high-fidelity reports.
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: '14px' }}>
-                  <button className="premium-btn-secondary" onClick={() => fetchInfrastructure()}>
-                    <RefreshCw size={18} /> Sync Engine
-                  </button>
-                  <button className="premium-btn-secondary" onClick={downloadPDF} disabled={!generatedReports}>
-                    <Download size={18} /> Download PDF
-                  </button>
-                  <button className="premium-btn-primary" onClick={handlePrint} disabled={!generatedReports}>
-                    <Printer size={18} /> Print Records
-                  </button>
+            <header className="reports-header" style={{ marginBottom: '40px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div>
+                    <h1 style={{ 
+                      fontSize: '48px', 
+                      fontWeight: '1000', 
+                      color: 'var(--slate-900)', 
+                      letterSpacing: '-2px', 
+                      margin: 0,
+                      fontFamily: 'Outfit, sans-serif'
+                    }}>
+                      Academic <span style={{ color: 'var(--brand-green)' }}>Synthesis</span>
+                    </h1>
+                    <p style={{ color: 'var(--slate-500)', fontWeight: '600', marginTop: '4px' }}>
+                      Configure academic vectors and consolidate terminal performance data.
+                    </p>
+                  </div>
+                  
+                  {generatedReports && (
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      <button onClick={handlePrint} className="premium-btn-secondary">
+                        <Printer size={20} />
+                        Execute Print
+                      </button>
+                      <button onClick={downloadPDF} className="premium-btn-primary">
+                        <Download size={20} />
+                        Export PDF
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </header>
 
             <div className="stats-grid">
-              <div className="stat-card">
+              <div className="stat-item-nexus">
                 <div className="stat-icon" style={{ backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)' }}>
-                  <Users size={22} />
+                  <Users size={26} />
                 </div>
                 <div>
-                  <span className="premium-label" style={{ marginBottom: '4px' }}>Scholars In View</span>
-                  <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--slate-900)' }}>{students.length}</span>
+                  <span className="stat-label">Active Scholars</span>
+                  <div className="stat-value">{students.length}</div>
                 </div>
               </div>
-              <div className="stat-card">
-                <div className="stat-icon" style={{ backgroundColor: 'var(--brand-blue-soft)', color: 'var(--brand-blue)' }}>
-                  <CheckCircle2 size={22} />
-                </div>
-                <div>
-                  <span className="premium-label" style={{ marginBottom: '4px' }}>Selected Nodes</span>
-                  <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--slate-900)' }}>{selectedStudents.length}</span>
-                </div>
-              </div>
-              <div className="stat-card">
+              <div className="stat-item-nexus">
                 <div className="stat-icon" style={{ backgroundColor: 'var(--brand-yellow-soft)', color: 'var(--brand-yellow)' }}>
-                  <BarChart3 size={22} />
+                  <Award size={26} />
                 </div>
                 <div>
-                  <span className="premium-label" style={{ marginBottom: '4px' }}>Batch Status</span>
-                  <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--slate-900)' }}>Ready</span>
+                  <span className="stat-label">Selected Nodes</span>
+                  <div className="stat-value">{selectedStudents.length}</div>
+                </div>
+              </div>
+              <div className="stat-item-nexus">
+                <div className="stat-icon" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                  <Layers size={26} />
+                </div>
+                <div>
+                  <span className="stat-label">Curriculum Tier</span>
+                  <div className="stat-value">{selectedGrade?.split(' ')[1] || 'N/A'}</div>
                 </div>
               </div>
             </div>
 
             <div className="reports-grid">
               <aside className="intelligence-matrix">
-                <div className="glass-card">
-                  <header style={{ marginBottom: '24px' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '10px', margin: 0, color: 'var(--slate-900)' }}>
-                      <Layers size={20} color="var(--brand-green)" /> Configuration
-                    </h3>
-                    <p style={{ fontSize: '12px', color: 'var(--slate-500)', margin: '4px 0 0 0', fontWeight: '600' }}>Define synthesis parameters.</p>
-                  </header>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label className="premium-label">Academic Year</label>
-                        <PremiumSelect 
-                          value={selectedYear} 
-                          options={yearOptions} 
-                          placeholder="Year"
-                          onChange={(e) => setSelectedYear(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="premium-label">Term</label>
-                        <PremiumSelect 
-                          value={selectedTerm} 
-                          options={termOptions} 
-                          placeholder="Term"
-                          onChange={(e) => setSelectedTerm(e.target.value)}
-                        />
-                      </div>
+                <div className="glass-card" style={{ padding: '28px' }}>
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 className="premium-label">Synthesis Scope</h3>
+                    <div className="scope-toggle-nexus">
+                      <button 
+                        className={`type-btn-nexus ${operationalScope === 'Individual' ? 'active' : ''}`}
+                        onClick={() => setOperationalScope('Individual')}
+                      >
+                        Individual
+                      </button>
+                      <button 
+                        className={`type-btn-nexus ${operationalScope === 'Cohort-Wide' ? 'active' : ''}`}
+                        onClick={() => setOperationalScope('Cohort-Wide')}
+                      >
+                        Cohort-Wide
+                      </button>
                     </div>
+                  </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="synthesis-parameters" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
-                        <label className="premium-label">Scope</label>
-                        <div className="type-btn-grid" style={{ gridTemplateColumns: '1fr' }}>
-                          <button 
-                            className={`type-btn-nexus ${operationalScope === 'Individual' ? 'active' : ''}`}
-                            onClick={() => setOperationalScope('Individual')}
-                          >Individual</button>
-                          <button 
-                            className={`type-btn-nexus ${operationalScope === 'Cohort-Wide' ? 'active' : ''}`}
-                            onClick={() => setOperationalScope('Cohort-Wide')}
-                          >Cohort</button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="premium-label">Module</label>
-                        <div className="type-btn-grid" style={{ gridTemplateColumns: '1fr' }}>
-                          <button 
-                            className={`type-btn-nexus ${reportType === 'Academic Report' ? 'active' : ''}`}
-                            onClick={() => setReportType('Academic Report')}
-                          >Terminal</button>
-                          <button 
-                            className={`type-btn-nexus ${reportType === 'Mid-Term' ? 'active' : ''}`}
-                            onClick={() => setReportType('Mid-Term')}
-                          >Mid-Term</button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label className="premium-label">Target Grade</label>
+                        <span className="parameter-label">CURRICULUM TIER</span>
                         <PremiumSelect 
                           value={selectedGrade} 
-                          options={gradeOptions} 
-                          placeholder="Grade"
                           onChange={(e) => handleGradeChange(e.target.value)}
+                          options={gradeOptions}
+                          placeholder="Grade"
                         />
                       </div>
                       <div>
-                        <label className="premium-label">Section</label>
+                        <span className="parameter-label">SECTION NODE</span>
                         <PremiumSelect 
                           value={selectedSection} 
-                          options={sectionOptions} 
-                          placeholder="Section"
-                          disabled={!selectedGrade}
                           onChange={(e) => setSelectedSection(e.target.value)}
+                          options={sectionOptions}
+                          placeholder={operationalScope === 'Cohort-Wide' ? "Select Section (Required)" : "All Sections"}
                         />
                       </div>
                     </div>
 
-                    <div style={{ background: 'white', padding: '20px', borderRadius: '24px', border: '1.5px solid var(--slate-100)' }}>
-                      <label className="premium-label" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Clock size={14} color="var(--brand-green)" /> Temporal Vector
-                      </label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <span className="parameter-label">ACADEMIC TERM</span>
+                        <PremiumSelect 
+                          value={selectedTerm} 
+                          onChange={(e) => setSelectedTerm(e.target.value)}
+                          options={[
+                            { value: 'First Term', label: 'First Term' },
+                            { value: 'Second Term', label: 'Second Term' },
+                            { value: 'Third Term', label: 'Third Term' }
+                          ]}
+                        />
+                      </div>
+                      <div>
+                        <span className="parameter-label">REPORT TYPE</span>
+                        <PremiumSelect 
+                          value={reportType} 
+                          onChange={(e) => setReportType(e.target.value)}
+                          options={[
+                            { value: 'Academic Report', label: 'Terminal Report' },
+                            { value: 'Mid-Term', label: 'Mid-Term Report' }
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'var(--slate-50)', padding: '20px', borderRadius: '20px', border: '1.5px dashed var(--slate-200)' }}>
+                      <h4 style={{ fontSize: '12px', fontWeight: '900', color: 'var(--slate-900)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Clock size={16} style={{ color: 'var(--brand-green)' }} />
+                        Temporal Constraints
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         {reportType === 'Mid-Term' ? (
-                          <div>
-                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--slate-500)', display: 'block', marginBottom: '8px' }}>REPORT MONTH</span>
+                          <div style={{ gridColumn: 'span 2' }}>
+                            <span className="parameter-label">TARGET MONTH</span>
                             <PremiumSelect 
                               value={reportMonth} 
-                              options={monthOptions} 
-                              placeholder="Month"
                               onChange={(e) => setReportMonth(e.target.value)}
+                              options={monthOptions}
                             />
                           </div>
                         ) : (
                           <>
                             <div>
-                              <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--slate-500)', display: 'block', marginBottom: '8px' }}>VACATION DATE</span>
+                              <span className="parameter-label">VACATION DATE</span>
                               <PremiumDatePicker 
                                 value={vacationDate} 
                                 onChange={(val) => setVacationDate(val)} 
@@ -450,7 +481,7 @@ const Reports = () => {
                               />
                             </div>
                             <div>
-                              <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--slate-500)', display: 'block', marginBottom: '8px' }}>NEXT TERM BEGINS</span>
+                              <span className="parameter-label">NEXT TERM BEGINS</span>
                               <PremiumDatePicker 
                                 value={resumptionDate} 
                                 onChange={(val) => setResumptionDate(val)} 
@@ -464,26 +495,38 @@ const Reports = () => {
 
                     <button 
                       className="premium-btn-primary" 
-                      style={{ width: '100%', padding: '18px' }}
+                      style={{ width: '100%', padding: '20px', marginTop: '8px' }}
                       onClick={generateSynthesis}
                       disabled={generating}
                     >
-                      {generating ? 'Compiling Nodes...' : 'Execute Synthesis'}
+                      {generating ? (
+                        <>
+                          <RefreshCw size={20} className="animate-spin" />
+                          Compiling Data...
+                        </>
+                      ) : (
+                        <>
+                          <Zap size={20} />
+                          Execute Synthesis
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
 
-                {operationalScope === 'Individual' && students.length > 0 && (
-                  <div className="glass-card" style={{ padding: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                {operationalScope === 'Individual' && (
+                  <div className="glass-card" style={{ padding: '28px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                       <span className="premium-label" style={{ margin: 0 }}>Scholar Hub</span>
-                      <button onClick={handleSelectAll} style={{ background: 'none', border: 'none', color: 'var(--brand-green)', fontWeight: '800', fontSize: '10px', cursor: 'pointer', letterSpacing: '0.5px' }}>
-                        {selectedStudents.length === filteredStudents.length ? 'DESELECT ALL' : 'SELECT ALL'}
-                      </button>
+                      {students.length > 0 && (
+                        <button onClick={handleSelectAll} style={{ background: 'none', border: 'none', color: 'var(--brand-green)', fontWeight: '900', fontSize: '11px', cursor: 'pointer', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                          {selectedStudents.length === filteredStudents.length ? 'Deselect All' : 'Select All'}
+                        </button>
+                      )}
                     </div>
 
                     <div className="scholar-search-box">
-                      <Search className="search-icon-overlay" size={16} />
+                      <Search className="search-icon-overlay" size={18} />
                       <input 
                         type="text" 
                         className="scholar-search-input" 
@@ -493,24 +536,34 @@ const Reports = () => {
                       />
                     </div>
 
-                    <div className="scholar-grid-container scrollbar-hide" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                      {filteredStudents.length > 0 ? filteredStudents.map(student => (
+                    <div className="scholar-grid-container scrollbar-hide" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                      {isLoadingStudents ? (
+                        <div style={{ padding: '40px', textAlign: 'center' }}>
+                          <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--brand-green)', margin: '0 auto' }} />
+                        </div>
+                      ) : filteredStudents.length > 0 ? filteredStudents.map(student => (
                         <div 
                           key={student.id} 
                           className={`scholar-node-item ${selectedStudents.includes(student.id) ? 'active' : ''}`}
                           onClick={() => handleStudentSelect(student.id)}
                         >
                           <div className="selection-indicator">
-                            {selectedStudents.includes(student.id) && <CheckCircle2 size={12} color="white" />}
+                            {selectedStudents.includes(student.id) && <CheckCircle2 size={14} color="white" strokeWidth={3} />}
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--slate-900)' }}>{student.firstName} {student.lastName}</div>
-                            <div style={{ fontSize: '10px', color: 'var(--slate-500)', fontWeight: '600' }}>{student.admissionNumber || 'SCH-NODE'}</div>
+                            <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--slate-900)' }}>{student.firstName} {student.lastName}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--slate-500)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{student.admissionNumber || 'SCH-NODE'}</div>
                           </div>
+                          <ChevronRight size={14} style={{ opacity: 0.3 }} />
                         </div>
                       )) : (
-                        <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--slate-400)', fontSize: '12px', fontWeight: '600' }}>
-                          No scholars matching "{searchTerm}"
+                        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                          <div style={{ color: 'var(--slate-300)', marginBottom: '12px' }}>
+                            <Users size={32} style={{ margin: '0 auto' }} />
+                          </div>
+                          <p style={{ color: 'var(--slate-400)', fontSize: '13px', fontWeight: '600' }}>
+                            {searchTerm ? `No matches for "${searchTerm}"` : 'No scholars found in this node'}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -519,14 +572,14 @@ const Reports = () => {
               </aside>
 
               <section className="preview-area">
-                {!generating && !generatedReports && (
-                  <div className="empty-workspace">
-                    <div style={{ background: 'var(--brand-green-soft)', color: 'var(--brand-green)', padding: '40px', borderRadius: '40px', marginBottom: '32px' }}>
-                      <GraduationCap size={72} />
+                {!generatedReports && !generating && (
+                  <div className="empty-state-nexus">
+                    <div className="empty-state-icon">
+                      <Globe size={48} />
                     </div>
-                    <h2 style={{ fontSize: '36px', fontWeight: '950', letterSpacing: '-2px', color: 'var(--slate-900)', margin: '0 0 16px 0' }}>Workspace <span style={{ color: 'var(--brand-green)' }}>Active</span></h2>
-                    <p style={{ maxWidth: '450px', color: 'var(--slate-500)', fontWeight: '600', lineHeight: '1.7', textAlign: 'center', fontSize: '16px' }}>
-                      Configure the Synthesis Matrix and select scholar nodes to generate high-impact academic records.
+                    <h2 style={{ fontSize: '28px', fontWeight: '1000', color: 'var(--slate-900)', marginBottom: '16px', letterSpacing: '-1px' }}>Ready for Synthesis</h2>
+                    <p style={{ color: 'var(--slate-500)', maxWidth: '380px', lineHeight: '1.7', fontSize: '15px', fontWeight: '600' }}>
+                      Select academic parameters and scholar nodes to compile the terminal intelligence records.
                     </p>
                   </div>
                 )}
@@ -535,8 +588,24 @@ const Reports = () => {
                   <div className="synthesis-loader">
                     <div className="pulse-ring"></div>
                     <div style={{ textAlign: 'center' }}>
-                      <h2 style={{ color: 'var(--brand-green)', fontWeight: '950', fontSize: '32px', marginBottom: '12px', letterSpacing: '-1px' }}>Synthesizing Intelligence</h2>
-                      <p style={{ color: 'var(--slate-500)', fontWeight: '600', fontSize: '16px' }}>Consolidating performance metrics and terminal vectors...</p>
+                      <h2 style={{ 
+                        color: 'var(--brand-green)', 
+                        fontWeight: '1000', 
+                        fontSize: '36px', 
+                        marginBottom: '16px', 
+                        letterSpacing: '-2px',
+                        fontFamily: 'Outfit, sans-serif'
+                      }}>
+                        Synthesizing Records
+                      </h2>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                        <div className="animate-bounce" style={{ width: '8px', height: '8px', backgroundColor: 'var(--brand-green)', borderRadius: '50%' }}></div>
+                        <div className="animate-bounce" style={{ width: '8px', height: '8px', backgroundColor: 'var(--brand-green)', borderRadius: '50%', animationDelay: '0.2s' }}></div>
+                        <div className="animate-bounce" style={{ width: '8px', height: '8px', backgroundColor: 'var(--brand-green)', borderRadius: '50%', animationDelay: '0.4s' }}></div>
+                        <span style={{ color: 'var(--slate-500)', fontWeight: '700', fontSize: '16px', marginLeft: '8px' }}>
+                          Processing Terminal Vectors...
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -559,7 +628,6 @@ const Reports = () => {
                   </div>
                 )}
               </section>
-            </div>
           </div>
         </div>
       </div>
@@ -575,6 +643,49 @@ const ReportTemplate = ({ data }) => {
   const core = allSubjects.filter(s => s.category === 'CORE');
   const electives = allSubjects.filter(s => s.category === 'ELECTIVE');
 
+  // Dynamic scaling logic based on subject count
+  const subjectCount = allSubjects.length;
+  const useCompactMode = subjectCount > 10;
+  const useUltraCompactMode = subjectCount > 15;
+  
+  const getDensityStyle = (property) => {
+    if (useUltraCompactMode) {
+      switch(property) {
+        case 'rowPadding': return '3px 8px';
+        case 'headerPadding': return '5px 8px';
+        case 'fontSize': return '9px';
+        case 'interpretationSize': return '8px';
+        case 'headerSize': return '8px';
+        case 'sectionGap': return '6px';
+        case 'metaPadding': return '4px 8px';
+        default: return '';
+      }
+    }
+    if (useCompactMode) {
+      switch(property) {
+        case 'rowPadding': return '5px 10px';
+        case 'headerPadding': return '6px 10px';
+        case 'fontSize': return '10px';
+        case 'interpretationSize': return '9px';
+        case 'headerSize': return '9px';
+        case 'sectionGap': return '10px';
+        case 'metaPadding': return '6px 10px';
+        default: return '';
+      }
+    }
+    // Standard mode
+    switch(property) {
+      case 'rowPadding': return '8px 15px';
+      case 'headerPadding': return '8px 15px';
+      case 'fontSize': return '11px';
+      case 'interpretationSize': return '10px';
+      case 'headerSize': return '10px';
+      case 'sectionGap': return '15px';
+      case 'metaPadding': return '8px 12px';
+      default: return '';
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     try {
@@ -584,232 +695,226 @@ const ReportTemplate = ({ data }) => {
   };
 
   return (
-    <div className="report-card report-card-premium" style={{ border: '2px solid #00843e' }}>
-      <div className="report-frame-inner" style={{ border: '1px solid #facc15', backgroundColor: '#ffffff' }}>
-        {/* Decorative accents */}
-        <div className="report-corner corner-tl" style={{ width: '20px', height: '20px', borderLeft: '3px solid #00843e', borderTop: '3px solid #00843e' }}></div>
-        <div className="report-corner corner-tr" style={{ width: '20px', height: '20px', borderRight: '3px solid #00843e', borderTop: '3px solid #00843e', right: 0 }}></div>
-        <div className="report-corner corner-bl" style={{ width: '20px', height: '20px', borderLeft: '3px solid #00843e', borderBottom: '3px solid #00843e', bottom: 0 }}></div>
-        <div className="report-corner corner-br" style={{ width: '20px', height: '20px', borderRight: '3px solid #00843e', borderBottom: '3px solid #00843e', bottom: 0, right: 0 }}></div>
+    <div className="report-card report-card-premium" style={{ border: '2px solid var(--brand-green)' }}>
+      <div className="report-frame-inner" style={{ padding: useUltraCompactMode ? '5mm' : '8mm' }}>
 
-        <img src={UbsLogo} alt="Watermark" className="report-watermark" style={{ opacity: 0.03 }} />
+        <img src={UbsLogo} alt="Watermark" className="report-watermark" />
         
-        <div className="report-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
-          {/* Advanced Institutional Header - Compacted */}
-          <div style={{ textAlign: 'center', marginBottom: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', marginBottom: '8px' }}>
-              <img src={RLogo} alt="Logo" style={{ width: '75px', height: '75px', objectFit: 'contain' }} />
+        <div className="report-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+          {/* Advanced Institutional Header */}
+          <div style={{ textAlign: 'center', marginBottom: getDensityStyle('sectionGap') }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '30px', marginBottom: '8px' }}>
+              <img src={RLogo} alt="Logo" style={{ width: useUltraCompactMode ? '60px' : '75px', height: useUltraCompactMode ? '60px' : '75px', objectFit: 'contain' }} />
               <div style={{ textAlign: 'center' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: '1000', color: '#005a2b', margin: 0, letterSpacing: '1px', whiteSpace: 'nowrap' }}>UHAS BASIC SCHOOL</h1>
-                <div style={{ fontSize: '15px', fontWeight: '900', color: '#005a2b', marginTop: '1px' }}>
-                  {isMidTerm ? 'SPECIAL MID-TERM REPORT' : 'ACADEMIC REPORT'}
+                <h1 style={{ fontSize: useUltraCompactMode ? '20px' : '24px', fontWeight: '1000', color: '#005a2b', margin: 0, letterSpacing: '2px', whiteSpace: 'nowrap', fontFamily: 'Outfit, sans-serif' }}>UHAS BASIC SCHOOL</h1>
+                <div style={{ fontSize: useUltraCompactMode ? '12px' : '14px', fontWeight: '900', color: '#005a2b', marginTop: '1px', letterSpacing: '1px' }}>
+                  {isMidTerm ? 'SPECIAL MID-TERM EVALUATION' : 'OFFICIAL ACADEMIC REPORT'}
                 </div>
-                <div style={{ fontSize: '11px', fontWeight: '800', color: '#005a2b', textTransform: 'uppercase' }}>
-                  {isMidTerm ? `${data.month || 'FEBRUARY'}, ${data.year}` : `${data.term}, ${data.year}`}
+                <div style={{ fontSize: '10px', fontWeight: '800', color: '#005a2b', textTransform: 'uppercase', marginTop: '2px', opacity: 0.8 }}>
+                  {isMidTerm ? `${data.month || 'FEBRUARY'} SYNTHESIS, ${data.year}` : `${data.term}, ${data.year} ACADEMIC CYCLE`}
                 </div>
               </div>
-              <img src={UbsLogo} alt="UBS Logo" style={{ width: '75px', height: '75px', objectFit: 'contain' }} />
+              <img src={UbsLogo} alt="UBS Logo" style={{ width: useUltraCompactMode ? '60px' : '75px', height: useUltraCompactMode ? '60px' : '75px', objectFit: 'contain' }} />
             </div>
           </div>
 
-          {/* Premium Metadata Grid - Compacted */}
-          <div style={{ padding: '0 5mm', marginBottom: '15px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-              <div style={{ padding: '6px 10px', borderLeft: '3px solid #00843e', background: '#f8fafc', borderRadius: '4px' }}>
-                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '800', marginBottom: '1px' }}>NAME</div>
-                <div style={{ fontSize: '11px', fontWeight: '950', color: 'black' }}>{data.studentName?.toUpperCase()}</div>
+          {/* Premium Metadata Grid */}
+          <div style={{ marginBottom: getDensityStyle('sectionGap') }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: useUltraCompactMode ? '6px' : '10px' }}>
+              <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-green)', background: 'var(--slate-50)', borderRadius: '6px' }}>
+                <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>SCHOLAR NAME</div>
+                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.studentName?.toUpperCase()}</div>
               </div>
-              <div style={{ padding: '6px 10px', borderLeft: '3px solid #facc15', background: '#f8fafc', borderRadius: '4px' }}>
-                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '800', marginBottom: '1px' }}>BASIC / SECTION</div>
-                <div style={{ fontSize: '11px', fontWeight: '950', color: 'black' }}>{data.class?.toUpperCase().replace('BASIC', '').replace('PRIMARY', '').trim()} - {data.section}</div>
+              <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-yellow)', background: 'var(--slate-50)', borderRadius: '6px' }}>
+                <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>BASIC / SECTION</div>
+                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.class?.toUpperCase().replace('BASIC', '').replace('PRIMARY', '').trim()} - {data.section}</div>
               </div>
-              <div style={{ padding: '6px 10px', borderLeft: '3px solid #00843e', background: '#f8fafc', borderRadius: '4px' }}>
-                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '800', marginBottom: '1px' }}>ROLL NO.</div>
-                <div style={{ fontSize: '11px', fontWeight: '950', color: 'black' }}>{data.admissionNumber}</div>
+              <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-green)', background: 'var(--slate-50)', borderRadius: '6px' }}>
+                <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>ADMISSION NO.</div>
+                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.admissionNumber}</div>
               </div>
-              <div style={{ padding: '6px 10px', borderLeft: '3px solid #facc15', background: '#f8fafc', borderRadius: '4px' }}>
-                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '800', marginBottom: '1px' }}>TERM / YEAR</div>
-                <div style={{ fontSize: '11px', fontWeight: '950', color: 'black' }}>{data.term} | {data.year}</div>
+              <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-yellow)', background: 'var(--slate-50)', borderRadius: '6px' }}>
+                <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>ACADEMIC CYCLE</div>
+                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.term} | {data.year}</div>
               </div>
-              <div style={{ padding: '6px 10px', borderLeft: '3px solid #00843e', background: '#f8fafc', borderRadius: '4px' }}>
-                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '800', marginBottom: '1px' }}>AGGREGATE</div>
-                <div style={{ fontSize: '12px', fontWeight: '1000', color: '#00843e' }}>{data.aggregate}</div>
+              <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-green)', background: 'var(--brand-green-soft)', borderRadius: '6px' }}>
+                <div style={{ fontSize: '8px', color: 'var(--brand-green)', fontWeight: '900', marginBottom: '1px' }}>TERM AGGREGATE</div>
+                <div style={{ fontSize: useUltraCompactMode ? '11px' : '13px', fontWeight: '1000', color: 'var(--brand-green)' }}>{data.aggregate}</div>
               </div>
-              <div style={{ padding: '6px 10px', borderLeft: '3px solid #facc15', background: '#f8fafc', borderRadius: '4px' }}>
-                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '800', marginBottom: '1px' }}>POSITION</div>
-                <div style={{ fontSize: '12px', fontWeight: '1000', color: '#00843e' }}>{data.classPosition}</div>
+              <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-yellow)', background: 'var(--brand-yellow-soft)', borderRadius: '6px' }}>
+                <div style={{ fontSize: '8px', color: 'var(--brand-yellow)', fontWeight: '900', marginBottom: '1px' }}>CLASS POSITION</div>
+                <div style={{ fontSize: useUltraCompactMode ? '11px' : '13px', fontWeight: '1000', color: '#854d0e' }}>{data.classPosition}</div>
               </div>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '8px' }}>
-              <div style={{ fontSize: '9px', fontWeight: '800' }}>ROLL: <span style={{ color: '#00843e' }}>{data.numberOnRoll || '--'}</span></div>
-              <div style={{ fontSize: '9px', fontWeight: '800' }}>DATE: <span style={{ color: '#00843e' }}>{new Date().toLocaleDateString('en-GB')}</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px', padding: '0 5px' }}>
+              <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-600)' }}>ROLL STRENGTH: <span style={{ color: 'var(--brand-green)' }}>{data.numberOnRoll || '--'}</span></div>
+              <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-600)' }}>GENERATION DATE: <span style={{ color: 'var(--brand-green)' }}>{new Date().toLocaleDateString('en-GB')}</span></div>
               {!isMidTerm && (
-                <div style={{ fontSize: '9px', fontWeight: '800' }}>VACATION: <span style={{ color: '#00843e' }}>{formatDate(data.vacationDate)}</span></div>
+                <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-600)' }}>VACATION DATE: <span style={{ color: 'var(--brand-green)' }}>{formatDate(data.vacationDate)}</span></div>
               )}
             </div>
           </div>
 
-          {/* Advanced Subjects Table - Compacted */}
-          <div style={{ fontSize: '10px', fontWeight: '900', color: '#005a2b', letterSpacing: '2px', marginBottom: '25px', textAlign: 'center' }}>ACADEMIC PERFORMANCE EVALUATION</div>
+          {/* Advanced Subjects Table */}
+          <div style={{ fontSize: useUltraCompactMode ? '9px' : '11px', fontWeight: '1000', color: '#005a2b', letterSpacing: '2px', marginBottom: '6px', textAlign: 'center', textTransform: 'uppercase' }}>Performance Synthesis Matrix</div>
           <table className="report-table" style={{ 
-            border: '3px solid #005a2b', 
+            border: '2px solid #005a2b', 
             borderCollapse: 'separate', 
             borderSpacing: 0, 
             borderRadius: '12px', 
-            overflow: 'hidden',
-            boxShadow: '0 8px 24px rgba(0, 90, 43, 0.12)'
+            overflow: 'hidden'
           }}>
             <thead>
-              <tr className="table-header-advanced" style={{ background: 'linear-gradient(to bottom, #facc15, #f59e0b)' }}>
-                <th style={{ width: '25%', textAlign: 'left', padding: '8px 12px', fontSize: '11px', borderBottom: '2px solid #005a2b' }}>SUBJECTS</th>
-                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: '8px', fontSize: '10px', borderBottom: '2px solid #005a2b' }}>CLASS SCORE [50]</th>}
-                <th style={{ width: '10%', textAlign: 'center', padding: '8px', fontSize: '10px', borderBottom: '2px solid #005a2b' }}>EXAM SCORE [{isMidTerm ? '100' : '50'}]</th>
-                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: '8px', fontSize: '10px', borderBottom: '2px solid #005a2b' }}>TOTAL SCORE [100]</th>}
-                <th style={{ width: '10%', textAlign: 'center', padding: '8px', fontSize: '10px', borderBottom: '2px solid #005a2b' }}>SUBJ. POS.</th>
-                <th style={{ width: '8%', textAlign: 'center', padding: '8px', fontSize: '10px', borderBottom: '2px solid #005a2b' }}>GRADE</th>
-                <th style={{ width: '22%', textAlign: 'left', padding: '8px 12px', fontSize: '10px', borderBottom: '2px solid #005a2b' }}>INTERPRETATION</th>
+              <tr style={{ background: 'linear-gradient(to right, #00843e, #005a2b)', color: 'white' }}>
+                <th style={{ width: '25%', textAlign: 'left', padding: getDensityStyle('headerPadding'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>CURRICULUM NODES</th>
+                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>CLASS [50]</th>}
+                <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>EXAM [{isMidTerm ? '100' : '50'}]</th>
+                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>TOTAL [100]</th>}
+                <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>POS.</th>
+                <th style={{ width: '8%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>GRADE</th>
+                <th style={{ width: '22%', textAlign: 'left', padding: getDensityStyle('headerPadding'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>INTERPRETATION</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ backgroundColor: 'rgba(0, 90, 43, 0.05)', color: '#005a2b' }}>
-                <td colSpan={isMidTerm ? 5 : 7} style={{ textAlign: 'center', fontWeight: '1000', fontSize: '13px', padding: '10px', borderBottom: '2px solid #005a2b', letterSpacing: '2px' }}>CORE CURRICULUM</td>
+              <tr style={{ backgroundColor: 'rgba(0, 132, 62, 0.08)', color: '#005a2b' }}>
+                <td colSpan={isMidTerm ? 5 : 7} style={{ textAlign: 'center', fontWeight: '1000', fontSize: getDensityStyle('fontSize'), padding: '5px', letterSpacing: '2px', borderBottom: '1.5px solid #005a2b' }}>CORE SUBJECTS</td>
               </tr>
               {core.length > 0 ? core.map((sub, i) => (
-                <tr key={`core-${i}`} className={i % 2 === 0 ? 'row-even' : 'row-odd'} style={{ borderBottom: '1px solid rgba(0, 90, 43, 0.1)' }}>
-                  <td style={{ fontWeight: '900', color: '#005a2b', padding: '6px 12px', fontSize: '11px' }}>{sub.name.toUpperCase()}</td>
-                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '6px', fontSize: '11px' }}>{sub.classScore || '0'}</td>}
-                  <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '6px', fontSize: '11px' }}>{sub.examScore || '0'}</td>
-                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '950', color: '#005a2b', fontSize: '12px', padding: '6px' }}>{sub.total || '0'}</td>}
-                  <td style={{ textAlign: 'center', fontWeight: '800', color: '#00843e', padding: '6px', fontSize: '11px' }}>{sub.position || '--'}</td>
-                  <td style={{ textAlign: 'center', fontWeight: '950', color: '#005a2b', padding: '6px', fontSize: '12px' }}>{sub.grade || '--'}</td>
-                  <td style={{ fontSize: '10px', fontWeight: '700', fontStyle: 'italic', color: '#00843e', padding: '6px 12px' }}>{sub.interpretation?.toUpperCase() || '--'}</td>
+                <tr key={`core-${i}`} style={{ backgroundColor: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.01)', borderBottom: '1px solid rgba(0, 90, 43, 0.1)' }}>
+                  <td style={{ fontWeight: '900', color: '#005a2b', padding: getDensityStyle('rowPadding'), fontSize: getDensityStyle('fontSize') }}>{sub.name.toUpperCase()}</td>
+                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.classScore || '0'}</td>}
+                  <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.examScore || '0'}</td>
+                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '1000', color: '#005a2b', fontSize: getDensityStyle('fontSize'), padding: '5px' }}>{sub.total || '0'}</td>}
+                  <td style={{ textAlign: 'center', fontWeight: '800', color: '#00843e', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.position || '--'}</td>
+                  <td style={{ textAlign: 'center', fontWeight: '1000', color: '#005a2b', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.grade || '--'}</td>
+                  <td style={{ fontSize: getDensityStyle('interpretationSize'), fontWeight: '800', fontStyle: 'italic', color: '#00843e', padding: getDensityStyle('rowPadding') }}>{sub.interpretation?.toUpperCase() || '--'}</td>
                 </tr>
               )) : (
-                <tr><td colSpan={isMidTerm ? 5 : 7} style={{ textAlign: 'center', fontStyle: 'italic', padding: '20px', color: '#00843e' }}>No core subjects recorded</td></tr>
+                <tr><td colSpan={isMidTerm ? 5 : 7} style={{ textAlign: 'center', fontStyle: 'italic', padding: '10px', color: '#00843e' }}>No core subjects recorded</td></tr>
               )}
 
-              <tr style={{ backgroundColor: 'rgba(0, 90, 43, 0.05)', color: '#005a2b' }}>
-                <td colSpan={isMidTerm ? 5 : 7} style={{ textAlign: 'center', fontWeight: '1000', fontSize: '13px', padding: '10px', borderBottom: '2px solid #005a2b', borderTop: '2px solid #005a2b', letterSpacing: '2px' }}>ELECTIVE CURRICULUM</td>
+              <tr style={{ backgroundColor: 'rgba(0, 132, 62, 0.08)', color: '#005a2b' }}>
+                <td colSpan={isMidTerm ? 5 : 7} style={{ textAlign: 'center', fontWeight: '1000', fontSize: getDensityStyle('fontSize'), padding: '5px', letterSpacing: '2px', borderBottom: '1.5px solid #005a2b', borderTop: '1.5px solid #005a2b' }}>ELECTIVE SUBJECTS</td>
               </tr>
               {electives.length > 0 ? electives.map((sub, i) => (
-                <tr key={`elective-${i}`} className={i % 2 === 0 ? 'row-even' : 'row-odd'} style={{ borderBottom: '1px solid rgba(0, 90, 43, 0.1)' }}>
-                  <td style={{ fontWeight: '900', color: '#005a2b', padding: '6px 12px', fontSize: '11px' }}>{sub.name.toUpperCase()}</td>
-                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '6px', fontSize: '11px' }}>{sub.classScore || '0'}</td>}
-                  <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '6px', fontSize: '11px' }}>{sub.examScore || '0'}</td>
-                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '950', color: '#005a2b', fontSize: '12px', padding: '6px' }}>{sub.total || '0'}</td>}
-                  <td style={{ textAlign: 'center', fontWeight: '800', color: '#00843e', padding: '6px', fontSize: '11px' }}>{sub.position || '--'}</td>
-                  <td style={{ textAlign: 'center', fontWeight: '950', color: '#005a2b', padding: '6px', fontSize: '12px' }}>{sub.grade || '--'}</td>
-                  <td style={{ fontSize: '10px', fontWeight: '700', fontStyle: 'italic', color: '#00843e', padding: '6px 12px' }}>{sub.interpretation?.toUpperCase() || '--'}</td>
+                <tr key={`elective-${i}`} style={{ backgroundColor: i % 2 === 0 ? '#fff' : 'rgba(0,0,0,0.01)', borderBottom: '1px solid rgba(0, 90, 43, 0.1)' }}>
+                  <td style={{ fontWeight: '900', color: '#005a2b', padding: getDensityStyle('rowPadding'), fontSize: getDensityStyle('fontSize') }}>{sub.name.toUpperCase()}</td>
+                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.classScore || '0'}</td>}
+                  <td style={{ textAlign: 'center', fontWeight: '700', color: '#00843e', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.examScore || '0'}</td>
+                  {!isMidTerm && <td style={{ textAlign: 'center', fontWeight: '1000', color: '#005a2b', fontSize: getDensityStyle('fontSize'), padding: '5px' }}>{sub.total || '0'}</td>}
+                  <td style={{ textAlign: 'center', fontWeight: '800', color: '#00843e', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.position || '--'}</td>
+                  <td style={{ textAlign: 'center', fontWeight: '1000', color: '#005a2b', padding: '5px', fontSize: getDensityStyle('fontSize') }}>{sub.grade || '--'}</td>
+                  <td style={{ fontSize: getDensityStyle('interpretationSize'), fontWeight: '800', fontStyle: 'italic', color: '#00843e', padding: getDensityStyle('rowPadding') }}>{sub.interpretation?.toUpperCase() || '--'}</td>
                 </tr>
               )) : (
                 <tr><td colSpan={isMidTerm ? 5 : 7} style={{ textAlign: 'center', fontStyle: 'italic', padding: '20px', color: '#00843e' }}>No elective subjects recorded</td></tr>
               )}
 
-              <tr style={{ fontWeight: '950', backgroundColor: '#eee', color: '#005a2b' }}>
-                <td style={{ color: '#005a2b', padding: '8px 12px', fontSize: '12px' }}>TOTAL SCORE</td>
-                <td colSpan={isMidTerm ? 4 : 6} style={{ textAlign: 'right', paddingRight: '30px', fontSize: '14px', fontWeight: '1000' }}>
+              <tr style={{ fontWeight: '1000', backgroundColor: 'var(--slate-100)', color: '#005a2b' }}>
+                <td style={{ padding: '8px 15px', fontSize: getDensityStyle('fontSize'), borderTop: '2px solid #005a2b' }}>CONSOLIDATED SCORE</td>
+                <td colSpan={isMidTerm ? 4 : 6} style={{ textAlign: 'right', paddingRight: '40px', fontSize: useUltraCompactMode ? '12px' : '14px', fontWeight: '1000', borderTop: '2px solid #005a2b' }}>
                   {data.aggregate || data.totalScore || '--'}
                 </td>
               </tr>
             </tbody>
           </table>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginTop: '15px' }}>
-            <table className="conduct-table" style={{ border: '2px solid #005a2b', borderCollapse: 'collapse', width: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', marginTop: '8px' }}>
+            <table style={{ border: '2px solid #005a2b', borderCollapse: 'collapse', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
               <tbody>
-                <tr style={{ fontSize: '10px' }}>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800', width: '40%' }}>ATTENDANCE</td>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', textAlign: 'center' }}>{data.attendance || '--'}</td>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800', textAlign: 'center' }}>OUT OF</td>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', textAlign: 'center' }}>{data.totalDays || '--'}</td>
+                <tr style={{ fontSize: '9px' }}>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', width: '40%', backgroundColor: 'var(--slate-50)' }}>ATTENDANCE</td>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', textAlign: 'center', fontWeight: '800' }}>{data.attendance || '--'}</td>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', textAlign: 'center', backgroundColor: 'var(--slate-50)' }}>OUT OF</td>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', textAlign: 'center', fontWeight: '800' }}>{data.totalDays || '--'}</td>
                 </tr>
                 {!isMidTerm && (
-                  <tr style={{ fontSize: '10px' }}>
-                    <td colSpan={2} style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>PROMOTED TO</td>
-                    <td colSpan={2} style={{ border: '1px solid #005a2b', padding: '4px 8px' }}>{data.promotedTo || '--'}</td>
+                  <tr style={{ fontSize: '9px' }}>
+                    <td colSpan={2} style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', backgroundColor: 'var(--slate-50)' }}>PROMOTED TO</td>
+                    <td colSpan={2} style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>{data.promotedTo || '--'}</td>
                   </tr>
                 )}
-                <tr style={{ fontSize: '10px' }}>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>CONDUCT</td>
-                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px' }}>{data.conduct || 'VERY GOOD'}</td>
+                <tr style={{ fontSize: '9px' }}>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', backgroundColor: 'var(--slate-50)' }}>CONDUCT</td>
+                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>{data.conduct || 'VERY GOOD'}</td>
                 </tr>
-                <tr style={{ fontSize: '10px' }}>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>ATTITUDE</td>
-                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px' }}>{data.attitude || 'STUDIOUS AND HARDWORKING'}</td>
+                <tr style={{ fontSize: '9px' }}>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', backgroundColor: 'var(--slate-50)' }}>ATTITUDE</td>
+                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>{data.attitude || 'STUDIOUS AND HARDWORKING'}</td>
                 </tr>
-                <tr style={{ fontSize: '10px' }}>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>INTEREST</td>
-                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px' }}>{data.interest || 'READING'}</td>
+                <tr style={{ fontSize: '9px' }}>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', backgroundColor: 'var(--slate-50)' }}>INTEREST</td>
+                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>{data.interest || 'READING'}</td>
                 </tr>
-                <tr style={{ fontSize: '10px' }}>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '800' }}>CLASS TEACHER'S REMARKS</td>
-                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px', height: '30px' }}>{data.teacherRemarks}</td>
+                <tr style={{ fontSize: '9px' }}>
+                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', backgroundColor: 'var(--slate-50)' }}>TEACHER'S REMARKS</td>
+                  <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px', height: useUltraCompactMode ? '25px' : '35px', fontWeight: '800', verticalAlign: 'top', fontSize: '9px' }}>{data.teacherRemarks}</td>
                 </tr>
               </tbody>
             </table>
 
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', padding: '5px' }}>
-              <div style={{ fontSize: '11px', fontWeight: '800' }}>
-                Class Teacher's Name: <span style={{ borderBottom: '1.2px dotted #000', flex: 1, display: 'inline-block', minWidth: '130px' }}>{data.teacherName || '........................................'}</span>
+              <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-800)' }}>
+                Teacher's Name: <span style={{ borderBottom: '1.5px solid #000', flex: 1, display: 'inline-block', minWidth: '100px', paddingLeft: '8px' }}>{data.teacherName || '........................................'}</span>
               </div>
-              <div style={{ fontSize: '11px', fontWeight: '800' }}>
-                Class Teacher's signature: <span style={{ borderBottom: '1.2px dotted #000', flex: 1, display: 'inline-block', minWidth: '130px' }}>........................................</span>
+              <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-800)' }}>
+                Teacher's Signature: <span style={{ borderBottom: '1.5px dotted #000', flex: 1, display: 'inline-block', minWidth: '100px' }}>........................................</span>
               </div>
-              <div style={{ fontSize: '11px', fontWeight: '800' }}>
-                Head of School's Signature: <span style={{ borderBottom: '1.2px dotted #000', flex: 1, display: 'inline-block', minWidth: '130px' }}>........................................</span>
+              <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-800)' }}>
+                Head's Signature: <span style={{ borderBottom: '1.5px dotted #000', flex: 1, display: 'inline-block', minWidth: '100px' }}>........................................</span>
               </div>
-              <div className="official-seal" style={{ alignSelf: 'center', width: '60px', height: '60px', fontSize: '6px' }}>
+              <div className="official-seal" style={{ alignSelf: 'center', opacity: 0.6, fontSize: '9px' }}>
                 OFFICIAL SEAL
               </div>
             </div>
           </div>
 
 
-          {/* Physical Grading Matrix Footer */}
-          <div style={{ marginTop: '15px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+          {/* Grading Interpretation Matrix */}
+          <div style={{ marginTop: '10px', borderTop: '2.5px double #005a2b', paddingTop: '8px' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: '900', fontSize: '9px', color: '#005a2b', marginBottom: '4px', letterSpacing: '1px' }}>INTERPRETATION OF THE GRADING SYSTEM</div>
-              <table className="grading-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1.2px solid #005a2b' }}>
+              <div style={{ fontWeight: '1000', fontSize: '9px', color: '#005a2b', marginBottom: '4px', letterSpacing: '1.5px' }}>SYSTEMATIC GRADING INTERPRETATION</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #005a2b' }}>
                 <tbody>
-                  <tr style={{ backgroundColor: '#f8fafc', fontWeight: '800', fontSize: '7px', color: '#64748b' }}>
-                    <td style={{ border: '1px solid #005a2b' }}>100-90</td>
-                    <td style={{ border: '1px solid #005a2b' }}>89-80</td>
-                    <td style={{ border: '1px solid #005a2b' }}>79-70</td>
-                    <td style={{ border: '1px solid #005a2b' }}>69-60</td>
-                    <td style={{ border: '1px solid #005a2b' }}>59-55</td>
-                    <td style={{ border: '1px solid #005a2b' }}>54-50</td>
-                    <td style={{ border: '1px solid #005a2b' }}>49-40</td>
-                    <td style={{ border: '1px solid #005a2b' }}>39-35</td>
-                    <td style={{ border: '1px solid #005a2b' }}>34-0</td>
+                  <tr style={{ backgroundColor: 'var(--slate-100)', fontWeight: '900', fontSize: '8px', color: 'var(--slate-700)' }}>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>100-90</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>89-80</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>79-70</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>69-60</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>59-55</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>54-50</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>49-40</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>39-35</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>34-0</td>
                   </tr>
-                  <tr style={{ fontSize: '7px', fontWeight: '800', color: '#005a2b' }}>
-                    <td style={{ border: '1px solid #005a2b' }}>Highest</td>
-                    <td style={{ border: '1px solid #005a2b' }}>Higher</td>
-                    <td style={{ border: '1px solid #005a2b' }}>High</td>
-                    <td style={{ border: '1px solid #005a2b' }}>High Average</td>
-                    <td style={{ border: '1px solid #005a2b' }}>Average</td>
-                    <td style={{ border: '1px solid #005a2b' }}>Lower Average</td>
-                    <td style={{ border: '1px solid #005a2b' }}>Low</td>
-                    <td style={{ border: '1px solid #005a2b' }}>Lower</td>
-                    <td style={{ border: '1px solid #005a2b' }}>Lowest</td>
+                  <tr style={{ fontSize: '8px', fontWeight: '900', color: '#005a2b' }}>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Highest</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Higher</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>High</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>High Avg</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Average</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Low Avg</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Low</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Lower</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Lowest</td>
                   </tr>
-                  <tr style={{ fontSize: '8px', fontWeight: '900', color: '#005a2b', backgroundColor: '#f1f5f9' }}>
-                    <td style={{ border: '1px solid #005a2b' }}>1</td>
-                    <td style={{ border: '1px solid #005a2b' }}>2</td>
-                    <td style={{ border: '1px solid #005a2b' }}>3</td>
-                    <td style={{ border: '1px solid #005a2b' }}>4</td>
-                    <td style={{ border: '1px solid #005a2b' }}>5</td>
-                    <td style={{ border: '1px solid #005a2b' }}>6</td>
-                    <td style={{ border: '1px solid #005a2b' }}>7</td>
-                    <td style={{ border: '1px solid #005a2b' }}>8</td>
-                    <td style={{ border: '1px solid #005a2b' }}>9</td>
+                  <tr style={{ fontSize: '8px', fontWeight: '1000', color: '#005a2b', backgroundColor: 'var(--brand-yellow-soft)' }}>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>1</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>2</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>3</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>4</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>5</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>6</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>7</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>8</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>9</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '10px', fontWeight: '950', fontStyle: 'italic', color: '#00843e' }}>
-              Learning Today, Leading Tomorrow
+            <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '10px', fontWeight: '1000', fontStyle: 'italic', color: 'var(--brand-green)', letterSpacing: '1px' }}>
+              LEARNING TODAY, LEADING TOMORROW
             </div>
           </div>
         </div>
@@ -818,80 +923,119 @@ const ReportTemplate = ({ data }) => {
   );
 };
 
-
 const CohortSummaryTemplate = ({ reports, filters }) => {
   if (!reports || reports.length === 0) return null;
 
   const classAvg = reports.reduce((sum, r) => sum + Number(r.aggregate || 0), 0) / reports.length;
   const topScore = Math.max(...reports.map(r => Number(r.aggregate || 0)));
 
+  // Dynamic scaling for broadsheet
+  const reportCount = reports.length;
+  const useCompact = reportCount > 15;
+  const useUltraCompact = reportCount > 25;
+
+  const getDensity = (prop) => {
+    if (useUltraCompact) {
+      switch(prop) {
+        case 'padding': return '6px 10px';
+        case 'fontSize': return '8.5px';
+        case 'headerPadding': return '8px';
+        default: return '';
+      }
+    }
+    if (useCompact) {
+      switch(prop) {
+        case 'padding': return '8px 12px';
+        case 'fontSize': return '9.5px';
+        case 'headerPadding': return '10px';
+        default: return '';
+      }
+    }
+    return {
+      padding: '10px 12px',
+      fontSize: '10px',
+      headerPadding: '12px'
+    }[prop];
+  };
+
   return (
-    <div className="report-card report-card-premium" style={{ border: '2px solid #00843e', padding: '10mm', height: '297mm', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', marginBottom: '10px' }}>
-            <img src={RLogo} alt="Logo" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
+    <div className="report-card report-card-premium" style={{ border: '2.5px solid var(--brand-green)', padding: '10mm', height: '297mm', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+        <img src={UbsLogo} alt="Watermark" className="report-watermark" />
+        
+        <div style={{ textAlign: 'center', marginBottom: useUltraCompact ? '15px' : '30px', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '25px', marginBottom: useUltraCompact ? '8px' : '15px' }}>
+            <img src={RLogo} alt="Logo" style={{ width: useUltraCompact ? '60px' : '85px', height: useUltraCompact ? '60px' : '85px', objectFit: 'contain' }} />
             <div style={{ textAlign: 'center' }}>
-              <h1 style={{ fontSize: '22px', fontWeight: '1000', color: '#00843e', margin: 0, letterSpacing: '1px' }}>UHAS BASIC SCHOOL</h1>
-              <div style={{ fontSize: '16px', fontWeight: '900', color: '#00843e', marginTop: '2px' }}>
-                CLASS PERFORMANCE SUMMARY (BROADSHEET)
+              <h1 style={{ fontSize: useUltraCompact ? '22px' : '26px', fontWeight: '1000', color: '#00843e', margin: 0, letterSpacing: '2px', fontFamily: 'Outfit, sans-serif' }}>UHAS BASIC SCHOOL</h1>
+              <div style={{ fontSize: useUltraCompact ? '14px' : '18px', fontWeight: '900', color: '#00843e', marginTop: '4px', letterSpacing: '1px' }}>
+                CLASS PERFORMANCE SYNTHESIS (BROADSHEET)
               </div>
-              <div style={{ fontSize: '11px', fontWeight: '800', color: '#00843e', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: '12px', fontWeight: '800', color: '#00843e', textTransform: 'uppercase', marginTop: '5px', opacity: 0.8 }}>
                 {filters.grade} - {filters.section ? `SECTION ${filters.section}` : 'ALL SECTIONS'} | {filters.term}, {filters.year}
               </div>
             </div>
-            <img src={UbsLogo} alt="UBS Logo" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
+            <img src={UbsLogo} alt="UBS Logo" style={{ width: useUltraCompact ? '60px' : '85px', height: useUltraCompact ? '60px' : '85px', objectFit: 'contain' }} />
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', padding: useUltraCompact ? '10px' : '15px', backgroundColor: 'var(--slate-50)', borderRadius: '12px', border: '1.5px solid var(--brand-green-soft)' }}>
+            <div>
+              <div style={{ fontSize: '9px', color: 'var(--slate-500)', fontWeight: '900' }}>TOTAL NODES</div>
+              <div style={{ fontSize: '13px', fontWeight: '1000', color: 'var(--brand-green)' }}>{reports.length}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '9px', color: 'var(--slate-500)', fontWeight: '900' }}>SECTION NODE</div>
+              <div style={{ fontSize: '13px', fontWeight: '1000', color: 'var(--brand-green)' }}>{filters.section || 'ALL'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '9px', color: 'var(--slate-500)', fontWeight: '900' }}>CLASS AVERAGE</div>
+              <div style={{ fontSize: '13px', fontWeight: '1000', color: 'var(--brand-green)' }}>{classAvg.toFixed(2)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '9px', color: 'var(--slate-500)', fontWeight: '900' }}>PEAK SCORE</div>
+              <div style={{ fontSize: '13px', fontWeight: '1000', color: 'var(--brand-green)' }}>{topScore}</div>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px', padding: '10px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #00843e' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Students</div>
-            <div style={{ fontSize: '20px', fontWeight: '950', color: '#00843e' }}>{reports.length}</div>
-          </div>
-          <div style={{ textAlign: 'center', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Average</div>
-            <div style={{ fontSize: '20px', fontWeight: '950', color: '#00843e' }}>{classAvg.toFixed(1)}</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Top Score</div>
-            <div style={{ fontSize: '20px', fontWeight: '950', color: '#00843e' }}>{topScore}</div>
-          </div>
-        </div>
-
-        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, border: '2px solid #005a2b', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0, 90, 43, 0.05)' }}>
-          <thead>
-            <tr style={{ background: 'linear-gradient(to right, #00843e, #005a2b)', color: 'white' }}>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: '900', borderBottom: '2px solid #00843e' }}>RANK</th>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: '900', borderBottom: '2px solid #00843e' }}>STUDENT NAME</th>
-              {!filters.section && <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: '10px', fontWeight: '900', borderBottom: '2px solid #00843e' }}>SECTION</th>}
-              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: '10px', fontWeight: '900', borderBottom: '2px solid #00843e' }}>AGGREGATE</th>
-              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: '10px', fontWeight: '900', borderBottom: '2px solid #00843e' }}>ATTENDANCE</th>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: '900', borderBottom: '2px solid #00843e' }}>TEACHER REMARKS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.sort((a, b) => (b.aggregate || 0) - (a.aggregate || 0)).map((report, i) => (
-              <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '6px 10px', fontSize: '11px', fontWeight: '800', color: '#00843e' }}>{i + 1}</td>
-                <td style={{ padding: '6px 10px', fontSize: '11px', fontWeight: '700' }}>{report.studentName?.toUpperCase()}</td>
-                {!filters.section && <td style={{ padding: '6px 10px', textAlign: 'center', fontSize: '10px', fontWeight: '800' }}>{report.section || 'A'}</td>}
-                <td style={{ padding: '6px 10px', textAlign: 'center', fontSize: '11px', fontWeight: '900', color: '#00843e' }}>{report.aggregate || '--'}</td>
-                <td style={{ padding: '6px 10px', textAlign: 'center', fontSize: '10px' }}>{report.attendance} / {report.totalDays}</td>
-                <td style={{ padding: '6px 10px', fontSize: '9px', fontStyle: 'italic', color: '#64748b' }}>{report.teacherRemarks?.substring(0, 60)}...</td>
+        <div style={{ flex: 1, overflow: 'hidden', border: '2px solid #00843e', borderRadius: '12px', position: 'relative', zIndex: 1 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: getDensity('fontSize') }}>
+            <thead>
+              <tr style={{ background: '#00843e', color: 'white' }}>
+                <th style={{ padding: getDensity('headerPadding'), textAlign: 'left', borderBottom: '2px solid #005a2b' }}>RANK</th>
+                <th style={{ padding: getDensity('headerPadding'), textAlign: 'left', borderBottom: '2px solid #005a2b' }}>SCHOLAR IDENTITY</th>
+                <th style={{ padding: getDensity('headerPadding'), textAlign: 'center', borderBottom: '2px solid #005a2b' }}>ADMISSION</th>
+                <th style={{ padding: getDensity('headerPadding'), textAlign: 'center', borderBottom: '2px solid #005a2b' }}>AGGREGATE</th>
+                <th style={{ padding: getDensity('headerPadding'), textAlign: 'center', borderBottom: '2px solid #005a2b' }}>ATTENDANCE</th>
+                <th style={{ padding: getDensity('headerPadding'), textAlign: 'left', borderBottom: '2px solid #005a2b' }}>REMARKS</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[...reports].sort((a, b) => (b.aggregate || 0) - (a.aggregate || 0)).map((report, i) => (
+                <tr key={i} style={{ backgroundColor: i % 2 === 0 ? 'white' : 'var(--slate-50)', borderBottom: '1px solid var(--slate-200)' }}>
+                  <td style={{ padding: getDensity('padding'), fontWeight: '1000', color: 'var(--brand-green)' }}>{i + 1}</td>
+                  <td style={{ padding: getDensity('padding'), fontWeight: '800' }}>{report.studentName?.toUpperCase()}</td>
+                  <td style={{ padding: getDensity('padding'), textAlign: 'center', color: 'var(--slate-600)', fontWeight: '700' }}>{report.admissionNumber}</td>
+                  <td style={{ padding: getDensity('padding'), textAlign: 'center', fontWeight: '900', color: 'var(--brand-green)' }}>{report.aggregate}</td>
+                  <td style={{ padding: getDensity('padding'), textAlign: 'center', fontWeight: '800' }}>{report.attendance} / {report.totalDays}</td>
+                  <td style={{ padding: getDensity('padding'), fontSize: '8.5px', fontWeight: '700', fontStyle: 'italic', color: 'var(--slate-500)' }}>{report.teacherRemarks?.substring(0, 50)}...</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ borderBottom: '1px solid #000', width: '180px', marginBottom: '5px' }}></div>
-            <div style={{ fontSize: '9px', fontWeight: '800' }}>CLASS MASTER / MISTRESS</div>
+            <div style={{ borderBottom: '1.5px solid black', width: '200px', marginBottom: '8px' }}></div>
+            <div style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase' }}>Class Teacher's Signature</div>
+          </div>
+          <div style={{ textAlign: 'center', paddingBottom: '10px' }}>
+            <div className="official-seal" style={{ margin: '0 auto', opacity: 0.5 }}>OFFICIAL SEAL</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ borderBottom: '1px solid #000', width: '180px', marginBottom: '5px' }}></div>
-            <div style={{ fontSize: '9px', fontWeight: '800' }}>HEAD OF SCHOOL</div>
+            <div style={{ borderBottom: '1.5px solid black', width: '200px', marginBottom: '8px' }}></div>
+            <div style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase' }}>Head of School's Signature</div>
           </div>
         </div>
       </div>

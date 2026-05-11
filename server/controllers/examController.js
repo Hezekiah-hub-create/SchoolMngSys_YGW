@@ -1,180 +1,152 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
+const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 
-// Helper to map DB snake_case to Frontend camelCase
-const mapExamToFrontend = (e) => {
-  if (!e) return null;
-  return {
-    id: e.id,
-    name: e.name,
-    subject: e.subject,
-    grade: e.grade,
-    date: e.date,
-    duration: e.duration,
-    maxScore: e.max_score,
-    instructions: e.instructions,
-    status: e.status,
-    createdAt: e.created_at
-  };
-};
-
-// @desc    Get all exams
-// @route   GET /api/exams
-// @access  Private
-const getAllExams = asyncHandler(async (req, res) => {
-  const exams = await supabaseService.getAll(COLLECTIONS.EXAMS || 'exams', { orderBy: 'date', orderDirection: 'desc' });
+// Get all examinations with optional filtering
+exports.getAllExams = asyncHandler(async (req, res) => {
+  const { grade, term, academicYear } = req.query;
+  const user = req.user;
   
-  res.json({
-    success: true,
-    data: exams.map(mapExamToFrontend)
-  });
-});
-
-// @desc    Get exam by ID
-// @route   GET /api/exams/:id
-// @access  Private
-const getExamById = asyncHandler(async (req, res) => {
-  const exam = await supabaseService.getById(COLLECTIONS.EXAMS || 'exams', req.params.id);
+  // Use a defensive base query
+  let query = supabase.from(COLLECTIONS.EXAMS).select('*');
   
-  if (!exam) {
-    return res.status(404).json({ message: 'Exam not found' });
+  // 1. Role-based Isolation Logic
+  if (user.role === 'student') {
+    const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', user.id);
+    if (studentProfile && studentProfile.grade) {
+      query = query.eq('class', studentProfile.grade);
+    } else return res.status(200).json({ success: true, data: [] });
+  } 
+  else if (user.role === 'parent') {
+    const { data: parentData } = await supabase.from(COLLECTIONS.PARENTS).select('student_ids').eq('user_id', user.id).single();
+    if (parentData && parentData.student_ids && parentData.student_ids.length > 0) {
+      // Get grades of all linked children
+      const { data: children } = await supabase.from(COLLECTIONS.STUDENTS).select('grade').in('id', parentData.student_ids);
+      const childGrades = [...new Set((children || []).map(c => c.grade).filter(Boolean))];
+      if (childGrades.length > 0) {
+        query = query.in('class', childGrades);
+      } else return res.status(200).json({ success: true, data: [] });
+    } else return res.status(200).json({ success: true, data: [] });
   }
+  else if (user.role === 'teacher') {
+    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    if (teacherProfile && teacherProfile.grades && teacherProfile.grades.length > 0) {
+      query = query.in('class', teacherProfile.grades);
+    }
+  }
+
+  // 2. Global Filters
+  if (grade) query = query.eq('class', grade);
+  if (term) query = query.eq('term', term);
+  if (academicYear) query = query.eq('academic_year', academicYear);
+
+  // 3. Chronological Ordering
+  const { data: exams, error } = await query.order('date', { ascending: true });
   
-  res.json({
-    success: true,
-    data: mapExamToFrontend(exam)
-  });
+  if (error) {
+    console.error('[GET ALL EXAMS ERROR]:', error.message);
+    return res.status(200).json({ success: true, data: [] });
+  }
+
+  res.status(200).json({ success: true, data: exams || [] });
 });
 
-// @desc    Create new exam
-// @route   POST /api/exams
-// @access  Private (Admin, Teacher)
-const createExam = asyncHandler(async (req, res) => {
+// Create a new examination schedule
+exports.createExam = asyncHandler(async (req, res) => {
+  const { data: settings } = await supabase.from(COLLECTIONS.SETTINGS).select('*').single();
+  
   const examData = {
-    name: req.body.name,
-    subject: req.body.subject,
-    grade: req.body.grade,
-    date: req.body.date,
-    duration: req.body.duration,
-    max_score: req.body.maxScore,
-    instructions: req.body.instructions,
-    status: req.body.status || 'scheduled'
+    ...req.body,
+    academic_year: req.body.academicYear || req.body.academic_year || settings?.current_session,
+    term: req.body.term || settings?.current_term || '1st'
   };
   
-  const exam = await supabaseService.create(COLLECTIONS.EXAMS || 'exams', examData);
-  
-  res.status(201).json({
-    success: true,
-    data: mapExamToFrontend(exam)
-  });
+  const exam = await supabaseService.create(COLLECTIONS.EXAMS, examData);
+  res.status(201).json({ success: true, data: exam });
 });
 
-// @desc    Update exam
-// @route   PUT /api/exams/:id
-// @access  Private (Admin, Teacher)
-const updateExam = asyncHandler(async (req, res) => {
-  const existing = await supabaseService.getById(COLLECTIONS.EXAMS || 'exams', req.params.id);
-  
-  if (!existing) {
-    return res.status(404).json({ message: 'Exam not found' });
+// Update an existing examination
+exports.updateExam = asyncHandler(async (req, res) => {
+  const exam = await supabaseService.update(COLLECTIONS.EXAMS, req.params.id, req.body);
+  if (!exam) return res.status(404).json({ success: false, message: 'Exam configuration not found' });
+  res.status(200).json({ success: true, data: exam });
+});
+
+// Delete an examination record
+exports.deleteExam = asyncHandler(async (req, res) => {
+  await supabaseService.delete(COLLECTIONS.EXAMS, req.params.id);
+  res.status(200).json({ success: true, message: 'Exam session successfully terminated' });
+});
+
+// Retrieve comprehensive examination results
+exports.getExamResults = asyncHandler(async (req, res) => {
+  const { grade, studentId, term, academicYear } = req.query;
+  const user = req.user;
+
+  // 1. Fetch base grades
+  let query = supabase.from(COLLECTIONS.GRADES).select('*');
+
+  // Role-based Isolation
+  if (user.role === 'student') {
+    const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', user.id);
+    if (studentProfile) query = query.eq('student_id', studentProfile.id);
+    else return res.json({ success: true, data: [] });
+  } else if (user.role === 'parent') {
+    const { data: parentData } = await supabase.from(COLLECTIONS.PARENTS).select('student_ids').eq('user_id', user.id).single();
+    if (parentData && parentData.student_ids && parentData.student_ids.length > 0) {
+      query = query.in('student_id', parentData.student_ids);
+    } else return res.json({ success: true, data: [] });
   }
-  
-  const updates = {};
-  if (req.body.name) updates.name = req.body.name;
-  if (req.body.subject) updates.subject = req.body.subject;
-  if (req.body.grade) updates.grade = req.body.grade;
-  if (req.body.date) updates.date = req.body.date;
-  if (req.body.duration) updates.duration = req.body.duration;
-  if (req.body.maxScore) updates.max_score = req.body.maxScore;
-  if (req.body.instructions) updates.instructions = req.body.instructions;
-  if (req.body.status) updates.status = req.body.status;
-  
-  const updated = await supabaseService.update(COLLECTIONS.EXAMS || 'exams', req.params.id, updates);
-  
-  res.json({
-    success: true,
-    data: mapExamToFrontend(updated)
-  });
-});
 
-// @desc    Delete exam
-// @route   DELETE /api/exams/:id
-// @access  Private (Admin)
-const deleteExam = asyncHandler(async (req, res) => {
-  const exam = await supabaseService.getById(COLLECTIONS.EXAMS || 'exams', req.params.id);
-  
-  if (!exam) {
-    return res.status(404).json({ message: 'Exam not found' });
+  // Filters
+  if (studentId) query = query.eq('student_id', studentId);
+  if (term) query = query.eq('term', term);
+  if (academicYear) query = query.eq('academic_year', academicYear);
+
+  const { data: grades, error: gradesError } = await query.order('created_at', { ascending: false });
+  if (gradesError) throw gradesError;
+
+  if (!grades || grades.length === 0) {
+    return res.status(200).json({ success: true, data: [] });
   }
-  
-  await supabaseService.delete(COLLECTIONS.EXAMS || 'exams', req.params.id);
-  
-  res.json({
-    success: true,
-    message: 'Exam deleted successfully'
-  });
-});
 
-// @desc    Get exam results
-// @route   GET /api/exams/results
-// @access  Private
-// @desc    Get exam results
-// @route   GET /api/exams/results
-// @access  Private
-const getExamResults = asyncHandler(async (req, res) => {
-  // Fetch from grades table since exam_results doesn't exist
-  const supabase = require('../config/supabase');
-  const { data: results, error } = await supabase.from(COLLECTIONS.GRADES || 'grades')
-    .select('*, course:course_id(subject:subject_id(name), class:class_id(name))')
-    .order('created_at', { ascending: false });
-    
-  if (error || !results) {
-    return res.json({ success: true, data: [] });
-  }
-  
-  // Map grades to the format expected by ExamResults.jsx
-  const mappedResults = results.map(r => ({
-    id: r.id,
-    studentId: r.student_id,
-    courseId: r.course_id,
-    subject: r.course?.subject?.name || 'General Subject', // Fetch from joined table
-    score: r.total_score || 0,
-    maxScore: 100, // Default max score
-    grade: r.course?.class?.name || r.term || 'N/A', // Using joined class name or term
-    term: r.term,
-    academicYear: r.academic_year,
-    letterGrade: r.letter_grade,
-    isFinalized: r.is_finalized,
-    createdAt: r.created_at
-  }));
-  
-  res.json({
-    success: true,
-    data: mappedResults
-  });
-});
+  // 2. Fetch related data for mapping (Manual Join)
+  const [students, courses, subjects, classes] = await Promise.all([
+    supabaseService.getAll(COLLECTIONS.STUDENTS),
+    supabaseService.getAll(COLLECTIONS.COURSES),
+    supabaseService.getAll(COLLECTIONS.SUBJECTS),
+    supabaseService.getAll(COLLECTIONS.ACADEMIC_CLASSES)
+  ]);
 
-// @desc    Get exam schedule
-// @route   GET /api/exams/schedule
-// @access  Private
-const getExamSchedule = asyncHandler(async (req, res) => {
-  const exams = await supabaseService.getAll(COLLECTIONS.EXAMS || 'exams', { 
-    orderBy: 'date', 
-    orderDirection: 'asc' 
-  });
-  
-  res.json({
-    success: true,
-    data: exams.map(mapExamToFrontend)
-  });
-});
+  // Transform to high-fidelity schema for frontend
+  const results = grades.map(g => {
+    const student = students.find(s => s.id === g.student_id);
+    const course = courses.find(c => c.id === g.course_id);
+    const subject = course ? subjects.find(s => s.id === course.subject_id) : null;
+    const classData = course ? classes.find(c => c.id === course.class_id) : null;
 
-module.exports = {
-  getAllExams,
-  getExamById,
-  createExam,
-  updateExam,
-  deleteExam,
-  getExamResults,
-  getExamSchedule
-};
+    // Extract Exam Score specifically from assessments if present
+    const examAssessment = (g.assessments || []).find(a => 
+      a.name?.toLowerCase().includes('exam') || a.name?.toLowerCase().includes('final')
+    );
+
+    return {
+      id: g.id,
+      studentId: g.student_id,
+      studentName: student ? `${student.first_name} ${student.last_name}` : 'Unknown Scholar',
+      admissionNumber: student?.admission_number,
+      subject: subject?.name || 'General Subject',
+      grade: classData?.name || g.term,
+      score: examAssessment ? examAssessment.score : g.total_score,
+      maxScore: examAssessment ? examAssessment.maxScore : 100,
+      letterGrade: g.letter_grade,
+      examName: `${g.term} Evaluation`,
+      academicYear: g.academic_year,
+      term: g.term,
+      isFinalized: g.is_finalized,
+      updatedAt: g.updated_at
+    };
+  });
+
+  res.status(200).json({ success: true, data: results });
+});

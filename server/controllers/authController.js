@@ -158,6 +158,34 @@ const login = asyncHandler(async (req, res) => {
     .update({ last_login: new Date().toISOString() })
     .eq('id', user.id);
 
+  // Record detailed login history in background
+  try {
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+    let device = 'Desktop';
+    if (/mobile/i.test(userAgent)) device = 'Mobile';
+    if (/tablet/i.test(userAgent)) device = 'Tablet';
+    if (/iphone|ipad|ipod/i.test(userAgent)) device = 'iOS Device';
+    if (/android/i.test(userAgent)) device = 'Android Device';
+    
+    let browser = 'Browser';
+    if (/chrome/i.test(userAgent)) browser = 'Chrome';
+    else if (/safari/i.test(userAgent)) browser = 'Safari';
+    else if (/firefox/i.test(userAgent)) browser = 'Firefox';
+    else if (/edg/i.test(userAgent)) browser = 'Edge';
+
+    await supabase
+      .from('login_history')
+      .insert({
+        user_id: user.id,
+        device: `${device} (${browser})`,
+        ip_address: req.headers['x-forwarded-for'] || req.ip || '127.0.0.1',
+        login_time: new Date().toISOString(),
+        location: 'Ghana' // Default for now
+      });
+  } catch (historyErr) {
+    console.error('Login History Error:', historyErr.message);
+  }
+
   const token = generateToken(user.id);
 
   let profile = null;
@@ -167,6 +195,13 @@ const login = asyncHandler(async (req, res) => {
   } else if (user.role === 'teacher') {
     const { data } = await supabase.from('teachers').select('*').eq('user_id', user.id).single();
     profile = data;
+    if (profile) {
+      const { data: masteredSections } = await supabase
+        .from('sections')
+        .select('id, name, class_id, academic_year')
+        .eq('class_master_id', profile.id);
+      profile.masteredSections = masteredSections || [];
+    }
   } else if (user.role === 'parent') {
     const { data } = await supabase.from('parents').select('*').eq('user_id', user.id).single();
     profile = data;
@@ -233,6 +268,13 @@ const getMe = asyncHandler(async (req, res) => {
   } else if (user.role === 'teacher') {
     const { data } = await supabase.from('teachers').select('*').eq('user_id', user.id).single();
     profile = data;
+    if (profile) {
+      const { data: masteredSections } = await supabase
+        .from('sections')
+        .select('id, name, class_id, academic_year')
+        .eq('class_master_id', profile.id);
+      profile.masteredSections = masteredSections || [];
+    }
   } else if (user.role === 'parent') {
     const { data } = await supabase.from('parents').select('*').eq('user_id', user.id).single();
     profile = data;

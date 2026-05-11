@@ -38,7 +38,8 @@ const COLLECTIONS = {
   ACADEMIC_CLASSES: 'academic_classes',
   SECTIONS: 'sections',
   SUBJECTS: 'subjects',
-  CLASS_SUBJECTS: 'class_subjects'
+  CLASS_SUBJECTS: 'class_subjects',
+  LOGIN_HISTORY: 'login_history'
 };
 
 const generateId = () => crypto.randomUUID();
@@ -46,14 +47,29 @@ const generateId = () => crypto.randomUUID();
 const supabaseService = {
   async getAll(collection, options = {}) {
     const { limit = null, orderBy = 'created_at', orderDirection = 'desc' } = options;
-    let query = supabase.from(collection).select('*');
     
-    if (limit) query = query.limit(limit);
-    if (orderBy) query = query.order(orderBy, { ascending: orderDirection === 'asc' });
-    
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+    try {
+      let query = supabase.from(collection).select('*');
+      if (limit) query = query.limit(limit);
+      if (orderBy) query = query.order(orderBy, { ascending: orderDirection === 'asc' });
+      
+      const { data, error } = await query;
+      if (error) {
+        // If ordering by created_at fails, try without ordering
+        if (orderBy === 'created_at' && (error.message?.includes('column') || error.code === '42703')) {
+          const fallbackQuery = supabase.from(collection).select('*');
+          if (limit) fallbackQuery.limit(limit);
+          const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+          if (fallbackError) throw fallbackError;
+          return fallbackData || [];
+        }
+        throw error;
+      }
+      return data || [];
+    } catch (err) {
+      console.error(`[SUPABASE SERVICE ERROR] getAll failed for ${collection}:`, err.message);
+      throw err;
+    }
   },
 
   async getById(collection, id) {

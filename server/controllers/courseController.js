@@ -8,26 +8,34 @@ const { asyncHandler } = require('../middleware/errorMiddleware');
 const getAllCourses = asyncHandler(async (req, res) => {
   const { page = 1, limit = 100, search, grade, section, academicYear } = req.query;
   let teacher = req.query.teacher;
+  let query = supabase
+    .from(COLLECTIONS.CLASS_SUBJECTS)
+    .select('*, subject:subject_id(*), class:class_id(*), teacher:teacher_id(*)');
 
   // Data Isolation for teachers
   if (req.user.role === 'teacher' || req.user.role === 'staff') {
     const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', req.user.id);
     if (teacherProfile) {
       teacher = teacherProfile.id;
+      
+      // Get sections where they are Class Master
+      const { data: masteredSections } = await supabase
+        .from(COLLECTIONS.SECTIONS)
+        .select('class_id, name')
+        .eq('class_master_id', teacher);
+      
+      const masteredFilters = (masteredSections || []).map(s => `and(class_id.eq.${s.class_id},section.eq."${s.name}")`);
+      
+      if (masteredFilters.length > 0) {
+        // Teacher sees: subjects they teach OR subjects in sections they master
+        const orFilter = `teacher_id.eq.${teacher},${masteredFilters.join(',')}`;
+        query = query.or(orFilter);
+        teacher = null; // Clear to avoid redundant eq('teacher_id') later
+      }
     } else {
       return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
     }
   }
-
-  // Fetch from class_subjects with joins
-  let query = supabase
-    .from(COLLECTIONS.CLASS_SUBJECTS)
-    .select(`
-      *,
-      subject:subject_id (*),
-      class:class_id (*),
-      teacher:teacher_id (*)
-    `);
 
   if (teacher) query = query.eq('teacher_id', teacher);
   
@@ -40,103 +48,116 @@ const getAllCourses = asyncHandler(async (req, res) => {
   
   if (section) query = query.eq('section', section);
   
-  const { data, error } = await query;
-  if (error) throw error;
-
-  // Transform data to match legacy 'courses' structure
-  let transformedData = data.map(item => ({
-    id: item.id,
-    _id: item.id,
-    name: item.subject?.name || 'Unknown Subject',
-    code: item.subject?.code || 'N/A',
-    grade: item.class?.name || 'N/A',
-    section: item.section || 'A',
-    teacher_id: item.teacher_id,
-    teacher: item.teacher, // Explicitly include the teacher object
-    academic_year: item.academic_year,
-    room: item.room || 'N/A',
-    credits: item.credits || 0,
-    hoursPerWeek: item.hours_per_week || 0,
-    is_active: true
-  }));
-
-  // Data Isolation for students
-  if (req.user.role === 'student') {
-    const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', req.user.id);
-    
-    if (studentProfile) {
-      const studentGradeNorm = (studentProfile.grade || '').replace('Primary', 'Basic');
-      
-      transformedData = transformedData.filter(c => {
-        const courseGradeNorm = (c.grade || '').replace('Primary', 'Basic');
-        const matchesGrade = courseGradeNorm === studentGradeNorm;
-        const matchesSection = !c.section || c.section === 'All' || c.section === studentProfile.section;
-        
-        return matchesGrade && matchesSection;
-      });
-    } else {
-      return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
+  try {
+    const { data, error } = await query;
+    if (error) {
+      console.error('[BACKEND ERROR] Supabase query failed:', error);
+      throw error;
     }
-  }
 
-  // Manual filtering for grade and search (since they are in joined tables)
-  if (grade) {
-    transformedData = transformedData.filter(c => {
-      const dbGrade = c.grade.toLowerCase().trim();
-      const queryGrade = grade.toLowerCase().trim();
-      
-      // Exact match or space-insensitive match
-      if (dbGrade === queryGrade || dbGrade.replace(/\s/g, '') === queryGrade.replace(/\s/g, '')) return true;
-      
-      // Handle Basic/Primary mapping
-      const normalizedDB = dbGrade.replace('basic', 'primary').trim();
-      const normalizedQuery = queryGrade.replace('basic', 'primary').trim();
-      if (normalizedDB === normalizedQuery) return true;
+    // Transform data to match legacy 'courses' structure
+    let transformedData = data.map(item => ({
+      id: item.id,
+      _id: item.id,
+      name: item.subject?.name || 'Unknown Subject',
+      code: item.subject?.code || 'N/A',
+      grade: item.class?.name || 'N/A',
+      section: item.section || 'A',
+      teacher_id: item.teacher_id,
+      teacher: item.teacher, // Explicitly include the teacher object
+      academic_year: item.academic_year,
+      room: item.room || 'N/A',
+      credits: item.credits || 0,
+      hoursPerWeek: item.hours_per_week || 0,
+      is_active: true
+    }));
 
-      // Handle JHS/Basic mapping
-      const isJHS1 = queryGrade.includes('jhs 1') || queryGrade === 'jhs1';
-      const isJHS2 = queryGrade.includes('jhs 2') || queryGrade === 'jhs2';
-      const isJHS3 = queryGrade.includes('jhs 3') || queryGrade === 'jhs3';
+    // Data Isolation for students
+    if (req.user.role === 'student') {
+      const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', req.user.id);
       
-      if (isJHS1 && (dbGrade.includes('basic 7') || dbGrade === 'basic7')) return true;
-      if (isJHS2 && (dbGrade.includes('basic 8') || dbGrade === 'basic8')) return true;
-      if (isJHS3 && (dbGrade.includes('basic 9') || dbGrade === 'basic9')) return true;
-      
-      // Reverse mapping
-      const isBasic7 = queryGrade.includes('basic 7') || queryGrade === 'basic7';
-      const isBasic8 = queryGrade.includes('basic 8') || queryGrade === 'basic8';
-      const isBasic9 = queryGrade.includes('basic 9') || queryGrade === 'basic9';
-      
-      if (isBasic7 && (dbGrade.includes('jhs 1') || dbGrade === 'jhs1')) return true;
-      if (isBasic8 && (dbGrade.includes('jhs 2') || dbGrade === 'jhs2')) return true;
-      if (isBasic9 && (dbGrade.includes('jhs 3') || dbGrade === 'jhs3')) return true;
-      
-      return false;
+      if (studentProfile) {
+        const studentGradeNorm = (studentProfile.grade || '').replace('Primary', 'Basic');
+        
+        transformedData = transformedData.filter(c => {
+          const courseGradeNorm = (c.grade || '').replace('Primary', 'Basic');
+          const matchesGrade = courseGradeNorm === studentGradeNorm;
+          const matchesSection = !c.section || c.section === 'All' || c.section === studentProfile.section;
+          
+          return matchesGrade && matchesSection;
+        });
+      } else {
+        return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
+      }
+    }
+
+    // Manual filtering for grade and search (since they are in joined tables)
+    if (grade) {
+      transformedData = transformedData.filter(c => {
+        const dbGrade = (c.grade || '').toLowerCase().trim();
+        const queryGrade = grade.toLowerCase().trim();
+        
+        // Exact match or space-insensitive match
+        if (dbGrade === queryGrade || dbGrade.replace(/\s/g, '') === queryGrade.replace(/\s/g, '')) return true;
+        
+        // Handle Basic/Primary mapping
+        const normalizedDB = dbGrade.replace('basic', 'primary').trim();
+        const normalizedQuery = queryGrade.replace('basic', 'primary').trim();
+        if (normalizedDB === normalizedQuery) return true;
+
+        // JHS/Basic Mapping
+        const isJHS1 = queryGrade.includes('jhs 1') || queryGrade === 'jhs1';
+        const isJHS2 = queryGrade.includes('jhs 2') || queryGrade === 'jhs2';
+        const isJHS3 = queryGrade.includes('jhs 3') || queryGrade === 'jhs3';
+        
+        if (isJHS1 && (dbGrade.includes('basic 7') || dbGrade === 'basic7')) return true;
+        if (isJHS2 && (dbGrade.includes('basic 8') || dbGrade === 'basic8')) return true;
+        if (isJHS3 && (dbGrade.includes('basic 9') || dbGrade === 'basic9')) return true;
+
+        // Reverse JHS/Basic Mapping
+        const isBasic7 = queryGrade.includes('basic 7') || queryGrade === 'basic7';
+        const isBasic8 = queryGrade.includes('basic 8') || queryGrade === 'basic8';
+        const isBasic9 = queryGrade.includes('basic 9') || queryGrade === 'basic9';
+
+        if (isBasic7 && (dbGrade.includes('jhs 1') || dbGrade === 'jhs1')) return true;
+        if (isBasic8 && (dbGrade.includes('jhs 2') || dbGrade === 'jhs2')) return true;
+        if (isBasic9 && (dbGrade.includes('jhs 3') || dbGrade === 'jhs3')) return true;
+
+        return false;
+      });
+    }
+
+    if (search) {
+      const s = search.toLowerCase();
+      transformedData = transformedData.filter(c => 
+        c.name.toLowerCase().includes(s) || 
+        c.code.toLowerCase().includes(s) ||
+        (c.grade || '').toLowerCase().includes(s)
+      );
+    }
+
+    const total = transformedData.length;
+    const startIndex = (page - 1) * limit;
+    const paginatedData = transformedData.slice(startIndex, startIndex + parseInt(limit));
+
+    res.json({
+      success: true,
+      data: paginatedData,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    console.error('[BACKEND CRASH] getAllCourses failed:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error while fetching courses',
+      error: err.message 
     });
   }
-
-  if (search) {
-    const s = search.toLowerCase();
-    transformedData = transformedData.filter(c => 
-      c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s)
-    );
-  }
-
-  // Pagination
-  const total = transformedData.length;
-  const startIndex = (page - 1) * limit;
-  const paginatedData = transformedData.slice(startIndex, startIndex + parseInt(limit));
-
-  res.json({
-    success: true,
-    data: paginatedData,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      pages: Math.ceil(total / limit)
-    }
-  });
 });
 
 // @desc    Get single course

@@ -93,9 +93,10 @@ const getAllStudents = asyncHandler(async (req, res) => {
         return n1 === n2;
       };
 
-      // Filter students by grade and section
-      students = students.filter(s => 
-        assignments.some(a => isGradeMatch(a.grade, s.grade) && a.section === s.section)
+      // Filter students by grade and section (case-insensitive)
+      const normSection = (sec) => String(sec || '').toLowerCase().replace(/section\s*/i, '').trim();
+      students = students.filter(s =>
+        assignments.some(a => isGradeMatch(a.grade, s.grade) && normSection(a.section) === normSection(s.section))
       );
     } else {
       return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
@@ -124,7 +125,11 @@ const getAllStudents = asyncHandler(async (req, res) => {
     students = students.filter(s => isGradeMatch(s.grade, grade));
   }
   if (section) {
-    students = students.filter(s => s.section === section);
+    const normSec = String(section).toLowerCase().replace(/section\s*/i, '').trim();
+    students = students.filter(s => {
+      const sSec = String(s.section || '').toLowerCase().replace(/section\s*/i, '').trim();
+      return sSec === normSec;
+    });
   }
   if (academicYear) {
     students = students.filter(s => s.academic_year === academicYear);
@@ -244,12 +249,21 @@ const createStudent = asyncHandler(async (req, res) => {
       } catch (findError) {}
     }
 
-    // Normalize grade to match schema CHECK constraint (e.g., "KG 1")
+    // Normalize grade to match database check constraints
     let dbGrade = grade;
     if (grade && typeof grade === 'string') {
-      const match = grade.match(/^([a-zA-Z\s]+)(\d+)$/);
-      if (match) {
-        dbGrade = `${match[1].trim()} ${match[2]}`;
+      // Map "Basic 1-6" to "Primary 1-6" for database compatibility
+      const basicMatch = grade.match(/^Basic\s*([1-6])$/i);
+      if (basicMatch) {
+        dbGrade = `Primary ${basicMatch[1]}`;
+      } else {
+        // Standard normalization: ensure space between name and number (e.g., "JHS1" -> "JHS 1")
+        const standardMatch = grade.match(/^([a-zA-Z\s]+)(\d+)$/);
+        if (standardMatch) {
+          const namePart = standardMatch[1].trim();
+          const numPart = standardMatch[2];
+          dbGrade = `${namePart} ${numPart}`;
+        }
       }
     }
 

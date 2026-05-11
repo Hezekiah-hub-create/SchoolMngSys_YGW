@@ -32,6 +32,7 @@
   --top-nav-height: 70px;
   --content-padding: 40px;
   --main-margin: 260px;
+  --main-content-max-width: 1800px;
 }
 
 @media (max-width: 1024px) {
@@ -44,7 +45,7 @@
 
 @media (max-width: 640px) {
   :root {
-    --content-padding: 16px;
+    --content-padding: 12px;
   }
 }
 

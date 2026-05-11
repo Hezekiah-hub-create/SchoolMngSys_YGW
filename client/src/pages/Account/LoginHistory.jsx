@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { settingsAPI } from '../../services/api';
 import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 
@@ -17,11 +18,28 @@ const LoginHistory = () => {
   const { logout, user } = useAuth();
   const [storedUser, setStoredUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState('Login History');
+  const [loading, setLoading] = useState(true);
+  const [loginSessions, setLoginSessions] = useState([]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('authUser');
     if (savedUser) { try { setStoredUser(JSON.parse(savedUser)); } catch (e) {} }
+    fetchHistory();
   }, []);
+
+  const fetchHistory = async () => {
+    try {
+      setLoading(true);
+      const res = await settingsAPI.getLoginHistory();
+      if (res.data?.success) {
+        setLoginSessions(res.data.data);
+      }
+    } catch (err) {
+      console.error('Fetch history error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); }
@@ -29,12 +47,17 @@ const LoginHistory = () => {
 
   const currentUser = storedUser || user;
 
-  const loginSessions = [
-    { id: 1, device: 'Desktop Chrome', ip: '192.168.1.45', location: 'Accra, Ghana', time: 'Today, 08:30 AM', status: 'Current Session' },
-    { id: 2, device: 'iPhone 13 Safari', ip: '192.168.1.45', location: 'Accra, Ghana', time: 'Yesterday, 06:15 PM', status: 'Success' },
-    { id: 3, device: 'Desktop Chrome', ip: '192.168.1.12', location: 'Kumasi, Ghana', time: '23 Oct 2023, 10:20 AM', status: 'Success' },
-    { id: 4, device: 'Desktop Firefox', ip: '102.176.1.89', location: 'Accra, Ghana', time: '20 Oct 2023, 02:45 PM', status: 'Success' },
-  ];
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    return date.toLocaleString('en-GB', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
@@ -90,29 +113,42 @@ const LoginHistory = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {loginSessions.map((session) => (
-                    <tr key={session.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="5" style={{ padding: '40px', textAlign: 'center' }}>
+                        <div style={{ display: 'inline-block', width: '30px', height: '30px', border: '3px solid #e2e8f0', borderTop: '3px solid #00843e', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                        <p style={{ marginTop: '12px', color: '#64748b', fontSize: '14px' }}>Loading activity logs...</p>
+                      </td>
+                    </tr>
+                  ) : loginSessions.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ padding: '60px', textAlign: 'center' }}>
+                        <p style={{ color: '#94a3b8', fontSize: '16px' }}>No recent login activity found.</p>
+                      </td>
+                    </tr>
+                  ) : loginSessions.map((session, index) => (
+                    <tr key={session.id || index} style={{ borderBottom: '1px solid #f8fafc' }}>
                       <td style={{ padding: '20px 24px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <div style={{ color: '#64748b' }}>
-                            {session.device.includes('iPhone') ? <Icons.Smartphone /> : <Icons.Monitor />}
+                            {(session.device || '').includes('Mobile') || (session.device || '').includes('iOS') || (session.device || '').includes('Android') ? <Icons.Smartphone /> : <Icons.Monitor />}
                           </div>
-                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{session.device}</span>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{session.device || 'Unknown Device'}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '20px 24px', fontSize: '14px', color: '#64748b' }}>{session.ip}</td>
-                      <td style={{ padding: '20px 24px', fontSize: '14px', color: '#64748b' }}>{session.location}</td>
-                      <td style={{ padding: '20px 24px', fontSize: '14px', color: '#64748b' }}>{session.time}</td>
+                      <td style={{ padding: '20px 24px', fontSize: '14px', color: '#64748b' }}>{session.ip_address || 'Unknown'}</td>
+                      <td style={{ padding: '20px 24px', fontSize: '14px', color: '#64748b' }}>{session.location || 'Ghana'}</td>
+                      <td style={{ padding: '20px 24px', fontSize: '14px', color: '#64748b' }}>{formatDate(session.login_time)}</td>
                       <td style={{ padding: '20px 24px' }}>
                         <span style={{ 
                           padding: '6px 12px', 
                           borderRadius: '10px', 
                           fontSize: '11px', 
                           fontWeight: '800',
-                          backgroundColor: session.status === 'Current Session' ? '#ecfdf5' : '#f1f5f9',
-                          color: session.status === 'Current Session' ? '#10b981' : '#64748b'
+                          backgroundColor: index === 0 ? '#ecfdf5' : '#f1f5f9',
+                          color: index === 0 ? '#10b981' : '#64748b'
                         }}>
-                          {session.status}
+                          {index === 0 ? 'Current Session' : 'Success'}
                         </span>
                       </td>
                     </tr>

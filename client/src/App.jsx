@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AlertProvider } from './context/AlertContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Login from './pages/Login/Login';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
@@ -26,6 +27,8 @@ import Attendance from './pages/Attendance/Attendance';
 import Parents from './pages/Parents/Parents';
 import ParentProfile from './pages/Parents/ParentProfile/ParentProfile';
 import Assignments from './pages/Assignments/Assignments';
+import CreateAssignment from './pages/Assignments/CreateAssignment';
+import AssignmentDetail from './pages/Assignments/AssignmentDetail';
 import Announcements from './pages/Announcements/Announcements';
 
 import Results from './pages/Results/Results';
@@ -41,6 +44,7 @@ import SettingsGeneral from './pages/Settings/General/General';
 import SettingsAcademic from './pages/Settings/Academic/Academic';
 import SettingsUsers from './pages/Settings/Users/Users';
 import SettingsRoles from './pages/Settings/Roles/Roles';
+import SettingsLayout from './pages/Settings/SettingsLayout';
 import Reports from './pages/Reports/Reports';
 import FinancialReports from './pages/Reports/FinancialReports';
 import StaffReports from './pages/Reports/StaffReports';
@@ -50,6 +54,7 @@ import StaffProfile from './pages/Staff/StaffProfile/StaffProfile';
 import HelpSupport from './pages/Account/HelpSupport';
 import LoginHistory from './pages/Account/LoginHistory';
 import Configuration from './pages/Account/Configuration';
+import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
 import './index.css';
 
 // PublicRoute - Redirects to dashboard if already authenticated
@@ -102,9 +107,15 @@ const RoleBasedRoute = ({ children }) => {
     '/attendance',
     '/assignments',
     '/exams/marks',
-    '/reports',
     '/timetable',
     '/courses',
+    '/exams/schedule',
+    '/reports',
+    '/reports/academic',
+    '/announcements',
+    '/account/help',
+    '/account/login-history',
+    '/account/config',
   ]);
 
   const parentAllowedPaths = new Set([
@@ -120,8 +131,12 @@ const RoleBasedRoute = ({ children }) => {
     '/timetable',
     '/results',
     '/exam-results',
+    '/exams/schedule',
     '/parents/:id',
     '/announcements',
+    '/account/help',
+    '/account/login-history',
+    '/account/config',
   ]);
 
   const admissionAllowedPaths = new Set([
@@ -140,6 +155,9 @@ const RoleBasedRoute = ({ children }) => {
     '/reports',
     '/reports/academic',
     '/calendar',
+    '/account/help',
+    '/account/login-history',
+    '/account/config',
   ]);
 
   const studentAllowedPaths = new Set([
@@ -151,7 +169,12 @@ const RoleBasedRoute = ({ children }) => {
     '/attendance',
     '/assignments',
     '/exams/results',
+    '/exams/schedule',
     '/fees',
+    '/announcements',
+    '/account/help',
+    '/account/login-history',
+    '/account/config',
   ]);
 
 
@@ -198,20 +221,24 @@ const RoleBasedRoute = ({ children }) => {
     if (user.role === 'admin') return <Navigate to="/admin-dashboard" replace />;
   }
 
-  if (user.role === 'teacher' && !teacherAllowedPaths.has(location.pathname)) {
-    return <Navigate to="/teacher-dashboard" replace />;
+  if (user.role === 'student') {
+    const isAllowed = studentAllowedPaths.has(location.pathname) || 
+                      location.pathname.startsWith('/assignments/') || 
+                      location.pathname.startsWith('/students/');
+    if (!isAllowed) return <Navigate to="/student-dashboard" replace />;
+  }
+  
+  if (user.role === 'teacher') {
+    const isAllowed = teacherAllowedPaths.has(location.pathname) || location.pathname.startsWith('/assignments/');
+    if (!isAllowed) return <Navigate to="/teacher-dashboard" replace />;
   }
 
-  if (user.role === 'parent' && !parentAllowedPaths.has(location.pathname)) {
-    return <Navigate to="/parent-dashboard" replace />;
+  if (user.role === 'parent') {
+    const isAllowed = parentAllowedPaths.has(location.pathname) || location.pathname.startsWith('/assignments/');
+    if (!isAllowed) return <Navigate to="/parent-dashboard" replace />;
   }
-
   if (user.role === 'admission' && !admissionAllowedPaths.has(location.pathname)) {
     return <Navigate to="/admission-dashboard" replace />;
-  }
-
-  if (user.role === 'student' && !studentAllowedPaths.has(location.pathname)) {
-    return <Navigate to="/student-dashboard" replace />;
   }
 
   return children;
@@ -220,8 +247,9 @@ const RoleBasedRoute = ({ children }) => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Routes>
+      <AlertProvider>
+        <AuthProvider>
+          <Routes>
           {/* Public routes */}
           <Route path="/login" element={
             <PublicRoute>
@@ -233,425 +261,101 @@ function App() {
           <Route path="/5173/login" element={<Navigate to="/login" replace />} />
           
           {/* Protected routes - Role-based dashboards */}
-          <Route path="/" element={
+          <Route element={
             <ProtectedRoute>
               <RoleBasedRoute>
-                <AdminDashboard />
+                <AuthenticatedLayout />
               </RoleBasedRoute>
             </ProtectedRoute>
-          } />
-          
-          <Route path="/admin-dashboard" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <AdminDashboard />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teacher-dashboard" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <TeacherDashboard />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/student-dashboard" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <StudentDashboard />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/parent-dashboard" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <ParentDashboard />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/finance-dashboard" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <FinanceDashboard />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/it-dashboard" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <ITSupportDashboard />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admission-dashboard" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <AdmissionDashboard />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Student Management Routes */}
-          <Route path="/students" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Students />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/students/add" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <AddStudent />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/students/:id" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <StudentProfile />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/students/promote" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <PromoteStudents />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Teacher Management Routes */}
-          <Route path="/teachers" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Teachers />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teachers/add" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <AddTeacher />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teachers/:id" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <TeacherProfile />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Academic Routes */}
-          <Route path="/courses" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Courses />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/classes" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Classes />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/subjects" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Subjects />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/timetable" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Timetable />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/calendar" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Calendar />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/attendance" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Attendance />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Parents Route */}
-          <Route path="/parents" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Parents />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/parents/:id" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <ParentProfile />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Assignments */}
-          <Route path="/assignments" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Assignments />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Exams & Results */}
-          <Route path="/exams" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Results />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/exams/schedule" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <ExamSchedule />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/exams/marks" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <MarksEntry />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/exams/results" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <ExamResults />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Finance */}
-          <Route path="/fees" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Fees />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/fees/structure" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <FeesStructure />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/fees/collection" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <FeesCollection />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/fees/collection/:studentId" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <FeesCollection />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/fees/expenses" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Expenses />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/fees/income" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Income />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Reports */}
-          <Route path="/reports" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Reports />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/reports/academic" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Reports type="academic" />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/reports/financial" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <FinancialReports />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/reports/staff" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <StaffReports />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
+          }>
+            <Route path="/" element={<AdminDashboard />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+            <Route path="/student-dashboard" element={<StudentDashboard />} />
+            <Route path="/parent-dashboard" element={<ParentDashboard />} />
+            <Route path="/finance-dashboard" element={<FinanceDashboard />} />
+            <Route path="/it-dashboard" element={<ITSupportDashboard />} />
+            <Route path="/admission-dashboard" element={<AdmissionDashboard />} />
+            
+            {/* Student Management Routes */}
+            <Route path="/students" element={<Students />} />
+            <Route path="/students/add" element={<AddStudent />} />
+            <Route path="/students/:id" element={<StudentProfile />} />
+            <Route path="/students/promote" element={<PromoteStudents />} />
+            
+            {/* Teacher Management Routes */}
+            <Route path="/teachers" element={<Teachers />} />
+            <Route path="/teachers/add" element={<AddTeacher />} />
+            <Route path="/teachers/:id" element={<TeacherProfile />} />
+            
+            {/* Academic Routes */}
+            <Route path="/courses" element={<Courses />} />
+            <Route path="/classes" element={<Classes />} />
+            <Route path="/subjects" element={<Subjects />} />
+            <Route path="/timetable" element={<Timetable />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/attendance" element={<Attendance />} />
+            
+            {/* Parents Route */}
+            <Route path="/parents" element={<Parents />} />
+            <Route path="/parents/:id" element={<ParentProfile />} />
+            
+            {/* Assignments */}
+            <Route path="/assignments" element={<Assignments />} />
+            <Route path="/assignments/create" element={<CreateAssignment />} />
+            <Route path="/assignments/:id" element={<AssignmentDetail />} />
+            
+            {/* Exams & Results */}
+            <Route path="/exams" element={<Results />} />
+            <Route path="/exams/schedule" element={<ExamSchedule />} />
+            <Route path="/exams/marks" element={<MarksEntry />} />
+            <Route path="/exams/results" element={<ExamResults />} />
+            
+            {/* Finance */}
+            <Route path="/fees" element={<Fees />} />
+            <Route path="/fees/structure" element={<FeesStructure />} />
+            <Route path="/fees/collection" element={<FeesCollection />} />
+            <Route path="/fees/collection/:studentId" element={<FeesCollection />} />
+            <Route path="/fees/expenses" element={<Expenses />} />
+            <Route path="/fees/income" element={<Income />} />
+            
+            {/* Reports */}
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/academic" element={<Reports type="academic" />} />
+            <Route path="/reports/financial" element={<FinancialReports />} />
+            <Route path="/reports/staff" element={<StaffReports />} />
 
-          {/* Sections Management */}
-          <Route path="/sections" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Sections />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
+            {/* Sections Management */}
+            <Route path="/sections" element={<Sections />} />
 
-          {/* Staff Management */}
-          <Route path="/staff/non-teaching" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <NonTeaching />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
+            {/* Staff Management */}
+            <Route path="/staff/non-teaching" element={<NonTeaching />} />
+            <Route path="/staff/:id" element={<StaffProfile />} />
 
-          <Route path="/staff/:id" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <StaffProfile />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-
-          {/* Account Settings */}
-          <Route path="/account/help" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <HelpSupport />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-
-          <Route path="/account/login-history" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <LoginHistory />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-
-          <Route path="/account/config" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Configuration />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          {/* Settings */}
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <SettingsGeneral />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings/general" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <SettingsGeneral />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings/academic" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <SettingsAcademic />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings/users" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <SettingsUsers />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings/roles" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <SettingsRoles />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/announcements" element={
-            <ProtectedRoute>
-              <RoleBasedRoute>
-                <Announcements />
-              </RoleBasedRoute>
-            </ProtectedRoute>
-          } />
+            {/* Account Settings */}
+            <Route path="/account/help" element={<HelpSupport />} />
+            <Route path="/account/login-history" element={<LoginHistory />} />
+            <Route path="/account/config" element={<Configuration />} />
+            
+            {/* Settings Grouped */}
+            <Route path="/settings" element={<SettingsLayout />}>
+              <Route index element={<SettingsGeneral />} />
+              <Route path="general" element={<SettingsGeneral />} />
+              <Route path="academic" element={<SettingsAcademic />} />
+              <Route path="users" element={<SettingsUsers />} />
+              <Route path="roles" element={<SettingsRoles />} />
+            </Route>
+            
+            <Route path="/announcements" element={<Announcements />} />
+          </Route>
           
           {/* Catch all - redirect to login */}
           <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </AuthProvider>
+          </Routes>
+        </AuthProvider>
+      </AlertProvider>
     </Router>
   );
 }
 
 export default App;
-

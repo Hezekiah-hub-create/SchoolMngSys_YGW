@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 
 const displayGrade = (g) => {
   if (!g) return 'N/A';
@@ -155,18 +153,8 @@ const ParentDashboard = () => {
   const currentUser = storedUser || user;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
-      <style>{`
-        :root{--brand-green:#00843e;--brand-green-dark:#006831;--brand-green-light:#dcfce7;--brand-yellow:#facc15;}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-        @keyframes spin{to{transform:rotate(360deg)}}
-      `}</style>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} title="Parent Portal" />
-        <div style={{ padding: '100px 30px 30px 30px', animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="parent-dashboard-content">
+      <div style={{ padding: '0 0 40px 0', animation: 'fadeIn 0.5s ease-out' }}>
           <div style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -380,7 +368,6 @@ const ParentDashboard = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

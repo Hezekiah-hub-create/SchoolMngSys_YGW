@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { studentAPI, courseAPI, gradeAPI, settingsAPI } from '../../../services/api';
-import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
-import TopNav from '../../../components/layout/TopNav';
+import { studentAPI, courseAPI, gradeAPI, settingsAPI, teacherAPI } from '../../../services/api';
 import PremiumSelect from '../../../components/common/PremiumSelect';
 
 const displayGrade = (g) => {
@@ -22,6 +20,7 @@ const Icons = {
   Save: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
   Refresh: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
   Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Lock: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
 };
 
 const MarksEntry = () => {
@@ -33,7 +32,11 @@ const MarksEntry = () => {
   const currentUser = user || JSON.parse(localStorage.getItem('authUser') || '{}');
   const isTeacher = currentUser?.role === 'teacher';
   const isAdmin = currentUser?.role === 'admin';
-  const canEdit = isTeacher; // Only teachers can enter marks
+
+  // Teacher-specific state
+  const [teacherCourses, setTeacherCourses] = useState([]); // subjects teacher teaches
+  const [masterClass, setMasterClass] = useState(null);     // teacher's homeroom class
+  const [viewMode, setViewMode] = useState('entry');        // 'entry' | 'overview'
   
   const [filters, setFilters] = useState({
     grade: '',
@@ -41,7 +44,7 @@ const MarksEntry = () => {
     courseId: '',
     term: '1st'
   });
-  
+
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
   const [marks, setMarks] = useState({});
@@ -49,22 +52,52 @@ const MarksEntry = () => {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [toast, setToast] = useState(null); // { type: 'success'|'error', title, message }
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // canEdit: admin always, teacher only if the selected course is one they personally teach
+  const selectedCourse = courses.find(c => (c.id || c._id) === filters.courseId);
+  const isAssignedToSelectedCourse = isTeacher && teacherCourses.some(tc => (tc.id || tc._id) === filters.courseId);
+  const canEdit = isAdmin || isAssignedToSelectedCourse;
+
+  // Derive all unique class+section combos the teacher teaches
+  const teachingClasses = React.useMemo(() => {
+    const seen = new Set();
+    return teacherCourses
+      .filter(c => c.grade && c.section)
+      .filter(c => {
+        const key = `${c.grade}|${c.section}`;
+        if (seen.has(key)) return false;
+        seen.add(key); return true;
+      })
+      .map(c => ({ grade: c.grade, section: c.section, label: `${displayGrade(c.grade)} — Section ${c.section}` }))
+      .sort((a, b) => {
+        // Put master class first
+        if (masterClass) {
+          const aIsMaster = a.grade === (masterClass.name || masterClass.grade) && a.section === masterClass.section;
+          const bIsMaster = b.grade === (masterClass.name || masterClass.grade) && b.section === masterClass.section;
+          if (aIsMaster) return -1;
+          if (bIsMaster) return 1;
+        }
+        return a.label.localeCompare(b.label);
+      });
+  }, [teacherCourses, masterClass]);
+
   useEffect(() => {
     fetchInitialData();
-  }, [user, navigate]);
+  }, []);
+
+  const showToast = (type, title, message) => {
+    setToast({ type, title, message });
+    setTimeout(() => setToast(null), 4500);
+  };
 
   const fetchInitialData = async () => {
     try {
-      const [settingsRes, coursesRes] = await Promise.all([
-        settingsAPI.getSettings(),
-        courseAPI.getAll()
-      ]);
-      
+      const settingsRes = await settingsAPI.getSettings();
       if (settingsRes.data.success) {
         setSettings(settingsRes.data.settings);
         setFilters(prev => ({ 
@@ -72,9 +105,34 @@ const MarksEntry = () => {
           term: settingsRes.data.settings.currentTerm || '1st'
         }));
       }
-      
-      if (coursesRes.data.success) {
-        setCourses(coursesRes.data.data);
+
+      if (isTeacher) {
+        // Teachers: fetch only their own courses + master class info
+        const teacherRes = await teacherAPI.getMyCourses();
+        if (teacherRes.data.success) {
+          const tCourses = teacherRes.data.data || [];
+          setTeacherCourses(tCourses);
+          setCourses(tCourses); // only see their own subjects
+
+          const mClasses = teacherRes.data.masterClasses || [];
+          if (mClasses.length > 0) {
+            const mc = mClasses[0];
+            console.log('[DEBUG] Master class data:', mc);
+            setMasterClass(mc);
+            // mc.name = grade name (e.g. "JHS 1"), mc.section = section letter (e.g. "A")
+            setFilters(prev => ({
+              ...prev,
+              grade: mc.name || mc.grade || '',
+              section: mc.section || ''
+            }));
+          }
+        }
+      } else {
+        // Admin: see all courses
+        const coursesRes = await courseAPI.getAll();
+        if (coursesRes.data.success) {
+          setCourses(coursesRes.data.data);
+        }
       }
     } catch (error) { console.error('Error fetching initial data:', error); }
   };
@@ -85,23 +143,37 @@ const MarksEntry = () => {
   };
 
   const loadStudents = async () => {
-    if (!filters.grade || !filters.courseId) return;
+    // For teachers, allow loading with just grade (to see all students in their class)
+    if (!filters.grade) return;
+    // For course-based marks entry, also need courseId
+    if (!filters.courseId && !masterClass) return;
 
     try {
       setLoading(true);
-      setCurrentPage(1); // Reset to first page on new load
+      setCurrentPage(1);
       const currentYear = settings?.currentSession || '2024/2025';
-      
+
+      console.log('[DEBUG] loadStudents with filters:', filters);
+
       // Find all courses with the same name in this grade to merge their grades
       const selectedCourse = courses.find(c => c.id === filters.courseId || c._id === filters.courseId);
-      const matchingCourseIds = selectedCourse 
-        ? courses.filter(c => c.grade === filters.grade && c.name.toLowerCase().trim() === selectedCourse.name.toLowerCase().trim()).map(c => c.id || c._id)
-        : [filters.courseId];
+      const matchingCourseIds = selectedCourse
+        ? courses.filter(c =>
+            c.name.toLowerCase().trim() === selectedCourse.name.toLowerCase().trim()
+          ).map(c => c.id || c._id)
+        : filters.courseId ? [filters.courseId] : [];
 
-      const [studentsRes, ...gradesResponses] = await Promise.all([
-        studentAPI.getAll({ grade: filters.grade, section: filters.section }),
-        ...matchingCourseIds.map(id => gradeAPI.getByCourse(id, { term: filters.term, academicYear: currentYear }))
-      ]);
+      console.log('[DEBUG] selectedCourse:', selectedCourse, 'matchingCourseIds:', matchingCourseIds);
+
+      const studentParams = { grade: filters.grade, limit: 'none' };
+      if (filters.section) studentParams.section = filters.section;
+
+      const promises = [studentAPI.getAll(studentParams)];
+      if (matchingCourseIds.length > 0) {
+        matchingCourseIds.forEach(id => promises.push(gradeAPI.getByCourse(id, { term: filters.term, academicYear: currentYear })));
+      }
+
+      const [studentsRes, ...gradesResponses] = await Promise.all(promises);
 
       if (studentsRes.data.success) {
         const studentList = studentsRes.data.data;
@@ -202,19 +274,21 @@ const MarksEntry = () => {
       const response = await gradeAPI.submitBatch({ grades: gradesToSubmit });
       console.log('Submit response:', response.data);
       if (response.data.success) {
-        let msg = `Marks submitted successfully! ${response.data.count} records saved.`;
-        if (response.data.failed && response.data.failed.length > 0) {
-          msg += `\n\nFailed to save ${response.data.failed.length} records. Check console for details.`;
-          console.error('Failed grades:', response.data.failed);
+        const count = response.data.count;
+        const failed = response.data.failed || [];
+        if (failed.length > 0) {
+          console.error('Failed grades:', failed);
+          showToast('error', 'Partial Sync', `${count} records saved, but ${failed.length} failed. Check console for details.`);
+        } else {
+          showToast('success', 'Synchronization Complete', `${count} student record${count !== 1 ? 's' : ''} successfully committed to the ledger.`);
         }
-        alert(msg);
         loadStudents();
       } else {
-        alert('Error: ' + (response.data.message || 'Unknown error'));
+        showToast('error', 'Sync Failed', response.data.message || 'An unknown error occurred.');
       }
-    } catch (error) { 
-      console.error('Error submitting marks:', error); 
-      alert('Error: ' + (error.response?.data?.message || error.message)); 
+    } catch (error) {
+      console.error('Error submitting marks:', error);
+      showToast('error', 'Connection Error', error.response?.data?.message || error.message);
     }
     finally { setSaving(false); }
   };
@@ -224,20 +298,51 @@ const MarksEntry = () => {
   const grades = [...new Set(courses.map(c => c.grade))];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        <main style={{ padding: '100px 40px 40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+
+      {/* ── Custom Toast Notification ─────────────────────── */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '28px', right: '32px', zIndex: 9999,
+          minWidth: '360px', maxWidth: '440px',
+          background: 'white',
+          borderRadius: '20px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+          border: `1.5px solid ${toast.type === 'success' ? '#bbf7d0' : '#fee2e2'}`,
+          padding: '20px 24px',
+          display: 'flex', alignItems: 'flex-start', gap: '16px',
+          animation: 'toastSlideIn 0.35s cubic-bezier(0.34,1.56,0.64,1)'
+        }}>
+          <div style={{
+            width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: toast.type === 'success' ? '#f0fdf4' : '#fef2f2'
+          }}>
+            {toast.type === 'success'
+              ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            }
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: '900', fontSize: '15px', color: '#0f172a' }}>{toast.title}</p>
+            <p style={{ margin: '4px 0 0', fontWeight: '600', fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>{toast.message}</p>
+          </div>
+          <button onClick={() => setToast(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px', lineHeight: 1, flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      )}
+
+      <main style={{ padding: '0 0 60px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '48px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Assessment Node</span>
+                <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Assessment Node</span>
                 <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Academic Evaluation</span>
+                <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Academic Evaluation</span>
               </div>
-              <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>Marks <span style={{ color: 'var(--brand-green)' }}>{canEdit ? 'Entry' : 'Registry'}</span></h1>
-              <p style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>{canEdit ? 'Process and synchronize student assessment scores for the current term.' : 'View student assessment scores. Contact the assigned teacher to make changes.'}</p>
+              <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>Marks <span style={{ color: 'var(--brand-green)' }}>{canEdit ? 'Entry' : 'Registry'}</span></h1>
+              <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>{canEdit ? 'Process and synchronize student assessment scores for the current term.' : 'View student assessment scores. Contact the assigned teacher to make changes.'}</p>
             </div>
             {canEdit && students.length > 0 && (
               <button 
@@ -252,45 +357,129 @@ const MarksEntry = () => {
             )}
           </div>
 
-          {/* Read-only banner for admins */}
-          {!canEdit && (
+          {/* Master Class Badge for Teachers */}
+          {isTeacher && masterClass && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', marginBottom: '24px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: '900', color: '#15803d', margin: 0 }}>Class Master — {masterClass.name} Section {masterClass.section}</p>
+                <p style={{ fontSize: '12px', fontWeight: '600', color: '#4ade80', margin: '2px 0 0' }}>You can view all student marks. You can only edit marks for subjects you personally teach.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Mode Toggle for Class Masters */}
+          {isTeacher && masterClass && (
+            <div style={{ display: 'flex', gap: '0', marginBottom: '32px', background: '#f1f5f9', padding: '6px', borderRadius: '16px', width: 'fit-content' }}>
+              {[
+                {
+                  id: 'entry',
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
+                  label: 'Enter Subject Marks'
+                },
+                {
+                  id: 'overview',
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+                  label: 'View Class Overview'
+                }
+              ].map(mode => (
+                <button
+                  key={mode.id}
+                  onClick={() => { setViewMode(mode.id); setStudents([]); setMarks({}); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '800',
+                    fontSize: '14px',
+                    transition: 'all 0.25s',
+                    backgroundColor: viewMode === mode.id ? 'white' : 'transparent',
+                    color: viewMode === mode.id ? '#0f172a' : '#64748b',
+                    boxShadow: viewMode === mode.id ? '0 2px 12px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  {mode.icon}
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Read-only banner when a non-owned subject is selected */}
+          {!canEdit && filters.courseId && viewMode === 'entry' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', marginBottom: '32px' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <p style={{ fontSize: '14px', fontWeight: '700', color: '#1d4ed8', margin: 0 }}>View-Only Mode — You are viewing this as an Administrator. Only assigned teachers can enter or modify student marks.</p>
+              <p style={{ fontSize: '14px', fontWeight: '700', color: '#1d4ed8', margin: 0 }}>
+                {isTeacher
+                  ? 'View-Only Mode — You are viewing marks as a Class Master. Only the assigned teacher for this subject can modify scores.'
+                  : 'View-Only Mode — Only assigned teachers can enter or modify student marks.'}
+              </p>
             </div>
           )}
 
 
-          <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'flex-end' }}>
-            <div style={{ flex: 1 }}>
-              <label className="premium-label">Academic Grade</label>
-              <PremiumSelect 
-                name="grade"
-                value={filters.grade}
-                onChange={(e) => setFilters(prev => ({ ...prev, grade: e.target.value }))}
-                options={grades.map(g => ({ value: g, label: displayGrade(g) }))}
-                placeholder="Select Grade Level"
-              />
-            </div>
-            <div style={{ flex: 1 }}>
+          {viewMode === 'entry' && (
+          <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+
+            {/* Class Selector — for teachers, choose from all classes they teach */}
+            {isTeacher ? (
+              <div style={{ flex: '1 1 200px' }}>
+                <label className="premium-label">Target Class</label>
+                <PremiumSelect
+                  name="teachingClass"
+                  value={`${filters.grade}|${filters.section}`}
+                  onChange={(e) => {
+                    const [g, sec] = e.target.value.split('|');
+                    setFilters(prev => ({ ...prev, grade: g, section: sec, courseId: '' }));
+                    setStudents([]); setMarks({});
+                  }}
+                  options={teachingClasses.map(tc => {
+                    const isHomeroom = masterClass && tc.grade === (masterClass.name || masterClass.grade) && tc.section === masterClass.section;
+                    return {
+                      value: `${tc.grade}|${tc.section}`,
+                      label: tc.label + (isHomeroom ? ' (Homeroom)' : '')
+                    };
+                  })}
+                  placeholder="Select Class"
+                />
+              </div>
+            ) : (
+              <div style={{ flex: '1 1 200px' }}>
+                <label className="premium-label">Academic Grade</label>
+                <PremiumSelect
+                  name="grade"
+                  value={filters.grade}
+                  onChange={(e) => setFilters(prev => ({ ...prev, grade: e.target.value }))}
+                  options={[...new Set(courses.map(c => c.grade))].map(g => ({ value: g, label: displayGrade(g) }))}
+                  placeholder="Select Grade Level"
+                />
+              </div>
+            )}
+
+            {/* Subject — filtered to courses in the selected class */}
+            <div style={{ flex: '1 1 200px' }}>
               <label className="premium-label">Curriculum Subject</label>
-              <PremiumSelect 
+              <PremiumSelect
                 name="courseId"
                 value={filters.courseId}
                 onChange={(e) => setFilters(prev => ({ ...prev, courseId: e.target.value }))}
-                options={courses.filter(c => !filters.grade || c.grade === filters.grade)
-                  .filter((c, index, self) => 
-                    index === self.findIndex((t) => (
-                      t.name === c.name
-                    ))
-                  )
+                options={courses
+                  .filter(c => {
+                    if (!filters.grade) return true;
+                    const gradeMatch = c.grade === filters.grade || c.grade?.toLowerCase().includes(filters.grade?.toLowerCase());
+                    const sectionMatch = !filters.section || c.section === filters.section;
+                    return gradeMatch && sectionMatch;
+                  })
                   .map(c => ({ value: c.id || c._id, label: c.name }))}
-                placeholder="Select Course"
+                placeholder={isTeacher ? 'Select your subject' : 'Select Course'}
               />
             </div>
+
             <div style={{ flex: 1 }}>
               <label className="premium-label">Reporting Term</label>
-              <PremiumSelect 
+              <PremiumSelect
                 name="term"
                 value={filters.term}
                 onChange={(e) => setFilters(prev => ({ ...prev, term: e.target.value }))}
@@ -302,7 +491,7 @@ const MarksEntry = () => {
                 placeholder="Select Term"
               />
             </div>
-            <button 
+            <button
               onClick={loadStudents}
               disabled={loading || !filters.grade || !filters.courseId}
               className="premium-btn-secondary"
@@ -312,8 +501,22 @@ const MarksEntry = () => {
               {canEdit ? 'Initialize Sheet' : 'Load Registry'}
             </button>
           </div>
+          )}
+
+          {/* Class Overview Mode — load all subjects automatically */}
+          {viewMode === 'overview' && isTeacher && masterClass && (
+            <ClassOverviewPanel
+              grade={filters.grade}
+              section={filters.section}
+              term={filters.term}
+              settings={settings}
+              getGrade={getGrade}
+              onTermChange={(t) => setFilters(prev => ({ ...prev, term: t }))}
+            />
+          )}
 
 
+          {viewMode === 'entry' && (
           <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '28px 32px', borderBottom: '1px solid var(--brand-slate-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -368,13 +571,13 @@ const MarksEntry = () => {
                         <td style={{ padding: '20px 24px' }}>
                           {canEdit
                             ? <input type="number" max="50" value={marks[sId]?.classScore || 0} onChange={(e) => handleMarkChange(sId, 'classScore', e.target.value)} className="premium-input" style={{ width: '100px', textAlign: 'center', fontWeight: '900', fontSize: '18px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{marks[sId]?.classScore ?? 0}</span>
+                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 20px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.classScore ?? 0}</div>
                           }
                         </td>
                         <td style={{ padding: '20px 24px' }}>
                           {canEdit
                             ? <input type="number" max="50" value={marks[sId]?.examScore || 0} onChange={(e) => handleMarkChange(sId, 'examScore', e.target.value)} className="premium-input" style={{ width: '100px', textAlign: 'center', fontWeight: '900', fontSize: '18px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{marks[sId]?.examScore ?? 0}</span>
+                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 20px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.examScore ?? 0}</div>
                           }
                         </td>
 
@@ -442,15 +645,196 @@ const MarksEntry = () => {
               )}
             </div>
           </div>
-        </main>
-      </div>
-
+          )}
+      </main>
       <style>{`
         .mini-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input:focus { border-color: #00843e !important; box-shadow: 0 0 0 4px rgba(0, 132, 62, 0.1) !important; outline: none !important; }
+        @keyframes toastSlideIn {
+          from { opacity: 0; transform: translateX(60px) scale(0.95); }
+          to   { opacity: 1; transform: translateX(0)    scale(1); }
+        }
       `}</style>
+    </div>
+  );
+};
+
+// ─── ClassOverviewPanel ────────────────────────────────────────────────────────
+const ClassOverviewPanel = ({ grade, section, term, settings, getGrade, onTermChange }) => {
+  const [students, setStudents] = useState([]);
+  const [allSubjects, setAllSubjects] = useState([]); // ALL subjects for this grade
+  const [allMarks, setAllMarks]   = useState({});
+  const [loading, setLoading]     = useState(false);
+
+  useEffect(() => {
+    if (grade) loadOverview();
+  }, [grade, section, term]);
+
+  const loadOverview = async () => {
+    try {
+      setLoading(true);
+      const currentYear = settings?.currentSession || '2024/2025';
+
+      // Fetch students + ALL courses for this grade in parallel
+      const studentParams = { grade, limit: 'none' };
+      if (section) studentParams.section = section;
+
+      const [studentsRes, coursesRes] = await Promise.all([
+        studentAPI.getAll(studentParams),
+        courseAPI.getAll({ grade })
+      ]);
+
+      if (!studentsRes.data.success) return;
+      const studentList = studentsRes.data.data;
+      setStudents(studentList);
+
+      // Deduplicate courses by name (same subject across sections → one column)
+      const rawCourses = coursesRes.data?.data || [];
+      const seen = new Set();
+      const uniqueSubjects = rawCourses.filter(c => {
+        const key = c.name.toLowerCase().trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setAllSubjects(uniqueSubjects);
+
+      // Collect all unique course IDs grouped by subject name (to merge multi-section grades)
+      const subjectGroups = uniqueSubjects.map(sub => ({
+        sub,
+        ids: rawCourses
+          .filter(c => c.name.toLowerCase().trim() === sub.name.toLowerCase().trim())
+          .map(c => c.id || c._id)
+      }));
+
+      // Fetch grades for every subject group
+      const gradeResponses = await Promise.all(
+        subjectGroups.map(({ ids }) =>
+          Promise.all(
+            ids.map(id =>
+              gradeAPI.getByCourse(id, { term, academicYear: currentYear })
+                .catch(() => ({ data: { data: [] } }))
+            )
+          )
+        )
+      );
+
+      // Build marksMap: { studentId: { subjectName: { total } } }
+      const marksMap = {};
+      studentList.forEach(s => { marksMap[s.id || s._id] = {}; });
+
+      subjectGroups.forEach(({ sub }, sIdx) => {
+        const subKey = sub.name.toLowerCase().trim();
+        const allRecords = gradeResponses[sIdx].flatMap(r => r.data?.data || []);
+        allRecords.forEach(g => {
+          const sId = g.student || g.student_id;
+          if (!marksMap[sId]) return;
+          // Pick the most recently updated entry
+          const existing = marksMap[sId][subKey];
+          const assessments = g.assessments || [];
+          const classScore = assessments.find(a => a.name === 'Class Score')?.score ?? g.classScore ?? 0;
+          const examScore  = assessments.find(a => a.name === 'Exam Score')?.score  ?? g.examScore  ?? 0;
+          const total = classScore + examScore;
+          const ts = new Date(g.updated_at || g.created_at || 0).getTime();
+          if (!existing || ts > (existing._ts || 0)) {
+            marksMap[sId][subKey] = { total, _ts: ts };
+          }
+        });
+      });
+      setAllMarks(marksMap);
+    } catch (err) {
+      console.error('ClassOverviewPanel error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* Term Selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+        <span style={{ fontSize: '13px', fontWeight: '800', color: '#64748b' }}>Reporting Term:</span>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {['1st', '2nd', '3rd'].map(t => (
+            <button key={t} onClick={() => onTermChange(t)} style={{ padding: '8px 20px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '13px', backgroundColor: term === t ? '#00843e' : '#f1f5f9', color: term === t ? 'white' : '#64748b', transition: 'all 0.2s' }}>{t} Term</button>
+          ))}
+        </div>
+        <button onClick={loadOverview} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <div className="glass-card" style={{ padding: 0, overflow: 'hidden', overflowX: 'auto' }}>
+        <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>
+            {grade} — Section {section}
+            <span style={{ color: '#64748b', fontWeight: '600', fontSize: '14px', marginLeft: '12px' }}>Full Class Grade Overview ({term} Term)</span>
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
+            Read-only view of all {allSubjects.length} subjects for every student in your homeroom.
+          </p>
+        </div>
+
+        {loading ? (
+          <div style={{ padding: '80px', textAlign: 'center' }}>
+            <div className="premium-loader" style={{ margin: '0 auto' }}></div>
+            <p style={{ color: '#64748b', marginTop: '16px', fontWeight: '600' }}>Loading class grades...</p>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${260 + allSubjects.length * 110}px` }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f8fafc' }}>
+                <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', position: 'sticky', left: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Scholar</th>
+                {allSubjects.map(c => (
+                  <th key={c.id || c._id} style={{ padding: '14px 10px', textAlign: 'center', fontSize: '10px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', minWidth: '100px' }}>
+                    {c.name}
+                  </th>
+                ))}
+                <th style={{ padding: '16px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', minWidth: '70px' }}>Avg</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.length === 0 ? (
+                <tr><td colSpan={allSubjects.length + 2} style={{ padding: '80px', textAlign: 'center', color: '#94a3b8', fontWeight: '600' }}>No students found for this class.</td></tr>
+              ) : students.map((s, idx) => {
+                const sId = s.id || s._id;
+                const subjectMarks = allMarks[sId] || {};
+                const totals = allSubjects.map(c => subjectMarks[c.name.toLowerCase().trim()]?.total ?? null).filter(v => v !== null);
+                const avg = totals.length > 0 ? Math.round(totals.reduce((a, b) => a + b, 0) / totals.length) : null;
+                return (
+                  <tr key={sId} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#fafafa' }}>
+                    <td style={{ padding: '14px 24px', position: 'sticky', left: 0, backgroundColor: idx % 2 === 0 ? 'white' : '#fafafa', zIndex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: '900', fontSize: '14px', color: '#0f172a' }}>{s.firstName || s.first_name} {s.lastName || s.last_name}</p>
+                      <p style={{ margin: '2px 0 0', fontWeight: '600', fontSize: '11px', color: '#94a3b8' }}>{s.admissionNumber || s.admission_number}</p>
+                    </td>
+                    {allSubjects.map(c => {
+                      const key = c.name.toLowerCase().trim();
+                      const m = subjectMarks[key];
+                      const total = m?.total ?? null;
+                      const gradeLabel = total !== null ? getGrade(total) : '—';
+                      const color = total !== null ? (total >= 70 ? '#10b981' : total >= 50 ? '#ca8a04' : '#ef4444') : '#94a3b8';
+                      return (
+                        <td key={c.id || c._id} style={{ padding: '14px 10px', textAlign: 'center' }}>
+                          <span style={{ fontWeight: '900', fontSize: '15px', color }}>{total !== null ? total : '—'}</span>
+                          {total !== null && <span style={{ display: 'block', fontSize: '10px', fontWeight: '800', color, marginTop: '2px' }}>{gradeLabel}</span>}
+                        </td>
+                      );
+                    })}
+                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      {avg !== null
+                        ? <span style={{ padding: '5px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '900', backgroundColor: avg >= 70 ? '#ecfdf5' : avg >= 50 ? '#fefce8' : '#fef2f2', color: avg >= 70 ? '#10b981' : avg >= 50 ? '#ca8a04' : '#ef4444' }}>{avg}%</span>
+                        : <span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '600' }}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 };

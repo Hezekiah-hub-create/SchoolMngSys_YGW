@@ -16,7 +16,11 @@ const errorHandler = (err, req, res, next) => {
   try {
     const fs = require('fs');
     const path = require('path');
-    const logPath = path.join(__dirname, '../../scratch/error_debug.log');
+    const scratchDir = path.join(__dirname, '../../scratch');
+    if (!fs.existsSync(scratchDir)) {
+      fs.mkdirSync(scratchDir, { recursive: true });
+    }
+    const logPath = path.join(scratchDir, 'error_debug.log');
     const timestamp = new Date().toISOString();
     const logEntry = `[${timestamp}] ${req.method} ${req.originalUrl}\nError: ${err.message}\nStack: ${err.stack}\n\n`;
     fs.appendFileSync(logPath, logEntry);

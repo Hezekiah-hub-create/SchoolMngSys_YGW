@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
-import TopNav from '../../../components/layout/TopNav';
 import { parentAPI, paymentAPI, studentAPI, feeAPI, settingsAPI } from '../../../services/api';
 
 // Premium Icon Components
@@ -193,13 +191,10 @@ const FeesCollection = () => {
   const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        <main style={{ padding: '100px 40px 40px' }}>
+    <div>
+      <main>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Fiscal Intelligence</span>
@@ -221,10 +216,10 @@ const FeesCollection = () => {
           </div>
 
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px', alignItems: 'start' }}>
             
             {/* Left Column: Search & Profile */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               
               <div ref={searchRef} className="glass-card" style={{ padding: '32px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a', marginBottom: '24px', letterSpacing: '-0.5px' }}>Identify Student Node</h3>
@@ -352,7 +347,7 @@ const FeesCollection = () => {
             </div>
 
             {/* Right Column: Recent Transactions & Stats */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               
               {/* Quick Stats - Live from DB */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -394,101 +389,100 @@ const FeesCollection = () => {
                 </div>
               </div>
 
+              </div>
             </div>
-          </div>
-        </main>
-      </div>
+          </main>
 
-      {/* Modern Record Payment Modal */}
-      {showModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '32px', width: '100%', maxWidth: '600px', padding: '40px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideIn 0.3s ease-out' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-              <div>
-                <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Record Payment</h2>
-                <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{selectedStudent ? `Payment for ${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Enter payment details'}</p>
+          {/* Modern Record Payment Modal */}
+          {showModal && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
+              <div style={{ backgroundColor: 'white', borderRadius: '32px', width: '100%', maxWidth: '600px', padding: '40px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideIn 0.3s ease-out' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                  <div>
+                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Record Payment</h2>
+                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{selectedStudent ? `Payment for ${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Enter payment details'}</p>
+                  </div>
+                  <button onClick={() => setShowModal(false)} style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid #f1f5f9', backgroundColor: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student *</label>
+                    <select 
+                      name="studentId" 
+                      value={formData.studentId} 
+                      onChange={handleInputChange} 
+                      className="premium-input"
+                      required 
+                      disabled={!!selectedStudent}
+                    >
+                      <option value="">Select Student</option>
+                      {students.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.grade})</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fee Item</label>
+                    <select 
+                      name="feeId" 
+                      value={formData.feeId} 
+                      onChange={handleInputChange} 
+                      className="premium-input"
+                    >
+                      <option value="">General Payment / Miscellaneous</option>
+                      {feeComponents.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount (₵) *</label>
+                    <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} placeholder="0.00" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#f8fafc', fontWeight: '800', color: '#00843e', fontSize: '18px' }} required />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Method</label>
+                    <select 
+                      name="paymentMethod" 
+                      value={formData.paymentMethod} 
+                      onChange={handleInputChange} 
+                      className="premium-input"
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="mobile_money">Mobile Money</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="card">Debit/Credit Card</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reference #</label>
+                    <input type="text" name="referenceNumber" value={formData.referenceNumber} onChange={handleInputChange} placeholder="TXN-XXXX" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#f8fafc', fontWeight: '600' }} />
+                  </div>
+
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</label>
+                    <textarea name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Reason for payment..." style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', height: '80px', resize: 'none', backgroundColor: '#f8fafc' }}></textarea>
+                  </div>
+
+                  <div style={{ gridColumn: 'span 2', display: 'flex', gap: '16px', marginTop: '16px' }}>
+                    <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '16px', border: 'none', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '700', cursor: 'pointer', fontSize: '15px' }}>Discard</button>
+                    <button type="submit" disabled={submitting} style={{ flex: 2, padding: '16px', borderRadius: '16px', border: 'none', backgroundColor: '#00843e', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '15px', boxShadow: '0 10px 20px rgba(0, 132, 62, 0.2)', opacity: submitting ? 0.7 : 1 }}>
+                      {submitting ? 'Processing...' : 'Complete Payment'}
+                    </button>
+                  </div>
+                </form>
               </div>
-              <button onClick={() => setShowModal(false)} style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid #f1f5f9', backgroundColor: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
             </div>
-
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student *</label>
-                <select 
-                  name="studentId" 
-                  value={formData.studentId} 
-                  onChange={handleInputChange} 
-                  className="premium-input"
-                  required 
-                  disabled={!!selectedStudent}
-                >
-                  <option value="">Select Student</option>
-                  {students.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.grade})</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fee Item</label>
-                <select 
-                  name="feeId" 
-                  value={formData.feeId} 
-                  onChange={handleInputChange} 
-                  className="premium-input"
-                >
-                  <option value="">General Payment / Miscellaneous</option>
-                  {feeComponents.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount (₵) *</label>
-                <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} placeholder="0.00" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#f8fafc', fontWeight: '800', color: '#00843e', fontSize: '18px' }} required />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Method</label>
-                <select 
-                  name="paymentMethod" 
-                  value={formData.paymentMethod} 
-                  onChange={handleInputChange} 
-                  className="premium-input"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="mobile_money">Mobile Money</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="card">Debit/Credit Card</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reference #</label>
-                <input type="text" name="referenceNumber" value={formData.referenceNumber} onChange={handleInputChange} placeholder="TXN-XXXX" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#f8fafc', fontWeight: '600' }} />
-              </div>
-
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</label>
-                <textarea name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Reason for payment..." style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', height: '80px', resize: 'none', backgroundColor: '#f8fafc' }}></textarea>
-              </div>
-
-              <div style={{ gridColumn: 'span 2', display: 'flex', gap: '16px', marginTop: '16px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '16px', borderRadius: '16px', border: 'none', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '700', cursor: 'pointer', fontSize: '15px' }}>Discard</button>
-                <button type="submit" disabled={submitting} style={{ flex: 2, padding: '16px', borderRadius: '16px', border: 'none', backgroundColor: '#00843e', color: 'white', fontWeight: '800', cursor: 'pointer', fontSize: '15px', boxShadow: '0 10px 20px rgba(0, 132, 62, 0.2)', opacity: submitting ? 0.7 : 1 }}>
-                  {submitting ? 'Processing...' : 'Complete Payment'}
-                </button>
-              </div>
-            </form>
-          </div>
+          )}
+          
+          <style>{`
+            @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+          `}</style>
         </div>
-      )}
-      
-      <style>{`
-        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-    </div>
-  );
-};
+      );
+    };
 
 const StatMini = ({ title, value, icon, color, card }) => (
   <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '16px' }}>

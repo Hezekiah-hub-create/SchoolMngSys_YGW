@@ -1,4 +1,5 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
+const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 
 // Get all assignments
@@ -16,11 +17,35 @@ const getAllAssignments = asyncHandler(async (req, res) => {
       const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
       if (teacherProfile) {
         console.log(`[DEBUG] Found teacher profile: ${teacherProfile.id}`);
-        const teacherCourses = await supabaseService.getAll(COLLECTIONS.COURSES);
-        teacherCourseIds = teacherCourses
-          .filter(c => (c.teacher_id || c.teacher) === teacherProfile.id)
-          .map(c => c.id);
+        // Fetch only relevant courses for this teacher
+        const { data: teacherSubjects, error: tsError } = await supabase
+          .from(COLLECTIONS.CLASS_SUBJECTS)
+          .select('id, class_id, section, teacher_id')
+          .eq('teacher_id', teacherProfile.id);
+          
+        if (tsError) {
+          console.error('[DEBUG] Error fetching teacherSubjects:', tsError);
+        }
+        // If the above OR doesn't work (class_master_id might not be on class_subjects), use masteredSections
+        const { data: masteredSections } = await supabase
+          .from(COLLECTIONS.SECTIONS)
+          .select('class_id, name')
+          .eq('class_master_id', teacherProfile.id);
+          
+        const masteredFilters = (masteredSections || []).map(s => `and(class_id.eq.${s.class_id},section.eq."${s.name}")`);
         
+        let allTeacherCourses = teacherSubjects || [];
+        
+        if (masteredFilters.length > 0) {
+          const { data: extraCourses } = await supabase
+            .from(COLLECTIONS.CLASS_SUBJECTS)
+            .select('id, class_id, section, teacher_id')
+            .or(masteredFilters.join(','));
+          
+          if (extraCourses) allTeacherCourses = [...allTeacherCourses, ...extraCourses];
+        }
+
+        teacherCourseIds = [...new Set(allTeacherCourses.map(c => c.id))];
         console.log(`[DEBUG] Teacher handles ${teacherCourseIds.length} courses`);
 
         // If course is requested, ensure it's one of the teacher's courses
@@ -140,7 +165,7 @@ const getAssignmentById = asyncHandler(async (req, res) => {
 
 // Create assignment
 const createAssignment = asyncHandler(async (req, res) => {
-  const { title, description, course, grade, assignmentType, maxScore, weight, releaseDate, dueDate, instructions } = req.body;
+  const { title, description, course, grade, section, assignmentType, maxScore, weight, releaseDate, dueDate, instructions, attachments } = req.body;
   const user = req.user;
   let teacherId = req.body.teacherId;
 
@@ -154,7 +179,16 @@ const createAssignment = asyncHandler(async (req, res) => {
     // Verify course belongs to teacher
     const courseData = await supabaseService.getById(COLLECTIONS.COURSES, course);
     if (!courseData || (courseData.teacher_id !== teacherId && courseData.teacher !== teacherId)) {
-      return res.status(403).json({ message: 'Access denied. You can only create assignments for your own classes.' });
+      console.error(`[SECURITY BLOCKED] createAssignment for course ${course}. Teacher profile: ${teacherId}. Found courseData:`, courseData);
+      return res.status(403).json({ 
+        message: 'Access denied. You can only create assignments for your own classes.',
+        debug: {
+          providedCourseId: course,
+          foundCourseTeacherId: courseData?.teacher_id || courseData?.teacher,
+          expectedTeacherId: teacherId,
+          courseExists: !!courseData
+        }
+      });
     }
   }
 
@@ -170,12 +204,14 @@ const createAssignment = asyncHandler(async (req, res) => {
     academic_year: settings.current_session || '2024-2025',
     term: settings.current_term || '1st',
     grade,
+    section,
     assignment_type: assignmentType || 'homework',
     max_score: maxScore || 100,
     weight: weight || 1,
     release_date: releaseDate || new Date().toISOString().split('T')[0],
     due_date: dueDate,
     instructions,
+    attachments: attachments || [],
     submissions: [],
     is_published: true
   };
@@ -198,6 +234,7 @@ const updateAssignment = asyncHandler(async (req, res) => {
     course: 'course_id',
     teacherId: 'teacher_id',
     grade: 'grade',
+    section: 'section',
     assignmentType: 'assignment_type',
     maxScore: 'max_score',
     weight: 'weight',

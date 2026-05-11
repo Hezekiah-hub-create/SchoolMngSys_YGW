@@ -346,6 +346,10 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
               {/* Menu Items */}
               <div style={{ padding: '8px' }}>
                 <button 
+                  onClick={() => {
+                    setShowDropdown(false);
+                    navigate('/account/config');
+                  }}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
@@ -378,6 +382,10 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
                 </button>
                 
                 <button 
+                  onClick={() => {
+                    setShowDropdown(false);
+                    navigate('/account/config');
+                  }}
                   style={{
                     width: '100%',
                     padding: '12px 14px',

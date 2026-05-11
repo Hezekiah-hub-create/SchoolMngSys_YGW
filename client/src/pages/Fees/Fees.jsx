@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { feeAPI, studentAPI, parentAPI, paymentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
 
 // Premium Icon Components
@@ -93,14 +91,10 @@ const Fees = () => {
     ? fees.filter(f => (f.studentId || f.student?._id || f.student?.id) === selectedChildId)
     : fees;
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+    return (
+      <div>
+      <main>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -131,9 +125,11 @@ const Fees = () => {
 
 
 
+
+
           {/* Parent Welcome Banner */}
           {isParent && (
-            <div style={{ background: 'linear-gradient(135deg, #00843e 0%, #059669 100%)', borderRadius: '24px', padding: '32px', marginBottom: '32px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: 'linear-gradient(135deg, #00843e 0%, #059669 100%)', borderRadius: '24px', padding: '32px', marginBottom: '24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '1px' }}>Fee Overview</p>
                 <h2 style={{ margin: '8px 0 4px', fontSize: '28px', fontWeight: '900', letterSpacing: '-1px' }}>Your Child's Fee Status</h2>
@@ -159,7 +155,7 @@ const Fees = () => {
           )}
 
           {/* Stats Overview */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '24px' }}>
             <StatCard 
               title={isParent ? 'Amount Paid' : isStudent ? 'Total Paid' : 'Total Collected'}
               value={`₵ ${stats.totalPaid.toLocaleString()}`}
@@ -184,38 +180,47 @@ const Fees = () => {
           </div>
 
 
-          {/* Quick Access Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: (isParent || isStudent) ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '24px', marginBottom: '40px' }}>
+          {/* Quick Access Cards - Unified Financial Matrix */}
+          <div style={{ display: 'grid', gridTemplateColumns: (isParent || isStudent) ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '24px', marginBottom: '24px' }}>
             <QuickActionCard 
-              title={isParent ? 'Payment History' : isStudent ? 'Payment History' : 'Revenue Collection'}
-              desc={isParent ? 'View all past payments made for your child.' : isStudent ? 'View your payment history.' : 'Record and synchronize student fee payments.'}
-              icon={<Icons.CreditCard />}
-              color="#00843e"
-              onClick={() => navigate('/fees/collection')}
-            />
-            <QuickActionCard 
-              title={isParent ? 'Fee Schedule' : isStudent ? 'Fee Schedule' : 'Financial Structure'}
-              desc={isParent ? 'See all fees applicable to your child\'s grade.' : isStudent ? 'View your grade fee schedule.' : 'Configure institutional fee tiers and terms.'}
+              title="Fee Structure"
+              desc="Configure institutional fee tiers, scholarships, and academic terms."
               icon={<Icons.FileText />}
               color="#f59e0b"
               onClick={() => navigate('/fees/structure')}
             />
-
+            <QuickActionCard 
+              title="Fee Collection"
+              desc="Initiate and synchronize student fee payments with the ledger."
+              icon={<Icons.Plus />}
+              color="#00843e"
+              onClick={() => navigate('/fees/collection')}
+            />
+            <QuickActionCard 
+              title="Payments"
+              desc="Review comprehensive transaction history and successful receipts."
+              icon={<Icons.CreditCard />}
+              color="#3b82f6"
+              onClick={() => {
+                const table = document.getElementById('transaction-history');
+                if (table) table.scrollIntoView({ behavior: 'smooth' });
+              }}
+            />
             {!isParent && !isStudent && (
               <>
                 <QuickActionCard 
-                  title="Revenue Intelligence" 
-                  desc="Analyze income vectors and fiscal trends." 
-                  icon={<Icons.PieChart />} 
-                  color="#3b82f6" 
-                  onClick={() => navigate('/fees/income')} 
-                />
-                <QuickActionCard 
-                  title="Expenditure Ledger" 
-                  desc="Administer institutional operational costs." 
+                  title="Expenses" 
+                  desc="Administer institutional operational costs and expenditure." 
                   icon={<Icons.TrendingUp />} 
                   color="#f43f5e" 
                   onClick={() => navigate('/fees/expenses')} 
+                />
+                <QuickActionCard 
+                  title="Income" 
+                  desc="Analyze revenue vectors and fiscal growth trends." 
+                  icon={<Icons.PieChart />} 
+                  color="#10b981" 
+                  onClick={() => navigate('/fees/income')} 
                 />
               </>
             )}
@@ -223,7 +228,7 @@ const Fees = () => {
 
 
           {/* Recent Transactions */}
-          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div id="transaction-history" className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--brand-slate-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{isParent ? 'Recent Payments' : isStudent ? 'My Payment History' : 'Transaction History'}</h2>
               <button style={{ color: 'var(--brand-green)', backgroundColor: 'transparent', border: 'none', fontSize: '14px', fontWeight: '800', cursor: 'pointer' }}>View Report</button>
@@ -285,11 +290,7 @@ const Fees = () => {
               </table>
             </div>
           </div>
-        </main>
-      </div>
-      <style>{`
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-      `}</style>
+      </main>
     </div>
   );
 };

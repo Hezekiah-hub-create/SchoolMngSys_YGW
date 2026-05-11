@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { feeAPI, studentAPI, paymentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import { 
   BarChart, 
   Bar, 
@@ -15,90 +14,7 @@ import {
   Cell
 } from 'recharts';
 
-// Top Navigation Bar
-const TopNav = ({ user, onLogout }) => {
-  const [showDropdown, setShowDropdown] = useState(false);
-  
-  return (
-    <div style={{
-      height: '70px',
-      backgroundColor: 'white',
-      borderBottom: '1px solid #e2e8f0',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 30px',
-      position: 'fixed',
-      top: 0,
-      left: '260px',
-      right: 0,
-      zIndex: 99
-    }}>
-      <div style={{ flex: 1, maxWidth: '400px' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          backgroundColor: '#f1f5f9',
-          borderRadius: '10px',
-          padding: '10px 16px',
-          gap: '10px'
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35"/>
-          </svg>
-          <input 
-            type="text" 
-            placeholder="Search payments, invoices..." 
-            style={{
-              border: 'none',
-              backgroundColor: 'transparent',
-              outline: 'none',
-              fontSize: '14px',
-              width: '100%',
-              color: '#1e293b'
-            }}
-          />
-        </div>
-      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-        <div style={{ position: 'relative', cursor: 'pointer' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-          </svg>
-          <span style={{ position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%' }}></span>
-        </div>
-
-        <div style={{ position: 'relative' }}>
-          <div onClick={() => setShowDropdown(!showDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
-              {user?.firstName?.[0] || 'F'}
-            </div>
-            <div>
-              <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{user?.firstName ? `${user.firstName} ${user.lastName}` : 'Finance'}</p>
-              <p style={{ fontSize: '12px', color: '#64748b' }}>Finance Officer</p>
-            </div>
-          </div>
-          {showDropdown && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '200px', backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', zIndex: 1000 }}>
-              <div style={{ padding: '12px', borderBottom: '1px solid #f1f5f9' }}>
-                <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{user?.firstName} {user?.lastName}</p>
-                <p style={{ fontSize: '12px', color: '#64748b' }}>{user?.email}</p>
-              </div>
-              <div style={{ padding: '8px' }}>
-                <button onClick={() => { if (onLogout) onLogout(); }} style={{ width: '100%', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'transparent', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#dc2626', fontSize: '14px', fontWeight: '500' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Statistics Card
 const StatCard = ({ icon, title, value, color, loading, subtitle, gradient }) => (
@@ -231,13 +147,13 @@ const CollectionChart = ({ data, loading }) => {
   };
 
   return (
-    <div style={{ padding: '20px', height: '350px', width: '100%', minWidth: '0' }}>
+    <div style={{ padding: '20px', height: '350px', width: '100%', position: 'relative', minWidth: '0' }}>
       {loading ? (
         <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc', borderRadius: '12px', animation: 'pulse 1.5s infinite' }}></div>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="99%" height={300} debounce={50}>
           <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis 
@@ -372,17 +288,14 @@ const FinanceDashboard = () => {
   const currentUser = storedUser || user;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        <div style={{ padding: '100px 30px 30px 30px' }}>
+    <div style={{ padding: '0 0 40px 0' }}>
+      <main>
           <div style={{ marginBottom: '24px' }}>
             <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e293b' }}>Finance Dashboard</h1>
             <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Welcome back, {currentUser?.firstName}!</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
             <StatCard 
               icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>} 
               title="Total Collected" 
@@ -458,8 +371,7 @@ const FinanceDashboard = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };

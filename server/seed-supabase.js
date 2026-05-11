@@ -26,7 +26,7 @@ const deterministicUUID = (seed) => {
   ].join('-');
 };
 
-const validGrades = ['KG 1', 'KG 2', 'KG 3', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'];
+const validGrades = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'];
 
 // 260 unique Ghanaian first names spanning Akan, Ewe, Ga, Dagomba & Christian naming traditions
 // Using sequential index-based picking ensures each name appears at most twice across 500 students
@@ -148,15 +148,15 @@ const seedData = async () => {
     // ==================== TEACHERS ====================
     const teacherSubjects = [
       { subject: 'Mathematics', grades: ['JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'Science', grades: ['Primary 4', 'Primary 5', 'Primary 6', 'JHS 1'] },
-      { subject: 'English', grades: ['Primary 1', 'Primary 2', 'Primary 3'] },
+      { subject: 'Science', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'JHS 1'] },
+      { subject: 'English', grades: ['Basic 1', 'Basic 2', 'Basic 3'] },
       { subject: 'Social Studies', grades: ['JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'Creative Arts', grades: ['KG 1', 'KG 2', 'Primary 1', 'Primary 2'] },
-      { subject: 'ICT', grades: ['Primary 4', 'Primary 5', 'Primary 6', 'JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'RME', grades: ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4'] },
-      { subject: 'Ghanaian Language', grades: ['Primary 4', 'Primary 5', 'Primary 6', 'JHS 1'] },
+      { subject: 'Creative Arts', grades: ['KG 1', 'KG 2', 'Basic 1', 'Basic 2'] },
+      { subject: 'ICT', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { subject: 'RME', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4'] },
+      { subject: 'Ghanaian Language', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'JHS 1'] },
       { subject: 'French', grades: ['JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'Physical Education', grades: ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6'] }
+      { subject: 'Physical Education', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'] }
     ];
 
     const teachersData = [];
@@ -303,12 +303,12 @@ const seedData = async () => {
       { id: 'c002', name: 'Science', code: 'SCI101', grade: 'JHS 1', teacherId: 't002', hoursPerWeek: 3, room: 'R102' },
       { id: 'c003', name: 'English', code: 'ENG101', grade: 'Basic 7', teacherId: 't003', hoursPerWeek: 3, room: 'R103' },
       { id: 'c004', name: 'Social Studies', code: 'SOC101', grade: 'JHS 2', teacherId: 't004', hoursPerWeek: 4, room: 'R104' },
-      { id: 'c005', name: 'Creative Arts', code: 'ART101', grade: 'Primary 1', teacherId: 't005', hoursPerWeek: 3, room: 'R105' },
+      { id: 'c005', name: 'Creative Arts', code: 'ART101', grade: 'Basic 1', teacherId: 't005', hoursPerWeek: 3, room: 'R105' },
       { id: 'c006', name: 'ICT', code: 'ICT101', grade: 'JHS 3', teacherId: 't006', hoursPerWeek: 3, room: 'R106' },
-      { id: 'c007', name: 'RME', code: 'RME101', grade: 'Primary 4', teacherId: 't007', hoursPerWeek: 3, room: 'R107' },
-      { id: 'c008', name: 'Ghanaian Language', code: 'GHA101', grade: 'Primary 5', teacherId: 't008', hoursPerWeek: 2, room: 'R108' },
+      { id: 'c007', name: 'RME', code: 'RME101', grade: 'Basic 4', teacherId: 't007', hoursPerWeek: 3, room: 'R107' },
+      { id: 'c008', name: 'Ghanaian Language', code: 'GHA101', grade: 'Basic 5', teacherId: 't008', hoursPerWeek: 2, room: 'R108' },
       { id: 'c009', name: 'French', code: 'FRE101', grade: 'JHS 1', teacherId: 't009', hoursPerWeek: 2, room: 'R109' },
-      { id: 'c010', name: 'Physical Education', code: 'PE101', grade: 'Primary 6', teacherId: 't010', hoursPerWeek: 2, room: 'FIELD' }
+      { id: 'c010', name: 'Physical Education', code: 'PE101', grade: 'Basic 6', teacherId: 't010', hoursPerWeek: 2, room: 'FIELD' }
     ];
 
     const coursesData = coursesMock.map(c => ({
@@ -358,7 +358,7 @@ const seedData = async () => {
     // ==================== FEES & PAYMENTS ====================
     const feesMock = [
       { id: 'fee001', name: 'Term 1 Tuition', grade: 'JHS 1', amount: 1500 },
-      { id: 'fee002', name: 'Term 1 Tuition', grade: 'Primary 6', amount: 1600 },
+      { id: 'fee002', name: 'Term 1 Tuition', grade: 'Basic 6', amount: 1600 },
       { id: 'fee003', name: 'Term 1 Tuition', grade: 'KG 1', amount: 1400 }
     ];
 

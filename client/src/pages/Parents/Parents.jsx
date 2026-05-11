@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
-
 const Parents = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated, loading: authLoading, user } = useAuth();
@@ -54,13 +51,9 @@ const Parents = () => {
   const handleAddParent = () => navigate('/parents/add');
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+    <div>
+      <main>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Family Engagement</span>
@@ -82,7 +75,7 @@ const Parents = () => {
           </div>
 
 
-          <div className="glass-card" style={{ padding: '20px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="glass-card" style={{ padding: '20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ color: '#94a3b8', marginLeft: '8px' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
             <input
               type="text"
@@ -159,7 +152,6 @@ const Parents = () => {
             </div>
           )}
         </main>
-      </div>
     </div>
   );
 };

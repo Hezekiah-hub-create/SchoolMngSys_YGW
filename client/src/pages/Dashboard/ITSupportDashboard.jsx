@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
-import TopNav from '../../components/layout/TopNav';
 
 const StatCard = ({ icon, title, value, color, loading, subtitle, onClick }) => (
   <div onClick={onClick} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '16px', transition: 'transform 0.2s, box-shadow 0.2s', cursor: onClick ? 'pointer' : 'default' }}
@@ -116,20 +114,8 @@ const ITSupportDashboard = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
-      <style>{`
-        :root { --brand-green: #00843e; --brand-green-dark: #006831; --brand-green-light: #dcfce7; --brand-yellow: #facc15; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
-
-      <RoleBasedSidebar user={currentUser} onLogout={logout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={logout} title="IT Support" />
-
-        <div style={{ padding: '100px 30px 30px 30px', animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="it-dashboard-content">
+      <div style={{ padding: '0 0 40px 0', animation: 'fadeIn 0.5s ease-out' }}>
 
           {/* Header */}
           <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -240,7 +226,6 @@ const ITSupportDashboard = () => {
           </div>
 
         </div>
-      </div>
     </div>
   );
 };

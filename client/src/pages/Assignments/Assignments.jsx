@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
   Plus, 
@@ -9,151 +10,328 @@ import {
   Filter,
   Search,
   MoreVertical,
-  ChevronRight
+  ChevronRight,
+  AlertCircle,
+  Users,
+  Download,
+  Upload,
+  ArrowRight
 } from 'lucide-react';
+import { assignmentAPI, courseAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import PremiumSelect from '../../components/common/PremiumSelect';
 
 const Assignments = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [activeMenu, setActiveMenu] = useState('Assignments');
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('All');
-  
-  const dummyAssignments = [
-    { id: 1, title: 'Quantum Mechanics Problem Set', subject: 'Physics', deadline: 'Today, 4:00 PM', status: 'Pending', priority: 'High' },
-    { id: 2, title: 'Cellular Respiration Essay', subject: 'Biology', deadline: 'Tomorrow', status: 'In Progress', priority: 'Medium' },
-    { id: 3, title: 'Calculus III: Multiple Integrals', subject: 'Mathematics', deadline: '12 April 2025', status: 'Submitted', priority: 'High' },
-    { id: 4, title: 'Literature Review: Modernism', subject: 'English', deadline: '15 April 2025', status: 'Pending', priority: 'Low' },
-  ];
+  const [courses, setCourses] = useState([]);
+
+  const isTeacher = user?.role === 'teacher';
+  const isStudent = user?.role === 'student';
+  const studentId = user?.studentId || user?.id;
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [asgRes, courseRes] = await Promise.all([
+        isTeacher ? assignmentAPI.getByTeacher(user.id) : assignmentAPI.getByStudent(studentId),
+        isTeacher ? courseAPI.getByTeacher(user.id) : courseAPI.getAll({ grade: user.grade })
+      ]);
+
+      setAssignments(asgRes.data?.data || []);
+      setCourses(courseRes.data?.data || []);
+    } catch (error) {
+      console.error('Task Retrieval Failure:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const filteredAssignments = useMemo(() => {
+    return assignments.filter(a => {
+      const matchesSearch = a.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           a.subject?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (filter === 'All') return matchesSearch;
+      if (filter === 'Active') return matchesSearch && new Date(a.dueDate) > new Date();
+      if (filter === 'Submitted') {
+        const submission = a.submissions?.find(s => s.student === studentId);
+        return matchesSearch && !!submission;
+      }
+      if (filter === 'Pending') {
+        const submission = a.submissions?.find(s => s.student === studentId);
+        return matchesSearch && !submission;
+      }
+      return matchesSearch;
+    });
+  }, [assignments, searchTerm, filter, studentId]);
+
+  const stats = useMemo(() => {
+    const total = assignments.length;
+    const submitted = assignments.filter(a => a.submissions?.some(s => s.student === studentId)).length;
+    const pending = total - submitted;
+    return { total, submitted, pending };
+  }, [assignments, studentId]);
 
   return (
-    <div style={{ padding: '40px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      <header style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <span style={{ padding: '4px 12px', backgroundColor: '#e0f2fe', color: '#0369a1', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Academic Tasks</span>
-          <h1 style={{ fontSize: '36px', fontWeight: '950', color: '#0f172a', margin: '8px 0 0 0', letterSpacing: '-1.5px' }}>Scholar <span style={{ color: '#00843e' }}>Assignments</span></h1>
-          <p style={{ color: '#64748b', margin: '8px 0 0 0', fontWeight: '600' }}>Manage and track terminal academic deliverables.</p>
-        </div>
-        
-        <button style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          padding: '12px 24px', 
-          backgroundColor: '#00843e', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '16px', 
-          fontWeight: '800',
-          cursor: 'pointer',
-          boxShadow: '0 10px 15px -3px rgba(0, 132, 62, 0.2)'
-        }}>
-          <Plus size={20} /> Create Assignment
-        </button>
-      </header>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+        {/* Animated Background Blobs */}
+        <div style={{ position: 'fixed', top: '10%', right: '5%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(0, 132, 62, 0.05) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(60px)', zIndex: 0, animation: 'blobFloat 20s infinite alternate' }}></div>
+        <div style={{ position: 'fixed', bottom: '10%', left: '5%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(255, 184, 28, 0.05) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(50px)', zIndex: 0, animation: 'blobFloat 15s infinite alternate-reverse' }}></div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '32px' }}>
-        <aside>
-          <div style={{ 
-            background: 'white', 
-            borderRadius: '24px', 
-            padding: '24px', 
-            border: '1.5px solid #f1f5f9',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-          }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '900', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Filter size={18} color="#00843e" /> Task Matrix
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {['All', 'Active', 'In Progress', 'Submitted', 'Archived'].map(item => (
-                <button 
-                  key={item}
-                  onClick={() => setFilter(item)}
-                  style={{
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    backgroundColor: filter === item ? '#f0fdf4' : 'transparent',
-                    color: filter === item ? '#00843e' : '#64748b',
-                    fontWeight: filter === item ? '800' : '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  {item}
-                  {filter === item && <ChevronRight size={14} />}
-                </button>
-              ))}
+        <main style={{ padding: '0 0 60px 0', position: 'relative', zIndex: 1 }}>
+          <header style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ padding: '4px 12px', backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Academic Ledger</span>
+                <span style={{ color: '#94a3b8' }}><ChevronRight size={12} strokeWidth={3} /></span>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Task Registry</span>
+              </div>
+              <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>
+                Scholar <span style={{ color: 'var(--brand-green)' }}>Assignments</span>
+              </h1>
+              <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
+                Centralized dispatch and management of institutional deliverables.
+              </p>
             </div>
-          </div>
-        </aside>
 
-        <section>
-          <div style={{ display: 'grid', gap: '20px' }}>
-            {dummyAssignments.map(assignment => (
-              <div key={assignment.id} style={{
-                background: 'rgba(255, 255, 255, 0.7)',
-                backdropFilter: 'blur(24px)',
-                borderRadius: '24px',
-                padding: '24px',
-                border: '1.5px solid rgba(255, 255, 255, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)',
-                transition: 'transform 0.2s'
-              }}>
-                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                  <div style={{ 
-                    width: '56px', 
-                    height: '56px', 
-                    borderRadius: '16px', 
-                    background: assignment.status === 'Submitted' ? '#f0fdf4' : '#fff7ed', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    color: assignment.status === 'Submitted' ? '#00843e' : '#ea580c'
-                  }}>
-                    {assignment.status === 'Submitted' ? <CheckCircle2 size={24} /> : <FileText size={24} />}
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>{assignment.title}</h4>
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <BookOpen size={12} /> {assignment.subject}
-                      </span>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Calendar size={12} /> {assignment.deadline}
-                      </span>
-                    </div>
-                  </div>
+            {isTeacher && (
+              <button 
+                onClick={() => navigate('/assignments/create')}
+                className="premium-btn-primary" 
+                style={{ padding: '16px 28px' }}
+              >
+                <Plus size={20} /> Dispatch New Task
+              </button>
+            )}
+          </header>
+
+          {/* Stats Dashboard */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '40px' }}>
+            {[
+              { label: 'Total Dispatched', value: stats.total, icon: <FileText size={24} />, color: '#0f172a', bg: 'white' },
+              { label: 'Pending Nodes', value: stats.pending, icon: <Clock size={24} />, color: '#ea580c', bg: '#fff7ed' },
+              { label: 'Verified Submissions', value: stats.submitted, icon: <CheckCircle2 size={24} />, color: 'var(--brand-green)', bg: 'var(--brand-green-soft)' }
+            ].map((stat, i) => (
+              <div key={i} className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: stat.bg, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(0,0,0,0.02)' }}>
+                  {stat.icon}
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ 
-                      fontSize: '11px', 
-                      fontWeight: '900', 
-                      padding: '4px 12px', 
-                      borderRadius: '20px',
-                      backgroundColor: assignment.priority === 'High' ? '#fef2f2' : '#f8fafc',
-                      color: assignment.priority === 'High' ? '#ef4444' : '#64748b',
-                      textTransform: 'uppercase'
-                    }}>
-                      {assignment.priority} Priority
-                    </span>
-                    <div style={{ fontSize: '12px', fontWeight: '800', marginTop: '4px', color: '#0f172a' }}>{assignment.status}</div>
-                  </div>
-                  <button style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                    <MoreVertical size={20} />
-                  </button>
+                <div>
+                  <p style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{stat.label}</p>
+                  <p style={{ fontSize: '28px', fontWeight: '1000', color: '#0f172a', margin: 0 }}>{stat.value}</p>
                 </div>
               </div>
             ))}
           </div>
-        </section>
-      </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '32px' }}>
+            <aside>
+              <div className="glass-card" style={{ padding: '24px', position: 'sticky', top: '100px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  <Filter size={18} color="var(--brand-green)" /> Task Filters
+                </h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {['All', 'Active', 'Pending', 'Submitted', 'Graded'].map(item => (
+                    <button 
+                      key={item}
+                      onClick={() => setFilter(item)}
+                      style={{
+                        textAlign: 'left',
+                        padding: '14px 18px',
+                        borderRadius: '14px',
+                        border: 'none',
+                        backgroundColor: filter === item ? 'var(--brand-green-soft)' : 'transparent',
+                        color: filter === item ? 'var(--brand-green)' : '#64748b',
+                        fontWeight: filter === item ? '900' : '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '14px'
+                      }}
+                    >
+                      {item}
+                      {filter === item && <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--brand-green)' }} />}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: '32px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                  <h4 style={{ fontSize: '11px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Curriculum Insights</h4>
+                  <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.6', fontWeight: '600' }}>
+                    Ensure all tasks are submitted prior to the deadline to maintain a high academic fidelity score.
+                  </p>
+                </div>
+              </div>
+            </aside>
+
+            <section>
+              <div className="glass-card" style={{ padding: '24px', marginBottom: '24px' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={20} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input 
+                    type="text" 
+                    placeholder="Search by title or subject node..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '16px 16px 16px 56px',
+                      backgroundColor: '#f8fafc',
+                      border: '1.5px solid #f1f5f9',
+                      borderRadius: '16px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      outline: 'none',
+                      transition: 'all 0.3s'
+                    }}
+                    onFocus={e => e.target.style.borderColor = 'var(--brand-green-light)'}
+                    onBlur={e => e.target.style.borderColor = '#f1f5f9'}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gap: '20px' }}>
+                {loading ? (
+                  [...Array(4)].map((_, i) => (
+                    <div key={i} style={{ height: '120px', backgroundColor: 'white', borderRadius: '24px', animation: 'pulse 1.5s infinite' }} />
+                  ))
+                ) : filteredAssignments.length === 0 ? (
+                  <div style={{ padding: '100px', textAlign: 'center', background: 'white', borderRadius: '32px', border: '1.5px dashed #e2e8f0' }}>
+                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                      <AlertCircle size={40} color="#94a3b8" />
+                    </div>
+                    <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0 }}>No tasks discovered</h3>
+                    <p style={{ color: '#64748b', marginTop: '8px', fontWeight: '600' }}>Adjust your filters or check back later for new dispatches.</p>
+                  </div>
+                ) : filteredAssignments.map(assignment => {
+                  const submission = assignment.submissions?.find(s => s.student === studentId);
+                  const isSubmitted = !!submission;
+                  const isOverdue = new Date(assignment.dueDate) < new Date() && !isSubmitted;
+
+                  return (
+                    <div key={assignment.id} className="assignment-card-nexus" style={{
+                      background: 'white',
+                      borderRadius: '24px',
+                      padding: '28px',
+                      border: '1px solid #f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                        <div style={{ 
+                          width: '64px', 
+                          height: '64px', 
+                          borderRadius: '18px', 
+                          background: isSubmitted ? 'var(--brand-green-soft)' : isOverdue ? '#fef2f2' : '#f8fafc', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          color: isSubmitted ? 'var(--brand-green)' : isOverdue ? '#ef4444' : '#64748b',
+                          boxShadow: '0 8px 16px rgba(0,0,0,0.02)'
+                        }}>
+                          {isSubmitted ? <CheckCircle2 size={28} /> : <FileText size={28} />}
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                            <h4 style={{ fontSize: '19px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{assignment.title}</h4>
+                            {isOverdue && <span style={{ padding: '2px 8px', backgroundColor: '#fef2f2', color: '#ef4444', fontSize: '10px', fontWeight: '900', borderRadius: '6px', textTransform: 'uppercase' }}>Overdue</span>}
+                          </div>
+                          <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <BookOpen size={14} color="var(--brand-green)" /> {assignment.subject || courses.find(c => c.id === (assignment.course_id || assignment.course))?.name || 'Academic Node'}
+                            </span>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Users size={14} color="#8b5cf6" /> {`${assignment.grade || assignment.class || 'All Classes'} ${assignment.section || ''}`.trim()}
+                            </span>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: isOverdue ? '#ef4444' : '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Calendar size={14} color={isOverdue ? '#ef4444' : '#0284c7'} /> Due: {new Date(assignment.dueDate || assignment.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ 
+                            fontSize: '11px', 
+                            fontWeight: '900', 
+                            padding: '4px 12px', 
+                            borderRadius: '20px',
+                            backgroundColor: assignment.priority === 'High' ? '#fef2f2' : '#f8fafc',
+                            color: assignment.priority === 'High' ? '#ef4444' : '#64748b',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}>
+                            {assignment.priority || 'Normal'} Priority
+                          </span>
+                          <div style={{ fontSize: '13px', fontWeight: '800', marginTop: '6px', color: isSubmitted ? 'var(--brand-green)' : '#0f172a' }}>
+                            {isSubmitted ? 'SUBMITTED' : 'NOT SUBMITTED'}
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {assignment.fileUrl && (
+                            <button className="premium-btn-secondary" style={{ padding: '12px' }}>
+                              <Download size={18} />
+                            </button>
+                          )}
+                          <button 
+                            className={isSubmitted ? "premium-btn-secondary" : "premium-btn-primary"}
+                            style={{ padding: '12px 24px', fontSize: '14px' }}
+                            onClick={() => navigate(`/assignments/${assignment.id}`)}
+                          >
+                            {isSubmitted ? 'View Details' : 'Resolve Task'} <ArrowRight size={16} style={{ marginLeft: '8px' }} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        </main>
+
+      <style>{`
+        @keyframes blobFloat {
+          0% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-20px, 40px) scale(1.1); }
+          100% { transform: translate(40px, -20px) scale(1); }
+        }
+        
+        .assignment-card-nexus:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+          border-color: var(--brand-green-light);
+        }
+
+        .premium-input:focus {
+          border-color: var(--brand-green) !important;
+          box-shadow: 0 0 0 4px var(--brand-green-soft);
+        }
+      `}</style>
     </div>
   );
 };

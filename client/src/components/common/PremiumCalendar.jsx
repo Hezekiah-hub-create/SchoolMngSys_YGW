@@ -13,13 +13,24 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+
+  // Generate years (from 1940 to 10 years ahead)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: currentYear - 1940 + 11 }, (_, i) => 1940 + i);
   
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   
+  const handleMonthChange = (e) => {
+    setCurrentDate(new Date(year, parseInt(e.target.value), 1));
+  };
+
+  const handleYearChange = (e) => {
+    setCurrentDate(new Date(parseInt(e.target.value), month, 1));
+  };
+
   const handleDateClick = (day) => {
     const selected = new Date(year, month, day);
-    // Format as YYYY-MM-DD for consistency with native date inputs
     const formatted = selected.toISOString().split('T')[0];
     onChange(formatted);
     if (onClose) onClose();
@@ -37,7 +48,6 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
   const startOffset = firstDayOfMonth(year, month);
   const totalDays = daysInMonth(year, month);
   
-  // Empty cells for previous month padding
   for (let i = 0; i < startOffset; i++) {
     dayCells.push(<div key={`pad-${i}`} style={{ height: '40px' }} />);
   }
@@ -89,15 +99,36 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
       ...style
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '10px', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '8px' }}>
+        <button onClick={prevMonth} className="calendar-nav-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <div style={{ fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>
-          {monthNames[month]} {year}
+        
+        <div style={{ display: 'flex', gap: '4px', flex: 1, justifyContent: 'center' }}>
+          <select 
+            value={month} 
+            onChange={handleMonthChange}
+            className="calendar-select"
+            style={{ padding: '4px 8px', border: 'none', background: '#f8fafc', borderRadius: '8px', fontSize: '14px', fontWeight: '800', color: '#0f172a', cursor: 'pointer' }}
+          >
+            {monthNames.map((name, i) => (
+              <option key={i} value={i}>{name}</option>
+            ))}
+          </select>
+          <select 
+            value={year} 
+            onChange={handleYearChange}
+            className="calendar-select"
+            style={{ padding: '4px 8px', border: 'none', background: '#f8fafc', borderRadius: '8px', fontSize: '14px', fontWeight: '800', color: '#0f172a', cursor: 'pointer' }}
+          >
+            {years.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
         </div>
-        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '10px', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+
+        <button onClick={nextMonth} className="calendar-nav-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
       
@@ -124,6 +155,29 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
           Jump to Today
         </button>
       </div>
+
+      <style>{`
+        .calendar-nav-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #64748b;
+          padding: 6px;
+          border-radius: 8px;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .calendar-nav-btn:hover {
+          background-color: #f1f5f9;
+          color: var(--brand-green);
+        }
+        .calendar-select:focus {
+          outline: none;
+          background-color: #f1f5f9;
+        }
+      `}</style>
     </div>
   );
 };
