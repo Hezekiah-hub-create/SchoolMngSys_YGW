@@ -235,7 +235,7 @@ const General = () => {
               </div>
             </div>
 
-            <div style={{ marginTop: '32px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1.5px solid var(--slate-100)' }}>
+            <div style={{ marginTop: '32px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1.5px solid var(--slate-100)' }}>
               <h4 style={{ margin: '0 0 12px', fontSize: '11px', fontWeight: '900', color: 'var(--slate-400)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Operational Mode</h4>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button 

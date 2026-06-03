@@ -43,78 +43,132 @@ const Configuration = () => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
-          {/* Header */}
-          <div style={{ marginBottom: '40px' }}>
-            <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Account Configuration</h1>
-            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Personalize your profile and security preferences</p>
-          </div>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '48px' }}>
+        <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-1.5px', fontFamily: "'Outfit', sans-serif" }}>
+          Account <span style={{ color: 'var(--brand-green)' }}>Configuration</span>
+        </h1>
+        <p style={{ fontSize: '16px', color: '#64748b', marginTop: '12px', fontWeight: '500', maxWidth: '600px' }}>
+          Personalize your institutional profile and manage security parameters.
+        </p>
+      </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '32px' }}>
-            {/* Left Nav Tabs */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<Icons.User />} label="Profile Details" />
-              <TabButton active={activeTab === 'security'} onClick={() => setActiveTab('security')} icon={<Icons.Lock />} label="Security & Password" />
-              <TabButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Icons.Bell />} label="Notification Settings" />
-            </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '48px' }}>
+        {/* Left Nav Tabs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<Icons.User />} label="Profile Details" />
+          <TabButton active={activeTab === 'security'} onClick={() => setActiveTab('security')} icon={<Icons.Lock />} label="Security & Protection" />
+          <TabButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Icons.Bell />} label="Notification Matrix" />
+        </div>
 
-            {/* Right Content Area */}
-            <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
-              {activeTab === 'profile' && (
+        {/* Right Content Area */}
+        <div className="glass-card" style={{ padding: '48px', borderRadius: '32px' }}>
+          {activeTab === 'profile' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '32px', marginBottom: '48px' }}>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ 
+                    width: '120px', 
+                    height: '120px', 
+                    borderRadius: '40px', 
+                    background: 'linear-gradient(135deg, var(--brand-green) 0%, #006831 100%)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    color: 'white', 
+                    fontSize: '48px', 
+                    fontWeight: '900',
+                    boxShadow: '0 20px 40px rgba(0, 132, 62, 0.2)'
+                  }}>
+                    {formData.firstName?.[0] || 'A'}
+                  </div>
+                  <button style={{ 
+                    position: 'absolute', 
+                    bottom: '-5px', 
+                    right: '-5px', 
+                    width: '44px', 
+                    height: '44px', 
+                    borderRadius: '16px', 
+                    backgroundColor: 'white', 
+                    border: '1.5px solid #f1f5f9', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    cursor: 'pointer', 
+                    boxShadow: '0 10px 20px rgba(0,0,0,0.08)',
+                    color: 'var(--brand-green)'
+                  }}>
+                    <Icons.Camera />
+                  </button>
+                </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '40px' }}>
-                    <div style={{ position: 'relative' }}>
-                      <div style={{ width: '100px', height: '100px', borderRadius: '30px', backgroundColor: '#00843e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '40px', fontWeight: '800' }}>
-                        {formData.firstName?.[0] || 'A'}
-                      </div>
-                      <button style={{ position: 'absolute', bottom: '-5px', right: '-5px', width: '36px', height: '36px', borderRadius: '12px', backgroundColor: 'white', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                        <Icons.Camera />
-                      </button>
-                    </div>
-                    <div>
-                      <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{formData.firstName} {formData.lastName}</h2>
-                      <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{currentUser?.role?.toUpperCase() || 'ADMINISTRATOR'}</p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                    <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
-                    <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
-                    <InputField label="Email Address" name="email" value={formData.email} onChange={handleChange} type="email" />
-                    <InputField label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
-                  </div>
-
-                  <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button style={{ padding: '12px 32px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 10px 20px rgba(0, 132, 62, 0.2)' }}>
-                      Save Changes
-                    </button>
+                  <h2 style={{ fontSize: '24px', fontWeight: '850', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{formData.firstName} {formData.lastName}</h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                    <span style={{ 
+                      padding: '4px 12px', 
+                      backgroundColor: 'var(--brand-green-soft)', 
+                      color: 'var(--brand-green)', 
+                      borderRadius: '10px', 
+                      fontSize: '11px', 
+                      fontWeight: '900',
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px'
+                    }}>
+                      {currentUser?.role || 'Administrator'}
+                    </span>
+                    <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Active institutional node</span>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {activeTab === 'security' && (
-                <div>
-                  <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', marginBottom: '32px' }}>Change Password</h2>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px' }}>
-                    <InputField label="Current Password" type="password" />
-                    <InputField label="New Password" type="password" />
-                    <InputField label="Confirm New Password" type="password" />
-                  </div>
-                  <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button style={{ padding: '12px 32px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', cursor: 'pointer' }}>
-                      Update Password
-                    </button>
-                  </div>
-                </div>
-              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+                <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
+                <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
+                <InputField label="Institutional Email" name="email" value={formData.email} onChange={handleChange} type="email" />
+                <InputField label="Primary Contact" name="phone" value={formData.phone} onChange={handleChange} />
+              </div>
+
+              <div style={{ marginTop: '56px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '32px' }}>
+                <button 
+                  className="premium-btn-primary"
+                  style={{ 
+                    padding: '16px 48px', 
+                    borderRadius: '16px', 
+                    fontWeight: '800', 
+                    fontSize: '15px'
+                  }}
+                >
+                  Synchronize Profile
+                </button>
+              </div>
             </div>
-          </div>
-        </main>
+          )}
+
+          {activeTab === 'security' && (
+            <div style={{ animation: 'slideUp 0.4s ease-out' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '850', color: '#0f172a', marginBottom: '32px', letterSpacing: '-0.5px' }}>Credential Management</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '480px' }}>
+                <InputField label="Current Protocol Password" type="password" placeholder="Enter current password" />
+                <InputField label="New Protocol Password" type="password" placeholder="Define new password" />
+                <InputField label="Verify New Protocol" type="password" placeholder="Confirm new password" />
+              </div>
+              <div style={{ marginTop: '56px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '32px' }}>
+                <button 
+                  className="premium-btn-primary"
+                  style={{ 
+                    padding: '16px 48px', 
+                    borderRadius: '16px', 
+                    fontWeight: '800', 
+                    fontSize: '15px'
+                  }}
+                >
+                  Update Credentials
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -156,7 +210,7 @@ const InputField = ({ label, ...props }) => (
         fontSize: '14px', 
         color: '#1e293b', 
         outline: 'none',
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#ffffff',
         transition: '0.2s'
       }} 
       onFocus={(e) => e.target.style.borderColor = '#00843e'}

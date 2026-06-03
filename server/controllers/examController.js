@@ -30,8 +30,20 @@ exports.getAllExams = asyncHandler(async (req, res) => {
   }
   else if (user.role === 'teacher') {
     const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    let allowedGrades = [];
     if (teacherProfile && teacherProfile.grades && teacherProfile.grades.length > 0) {
-      query = query.in('class', teacherProfile.grades);
+      allowedGrades = [...teacherProfile.grades];
+    }
+    
+    if (teacherProfile && teacherProfile.coordinator_block) {
+      const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
+      const allClasses = await supabaseService.getAll(COLLECTIONS.ACADEMIC_CLASSES);
+      const validClasses = allClasses.filter(c => c.name && c.name.toLowerCase().includes(block)).map(c => c.name);
+      allowedGrades = [...allowedGrades, ...validClasses];
+    }
+
+    if (allowedGrades.length > 0) {
+      query = query.in('class', allowedGrades);
     }
   }
 
@@ -126,15 +138,22 @@ exports.getExamResults = asyncHandler(async (req, res) => {
     const classData = course ? classes.find(c => c.id === course.class_id) : null;
 
     // Extract Exam Score specifically from assessments if present
-    const examAssessment = (g.assessments || []).find(a => 
-      a.name?.toLowerCase().includes('exam') || a.name?.toLowerCase().includes('final')
-    );
+    let examAssessment = null;
+    if (Array.isArray(g.assessments)) {
+      examAssessment = g.assessments.find(a => 
+        a.name?.toLowerCase().includes('exam') || a.name?.toLowerCase().includes('final')
+      );
+    } else if (g.assessments && typeof g.assessments === 'object') {
+      const score = Number(g.assessments.finalExam || g.assessments.final || 0);
+      if (score > 0) examAssessment = { score, maxScore: 100 };
+    }
 
     return {
       id: g.id,
       studentId: g.student_id,
       studentName: student ? `${student.first_name} ${student.last_name}` : 'Unknown Scholar',
       admissionNumber: student?.admission_number,
+      section: student?.section || 'Yellow',
       subject: subject?.name || 'General Subject',
       grade: classData?.name || g.term,
       score: examAssessment ? examAssessment.score : g.total_score,

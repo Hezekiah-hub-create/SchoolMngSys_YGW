@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { examAPI, studentAPI, courseAPI, parentAPI, assignmentAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
-import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
-import TopNav from '../../../components/layout/TopNav';
 import PremiumSelect from '../../../components/common/PremiumSelect';
 
 // Premium Icon Components
@@ -18,21 +16,19 @@ const Icons = {
 
 const ExamResults = () => {
   const navigate = useNavigate();
-  const { logout, isAuthenticated, loading: authLoading, user } = useAuth();
-  const [activeMenu, setActiveMenu] = useState('Exams');
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   
   const [results, setResults] = useState([]);
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [storedUser, setStoredUser] = useState(null);
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [linkedStudents, setLinkedStudents] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState('');
-  const currentUser = storedUser || user;
+  const currentUser = user;
   const isParent = currentUser?.role === 'parent';
 
   const [assignments, setAssignments] = useState([]);
@@ -68,14 +64,8 @@ const ExamResults = () => {
   }, [isAuthenticated, authLoading, navigate]);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('authUser');
-    if (savedUser) { try { setStoredUser(JSON.parse(savedUser)); } catch (e) {} }
     fetchData();
   }, [isParent]);
-
-  const handleLogout = async () => {
-    try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); }
-  };
 
   const getStudentName = (studentId) => {
     const student = students.find(s => s.id === studentId || s._id === studentId);
@@ -126,12 +116,8 @@ const ExamResults = () => {
     : 0;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '120px 40px 40px' }}>
+    <>
+      <main style={{ padding: '0 0 40px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -292,12 +278,11 @@ const ExamResults = () => {
             </table>
           </div>
 
-        </main>
-      </div>
+      </main>
       <style>{`
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
       `}</style>
-    </div>
+    </>
   );
 };
 

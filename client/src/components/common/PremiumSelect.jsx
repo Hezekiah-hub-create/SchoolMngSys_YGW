@@ -67,7 +67,7 @@ const PremiumSelect = ({
           gap: '12px',
           cursor: disabled ? 'not-allowed' : 'pointer',
           padding: '12px 16px',
-          backgroundColor: disabled ? '#f8fafc' : 'white',
+          backgroundColor: disabled ? '#ffffff' : 'white',
           opacity: disabled ? 0.7 : 1,
           position: 'relative',
           zIndex: isOpen ? 10 : 1,
@@ -127,7 +127,7 @@ const PremiumSelect = ({
               padding: 10px 14px;
               border-radius: 10px;
               cursor: pointer;
-              transition: all 0.2s;
+              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
               font-size: 14px;
               font-weight: 700;
               color: #475569;
@@ -136,13 +136,14 @@ const PremiumSelect = ({
               gap: 10px;
             }
             .premium-option:hover {
-              background-color: #f1f5f9;
+              background-color: rgba(0, 132, 62, 0.06);
               color: var(--brand-green);
-              transform: translateX(4px);
+              padding-left: 18px;
             }
             .premium-option.selected {
-              background-color: var(--brand-green-light);
-              color: var(--brand-green);
+              background-color: var(--brand-green);
+              color: white;
+              box-shadow: 0 4px 12px rgba(0, 132, 62, 0.2);
             }
             /* Custom Scrollbar */
             #premium-select-portal::-webkit-scrollbar {

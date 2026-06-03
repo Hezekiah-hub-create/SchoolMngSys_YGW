@@ -26,7 +26,7 @@ const mapEventToFrontend = (e) => {
 const getAllEvents = asyncHandler(async (req, res) => {
   const { type, limit } = req.query;
   let events = await supabaseService.getAll(COLLECTIONS.EVENTS, { 
-    orderBy: 'event_date', 
+    orderBy: 'start_date', 
     orderDirection: 'asc',
     limit: limit ? parseInt(limit) : 100
   });
@@ -44,8 +44,8 @@ const getAllEvents = asyncHandler(async (req, res) => {
           audience = ['all'];
         }
         
-        const studentGradeNorm = (studentGrade || '').replace('Primary', 'Basic');
-        const audienceNorm = audience.map(a => (a || '').replace('Primary', 'Basic'));
+        const studentGradeNorm = (studentGrade || '').trim();
+        const audienceNorm = audience.map(a => (a || '').trim());
         
         return audienceNorm.includes('all') || audienceNorm.includes('students') || audienceNorm.includes(studentGradeNorm);
       });
@@ -79,8 +79,8 @@ const getUpcomingEvents = asyncHandler(async (req, res) => {
           audience = ['all'];
         }
         
-        const studentGradeNorm = (studentGrade || '').replace('Primary', 'Basic');
-        const audienceNorm = audience.map(a => a.replace('Primary', 'Basic'));
+        const studentGradeNorm = (studentGrade || '').trim();
+        const audienceNorm = audience.map(a => (a || '').trim());
         
         return audienceNorm.includes('all') || audienceNorm.includes('students') || audienceNorm.includes(studentGradeNorm);
       });
@@ -104,7 +104,7 @@ const createEvent = asyncHandler(async (req, res) => {
     description,
     event_type: eventType || 'general',
     start_date: startDate,
-    end_date: endDate,
+    end_date: endDate || startDate,
     location,
     audience: audience || ['all'],
     is_school_holiday: isSchoolHoliday || false,

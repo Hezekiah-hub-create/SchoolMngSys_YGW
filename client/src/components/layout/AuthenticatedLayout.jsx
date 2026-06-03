@@ -21,7 +21,7 @@ const AuthenticatedLayout = () => {
   };
 
   return (
-    <div className="authenticated-app-shell" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <div className="authenticated-app-shell" style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'white' }}>
       <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
       
       <div className="main-content-wrapper" style={{ 

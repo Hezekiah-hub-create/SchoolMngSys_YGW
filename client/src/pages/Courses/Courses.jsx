@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { courseAPI, teacherAPI, studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI } from '../../services/api';
+import { courseAPI, teacherAPI, studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI, aiAPI } from '../../services/api';
 import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { useAlert } from '../../context/AlertContext';
+import { mapSectionName } from '../../utils/sectionHelper';
+import ReactMarkdown from 'react-markdown';
 import './Courses.css';
 
 const normalizeGrade = (g) => {
@@ -60,6 +62,13 @@ const Courses = () => {
   const [selectedCourseName, setSelectedCourseName] = useState('');
   const [dbGrades, setDbGrades] = useState([]);
   const [uniqueStudentCount, setUniqueStudentCount] = useState(0);
+
+  // AI Lesson Generator State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState('');
+  const [selectedAiCourse, setSelectedAiCourse] = useState(null);
 
   useEffect(() => {
     fetchCourses();
@@ -260,6 +269,30 @@ const Courses = () => {
     finally { setFetchingStudents(false); }
   };
 
+  const openAiModal = (course) => {
+    setSelectedAiCourse(course);
+    setAiTopic('');
+    setAiResult('');
+    setShowAiModal(true);
+  };
+
+  const handleGenerateLesson = async (e) => {
+    e.preventDefault();
+    if (!aiTopic.trim()) return;
+    try {
+      setAiGenerating(true);
+      const res = await aiAPI.generateLesson({ subject: selectedAiCourse.name, topic: aiTopic });
+      if (res.data?.success) {
+        setAiResult(res.data.data);
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert({ title: 'AI Generation Failed', message: 'Could not connect to the AI service or API key is missing.', type: 'error' });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const handleLogout = async () => { try { await logout(); } finally { navigate('/login'); } };
 
   return (
@@ -388,7 +421,7 @@ const Courses = () => {
                           boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                         }}>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Section {a.section}</span>
+                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Section {mapSectionName(a.section)}</span>
                             <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
                               {a.teacher ? `${a.teacher.firstName || a.teacher.first_name} ${a.teacher.lastName || a.teacher.last_name}` : 'Unassigned'}
                             </span>
@@ -427,6 +460,12 @@ const Courses = () => {
                       <button className="action-btn" onClick={() => openModal(groupedCourse)}>Configure Assignments</button>
                       <button className="action-btn action-btn-danger" onClick={() => handleDelete(groupedCourse._id || groupedCourse.id)}>Delete</button>
                     </>
+                  )}
+                  {isTeacher && (
+                    <button className="action-btn" onClick={() => openAiModal(groupedCourse)}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                      Generate Lesson
+                    </button>
                   )}
                 </div>
               </div>
@@ -468,7 +507,7 @@ const Courses = () => {
                 {allSections.filter(s => normalizeGrade(s.class_name || s.grade) === normalizeGrade(formData.grade)).length > 0 ? (
                   allSections.filter(s => normalizeGrade(s.class_name || s.grade) === normalizeGrade(formData.grade)).map(section => (
                     <div key={section.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                      <span style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}>Section {section.name}</span>
+                      <span style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}>Section {mapSectionName(section.name)}</span>
                       <PremiumSelect 
                         label={section.name}
                         value={formData.sectionAssignments[section.name] || ''}
@@ -535,7 +574,7 @@ const Courses = () => {
                           <div style={{ fontSize: '11px', color: '#94a3b8' }}>{s.admission_number || s.id?.substring(0, 8)}</div>
                         </td>
                         <td style={{ padding: '12px' }}>{displayGrade(s.grade)}</td>
-                        <td style={{ padding: '12px' }}>{s.section || 'A'}</td>
+                        <td style={{ padding: '12px' }}>{mapSectionName(s.section || 'A')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -545,6 +584,56 @@ const Courses = () => {
               )}
             </div>
             <button onClick={() => setShowStudentModal(false)} className="btn-secondary" style={{ width: '100%', marginTop: '32px' }}>Dismiss</button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Lesson Generator Modal */}
+      {showAiModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: aiResult ? '800px' : '500px', transition: 'max-width 0.3s ease' }}>
+            <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--brand-yellow)" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              Generate Lesson Plan (GES)
+            </h2>
+            <p className="modal-subtitle">AI-assisted lesson planning for {selectedAiCourse?.name}</p>
+            
+            {!aiResult ? (
+              <form onSubmit={handleGenerateLesson} style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' }}>
+                <div>
+                  <label className="premium-label">Lesson Topic</label>
+                  <input 
+                    type="text" 
+                    className="premium-input" 
+                    placeholder="e.g. Fractions and Decimals" 
+                    value={aiTopic} 
+                    onChange={e => setAiTopic(e.target.value)} 
+                    required 
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '16px', marginTop: '20px' }}>
+                  <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={aiGenerating}>
+                    {aiGenerating ? 'Generating...' : 'Generate Plan'}
+                  </button>
+                  <button type="button" onClick={() => setShowAiModal(false)} className="btn-secondary" disabled={aiGenerating}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ marginTop: '24px' }}>
+                <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '24px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                  <div className="markdown-content">
+                    <ReactMarkdown>{aiResult}</ReactMarkdown>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
+                  <button onClick={() => {
+                    navigator.clipboard.writeText(aiResult);
+                    showAlert({ title: 'Copied', message: 'Lesson plan copied to clipboard.', type: 'success' });
+                  }} className="btn-primary" style={{ flex: 1 }}>Copy to Clipboard</button>
+                  <button onClick={() => setShowAiModal(false)} className="btn-secondary">Close</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

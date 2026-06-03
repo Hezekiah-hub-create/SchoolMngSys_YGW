@@ -17,6 +17,7 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
 const staffRoutes = require('./routes/staffRoutes');
+const auditRoutes = require('./routes/auditRoutes');
 
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const examRoutes = require('./routes/examRoutes');
@@ -27,6 +28,8 @@ const gradeMasterRoutes = require('./routes/gradeMasterRoutes');
 const classRoutes = require('./routes/classRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
+const academicCalendarRoutes = require('./routes/academicCalendarRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
@@ -86,6 +89,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/audit', auditRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/expenses', expenseRoutes);
@@ -94,6 +98,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/sections', sectionRoutes);
 app.use('/api/subjects', subjectRoutes);
+app.use('/api/academic-calendar', academicCalendarRoutes);
+app.use('/api/ai', aiRoutes);
 
 
 

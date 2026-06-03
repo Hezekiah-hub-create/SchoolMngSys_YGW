@@ -96,7 +96,7 @@ const SettingsRoles = () => {
                       borderRadius: '12px', 
                       fontSize: '11px', 
                       fontWeight: '900', 
-                      backgroundColor: '#f8fafc', 
+                      backgroundColor: '#ffffff', 
                       color: '#64748b', 
                       border: '1px solid #e2e8f0', 
                       textTransform: 'uppercase', 
@@ -114,7 +114,7 @@ const SettingsRoles = () => {
                   <p className="settings-label" style={{ marginBottom: '14px' }}>Permission Nodes:</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {role.permissions.map((perm, idx) => (
-                      <span key={idx} style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', backgroundColor: '#f8fafc', color: '#475569', fontWeight: '700', border: '1px solid #e2e8f0' }}>{perm}</span>
+                      <span key={idx} style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', backgroundColor: '#ffffff', color: '#475569', fontWeight: '700', border: '1px solid #e2e8f0' }}>{perm}</span>
                     ))}
                   </div>
                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { teacherAPI, courseAPI, staffAPI, academicClassesAPI, academicSubjectsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import { mapSectionName } from '../../../utils/sectionHelper';
 
 // Modern Icon Components
 const displayGrade = (g) => {
@@ -26,6 +27,7 @@ const Icons = {
   X: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
   ArrowLeft: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
   Shield: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  Award: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>,
 };
 
 const subjectOptions = [
@@ -57,6 +59,14 @@ const gradeOptions = [
   { value: 'JHS 1', label: 'JHS 1' },
   { value: 'JHS 2', label: 'JHS 2' },
   { value: 'JHS 3', label: 'JHS 3' },
+];
+
+const coordinatorOptions = [
+  { value: '', label: 'None (Regular Teacher)' },
+  { value: 'KG', label: 'Kindergarten (KG 1-3)' },
+  { value: 'Basic 1-3', label: 'Lower Basic (Basic 1-3)' },
+  { value: 'Basic 4-6', label: 'Upper Basic (Basic 4-6)' },
+  { value: 'JHS', label: 'Junior High School (JHS 1-3)' },
 ];
 
 const qualificationOptions = [
@@ -257,7 +267,8 @@ const TeacherProfile = () => {
       contractType: teacher?.contractType || 'permanent',
       position: teacher?.position || 'Teacher',
       socialSecurity: teacher?.socialSecurity || '',
-      status: teacher?.status || 'active'
+      status: teacher?.status || 'active',
+      coordinatorBlock: teacher?.coordinatorBlock || ''
     });
     setEditing(true);
   };
@@ -294,7 +305,7 @@ const TeacherProfile = () => {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}><div className="premium-loader"></div></div>;
+  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' }}><div className="premium-loader"></div></div>;
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -491,6 +502,7 @@ const TeacherProfile = () => {
                           </select>
                         </div>
                         <FormGroup label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} />
+                        <FormGroup label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} type="select" options={coordinatorOptions} />
                         <FormGroup label="Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
                         <FormGroup label="Position" name="position" value={formData.position} onChange={handleChange} />
                         <FormGroup label="Experience (Years)" name="experience" value={formData.experience} onChange={handleChange} type="number" />
@@ -515,6 +527,7 @@ const TeacherProfile = () => {
                         <DetailBlock label="Employment Date" value={teacher?.dateOfEmployment ? new Date(teacher.dateOfEmployment).toLocaleDateString() : 'N/A'} icon={<Icons.Calendar />} />
                         <DetailBlock label="Contract Type" value={teacher?.contractType} icon={<Icons.Briefcase />} />
                         <DetailBlock label="Highest Qualification" value={teacher?.qualifications} icon={<Icons.Award />} />
+                        <DetailBlock label="Coordinator Block" value={teacher?.coordinatorBlock || 'None'} icon={<Icons.Shield />} />
                         <DetailBlock label="Specialization" value={teacher?.specialization} icon={<Icons.Book />} />
                         <DetailBlock label="Monthly Salary" value={teacher?.salary ? `GHS ${teacher.salary.toLocaleString()}` : 'N/A'} icon={<Icons.Briefcase />} />
                         <DetailBlock label="Professional Experience" value={`${teacher?.experience || 0} Years`} icon={<Icons.Award />} />
@@ -534,7 +547,7 @@ const TeacherProfile = () => {
                         <div>
                           <SectionTitle title="Teaching Grade Matrix" />
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => `${c.grade} ${c.section || 'A'}`))] : (teacher?.grades || [])).map((g, i) => (
+                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => `${c.grade} ${mapSectionName(c.section || 'A')}`))] : (teacher?.grades || [])).map((g, i) => (
                               <Badge key={i} text={g} color="#6366f1" />
                             ))}
                             {teacherCourses.length === 0 && (!teacher?.grades || teacher.grades.length === 0) && <p style={{ color: 'var(--brand-slate-400)', fontSize: '14px' }}>No grades assigned</p>}

@@ -275,7 +275,19 @@ const deleteAssignment = asyncHandler(async (req, res) => {
 
 // Submit assignment
 const submitAssignment = asyncHandler(async (req, res) => {
-  const { studentId, content, attachments } = req.body;
+  let { studentId, content, attachments } = req.body;
+  const user = req.user;
+  
+  // Resolve studentId if submitting as a student
+  if (user.role === 'student') {
+    const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', user.id);
+    if (!studentProfile) return res.status(403).json({ message: 'Student profile not found' });
+    studentId = studentProfile.id;
+  }
+
+  if (!studentId) {
+    return res.status(400).json({ message: 'Student ID is required' });
+  }
   
   const assignment = await supabaseService.getById(COLLECTIONS.ASSIGNMENTS, req.params.id);
   
@@ -283,6 +295,8 @@ const submitAssignment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Assignment not found' });
   }
 
+  // Optional: Check if student is allowed to submit (grade/section match)
+  
   const submissions = assignment.submissions || [];
   const existingIndex = submissions.findIndex(s => s.student === studentId);
 
@@ -290,10 +304,12 @@ const submitAssignment = asyncHandler(async (req, res) => {
     student: studentId,
     content,
     attachments: attachments || [],
-    submittedAt: new Date().toISOString()
+    submittedAt: new Date().toISOString(),
+    status: 'submitted'
   };
 
   if (existingIndex >= 0) {
+    // Preserve existing score/feedback if re-submitting
     submissions[existingIndex] = { ...submissions[existingIndex], ...submission };
   } else {
     submissions.push(submission);
@@ -320,13 +336,14 @@ const gradeSubmission = asyncHandler(async (req, res) => {
   }
 
   // Security check for teachers
+  let teacherId = null;
   if (user.role === 'teacher' || user.role === 'staff') {
     const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
+    teacherId = teacherProfile.id;
     
     // Check if the assignment belongs to the teacher
     if (assignment.teacher_id !== teacherProfile.id) {
-      // Check if it's one of their courses at least
       const course = await supabaseService.getById(COLLECTIONS.COURSES, assignment.course_id || assignment.course);
       if (!course || (course.teacher_id !== teacherProfile.id && course.teacher !== teacherProfile.id)) {
         return res.status(403).json({ message: 'Access denied. You can only grade assignments for your own classes.' });
@@ -338,14 +355,18 @@ const gradeSubmission = asyncHandler(async (req, res) => {
   const submissionIndex = submissions.findIndex(s => s.student === studentId);
 
   if (submissionIndex < 0) {
-    return res.status(404).json({ message: 'Submission not found' });
+    // Create a dummy submission entry if teacher is grading someone who hasn't submitted?
+    // Usually, we should only grade submissions that exist.
+    return res.status(404).json({ message: 'Submission not found for this student.' });
   }
 
   submissions[submissionIndex] = {
     ...submissions[submissionIndex],
-    score,
+    score: Number(score),
     feedback,
-    gradedAt: new Date().toISOString()
+    gradedAt: new Date().toISOString(),
+    gradedBy: teacherId,
+    status: 'graded'
   };
 
   const updatedAssignment = await supabaseService.update(

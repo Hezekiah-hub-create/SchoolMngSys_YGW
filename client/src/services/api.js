@@ -251,7 +251,10 @@ export const reportAPI = {
   getAttendanceReport: (params) => api.get('/api/reports/attendance', { params }),
   getStudentReport: (studentId, params) => api.get(`/api/reports/student/${studentId}`, { params }),
   getClassReport: (grade, params) => api.get(`/api/reports/class/${encodeURIComponent(grade)}`, { params }),
-  getFeeReport: (params) => api.get('/api/reports/fees', { params })
+  getFeeReport: (params) => api.get('/api/reports/fees', { params }),
+  sendToParents: (reports) => api.post('/api/reports/send', { reports }),
+  getPublishedReports: () => api.get('/api/reports/published'),
+  deletePublishedReport: (id) => api.delete(`/api/reports/published/${id}`)
 };
 
 // ==================== DASHBOARD API ====================
@@ -269,6 +272,17 @@ export const eventAPI = {
   create: (data) => api.post('/api/events', data),
   update: (id, data) => api.put(`/api/events/${id}`, data),
   delete: (id) => api.delete(`/api/events/${id}`)
+};
+
+export const academicCalendarAPI = {
+  getAll: () => api.get('/api/academic-calendar'),
+  create: (data) => api.post('/api/academic-calendar', data),
+  update: (id, data) => api.put(`/api/academic-calendar/${id}`, data),
+  delete: (id) => api.delete(`/api/academic-calendar/${id}`)
+};
+
+export const aiAPI = {
+  generateLesson: (data) => api.post('/api/ai/generate-lesson', data)
 };
 
 // ==================== TIMETABLE API ====================

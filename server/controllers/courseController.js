@@ -77,10 +77,10 @@ const getAllCourses = asyncHandler(async (req, res) => {
       const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', req.user.id);
       
       if (studentProfile) {
-        const studentGradeNorm = (studentProfile.grade || '').replace('Primary', 'Basic');
+        const studentGradeNorm = (studentProfile.grade || '').trim();
         
         transformedData = transformedData.filter(c => {
-          const courseGradeNorm = (c.grade || '').replace('Primary', 'Basic');
+          const courseGradeNorm = (c.grade || '').trim();
           const matchesGrade = courseGradeNorm === studentGradeNorm;
           const matchesSection = !c.section || c.section === 'All' || c.section === studentProfile.section;
           
@@ -99,11 +99,6 @@ const getAllCourses = asyncHandler(async (req, res) => {
         
         // Exact match or space-insensitive match
         if (dbGrade === queryGrade || dbGrade.replace(/\s/g, '') === queryGrade.replace(/\s/g, '')) return true;
-        
-        // Handle Basic/Primary mapping
-        const normalizedDB = dbGrade.replace('basic', 'primary').trim();
-        const normalizedQuery = queryGrade.replace('basic', 'primary').trim();
-        if (normalizedDB === normalizedQuery) return true;
 
         // JHS/Basic Mapping
         const isJHS1 = queryGrade.includes('jhs 1') || queryGrade === 'jhs1';
@@ -197,13 +192,7 @@ const getCourseById = asyncHandler(async (req, res) => {
 const getCoursesByGrade = asyncHandler(async (req, res) => {
   const { grade } = req.params;
   
-  // Find the class ID first - support both Basic and Primary nomenclature
-  const altGrade = grade.includes('Primary') ? grade.replace('Primary', 'Basic') : (grade.includes('Basic') ? grade.replace('Basic', 'Primary') : grade);
-  
-  let academicClass = await supabaseService.getByField(COLLECTIONS.ACADEMIC_CLASSES, 'name', grade);
-  if (!academicClass) {
-    academicClass = await supabaseService.getByField(COLLECTIONS.ACADEMIC_CLASSES, 'name', altGrade);
-  }
+  const academicClass = await supabaseService.getByField(COLLECTIONS.ACADEMIC_CLASSES, 'name', grade);
   
   if (!academicClass) {
     return res.json({ success: true, data: [], count: 0 });
@@ -282,7 +271,7 @@ const createCourse = asyncHandler(async (req, res) => {
   if (!academicClass) {
     academicClass = await supabaseService.create(COLLECTIONS.ACADEMIC_CLASSES, {
       name: grade,
-      level: grade.includes('JHS') ? 'JHS' : 'Primary'
+      level: grade.includes('JHS') ? 'JHS' : (grade.includes('KG') ? 'KG' : 'Basic')
     });
   }
 
@@ -361,7 +350,7 @@ const updateCourse = asyncHandler(async (req, res) => {
     if (!academicClass) {
       academicClass = await supabaseService.create(COLLECTIONS.ACADEMIC_CLASSES, {
         name: grade,
-        level: grade.includes('JHS') ? 'JHS' : 'Primary'
+        level: grade.includes('JHS') ? 'JHS' : (grade.includes('KG') ? 'KG' : 'Basic')
       });
     }
     classId = academicClass.id;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { parentAPI, studentAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import { mapSectionName } from '../../../utils/sectionHelper';
 
 // Modern Icon Components
 const Icons = {
@@ -104,7 +105,7 @@ const ParentProfile = () => {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}><div className="premium-loader"></div></div>;
+  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' }}><div className="premium-loader"></div></div>;
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -306,7 +307,7 @@ const ParentProfile = () => {
                               </div>
                               <div style={{ flex: 1 }}>
                                 <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--brand-slate-900)' }}>{student.firstName} {student.lastName}</h4>
-                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--brand-slate-500)', fontWeight: '600' }}>{student.grade} • Section {student.section || 'A'}</p>
+                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--brand-slate-500)', fontWeight: '600' }}>{student.grade} • Section {mapSectionName(student.section || 'A')}</p>
                               </div>
                             </div>
                           ))}

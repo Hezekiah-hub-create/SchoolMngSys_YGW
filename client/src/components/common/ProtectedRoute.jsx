@@ -13,7 +13,7 @@ const ProtectedRoute = ({ children }) => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f8fafc'
+        backgroundColor: '#ffffff'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{

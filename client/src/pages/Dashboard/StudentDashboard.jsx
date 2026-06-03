@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentAPI, gradeAPI, attendanceAPI, assignmentAPI, feeAPI, courseAPI, eventAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { mapSectionName } from '../../utils/sectionHelper';
+import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
 
 // ─── Shared helpers ────────────────────────────────────────────────
 const Section = ({ title, action, actionPath, children, navigate }) => (
@@ -166,7 +168,7 @@ const StudentDashboard = () => {
                 <span style={{ color: 'var(--brand-green)' }}>✨</span>
               </h1>
               <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
-                {currentUser?.grade ? `${currentUser.grade}${currentUser?.section ? ` Section ${currentUser.section}` : ''}` : 'Academic Profile'} — Navigating your <span style={{ color: '#0f172a', fontWeight: '800' }}>UHAS Success Matrix</span>.
+                {currentUser?.grade ? `${currentUser.grade}${currentUser?.section ? ` Section ${mapSectionName(currentUser.section)}` : ''}` : 'Academic Profile'} — Navigating your <span style={{ color: '#0f172a', fontWeight: '800' }}>UHAS Success Matrix</span>.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>
@@ -204,7 +206,7 @@ const StudentDashboard = () => {
             {/* My Courses */}
             <Section title="Enrolled Nodes" action="Full Registry" actionPath="/courses" navigate={navigate}>
               <div style={{ padding: '12px 28px 24px' }}>
-                {loading ? <div style={{ height: '100px', backgroundColor: '#f8fafc', borderRadius: '16px', animation: 'pulse 1.5s infinite' }}></div>
+                {loading ? <div style={{ height: '100px', backgroundColor: '#ffffff', borderRadius: '16px', animation: 'pulse 1.5s infinite' }}></div>
                   : courses.length === 0 ? <Empty msg="No active nodes." />
                   : courses.map((c, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: i < courses.length - 1 ? '1px solid #f1f5f9' : 'none', transition: 'all 0.2s' }}>
@@ -233,7 +235,7 @@ const StudentDashboard = () => {
                       const s = scoreFromGrade(g);
                       const gc = gradeColor(s);
                       return (
-                        <tr key={i} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s' }}>
+                        <tr key={i} style={{ borderBottom: '1px solid #ffffff', transition: 'all 0.2s' }}>
                           <td style={{ padding: '16px 8px', fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>{g.subject || g.courseName || '—'}</td>
                           <td style={{ padding: '16px 8px', fontSize: '15px', fontWeight: '950', color: '#0f172a' }}>{s}</td>
                           <td style={{ padding: '16px 8px' }}><Pill label={g.letterGrade || (s >= 80 ? 'A' : 'B')} color={gc.color} bg={gc.bg} /></td>
@@ -250,7 +252,7 @@ const StudentDashboard = () => {
             {/* My Assignments */}
             <Section title="Active Tasks" action="Task Ledger" actionPath="/assignments" navigate={navigate}>
               <div style={{ padding: '12px 28px 24px' }}>
-                {loading ? <div style={{ height: '80px', backgroundColor: '#f8fafc', borderRadius: '16px', animation: 'pulse 1.5s infinite' }}></div>
+                {loading ? <div style={{ height: '80px', backgroundColor: '#ffffff', borderRadius: '16px', animation: 'pulse 1.5s infinite' }}></div>
                   : assignments.length === 0 ? <Empty msg="No tasks dispatched." />
                   : assignments.map((a, i) => {
                     const studentSubmission = (a.submissions || []).find(s => s.student === studentId);
@@ -322,7 +324,7 @@ const StudentDashboard = () => {
                   <div style={{ borderTop: '1.5px solid #f1f5f9', paddingTop: '20px' }}>
                     <p style={{ fontSize: '11px', fontWeight: '900', color: '#94a3b8', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Recent Presence Nodes</p>
                     {attendance.records.map((r, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < attendance.records.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < attendance.records.length - 1 ? '1px solid #ffffff' : 'none' }}>
                         <p style={{ fontSize: '14px', color: '#0f172a', fontWeight: '700' }}>{r.date ? new Date(r.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : `Node ${i+1}`}</p>
                         <Pill label={r.status === 'present' ? 'PRESENT' : 'ABSENT'} color={r.status === 'present' ? 'var(--brand-green)' : '#dc2626'} bg={r.status === 'present' ? '#f0fdf4' : '#fef2f2'} />
                       </div>
@@ -355,7 +357,7 @@ const StudentDashboard = () => {
                 {loading ? <div style={{ height:'60px', backgroundColor:'#f1f5f9', borderRadius:'8px', animation:'pulse 1.5s infinite' }}></div>
                   : fees.length === 0 ? <Empty msg="No fee records found" />
                   : fees.map((f, i) => (
-                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0', borderBottom: i < fees.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0', borderBottom: i < fees.length - 1 ? '1px solid #ffffff' : 'none' }}>
                       <div>
                         <p style={{ fontSize:'13px', fontWeight:'600', color:'#1e293b' }}>{f.description || f.feeType || 'School Fee'}</p>
                         <p style={{ fontSize:'12px', color:'#64748b' }}>Due: {f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'}</p>
@@ -370,7 +372,7 @@ const StudentDashboard = () => {
             </Section>
 
             {/* Announcements */}
-            <Section title={<div style={{display:'flex', alignItems:'center', gap:'8px'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> Announcements</div>} action="View Calendar" actionPath="/calendar" navigate={navigate}>
+            <Section title={<div style={{display:'flex', alignItems:'center', gap:'8px'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> Announcements</div>}>
               <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:'12px' }}>
                 {loading ? <div style={{ height:'60px', backgroundColor:'#f1f5f9', borderRadius:'8px', animation:'pulse 1.5s infinite' }}></div>
                  : announcements.length === 0 ? <Empty msg="No upcoming announcements" />
@@ -390,6 +392,11 @@ const StudentDashboard = () => {
                   </div>
                 ))}
               </div>
+            </Section>
+
+            {/* Academic Calendar */}
+            <Section title={<div style={{display:'flex', alignItems:'center', gap:'8px'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Academic Calendar</div>}>
+              <AcademicCalendarWidget />
             </Section>
 
           </div>

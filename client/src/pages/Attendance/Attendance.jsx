@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI, teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { mapSectionName } from '../../utils/sectionHelper';
 import PremiumDatePicker from '../../components/common/PremiumDatePicker';
 import PremiumCalendar from '../../components/common/PremiumCalendar';
 import PremiumSelect from '../../components/common/PremiumSelect';
@@ -258,15 +259,33 @@ const Attendance = () => {
   };
 
   const getStatusDataForStudent = (studentId) => {
-    if (pendingChanges[studentId]) return pendingChanges[studentId];
+    if (pendingChanges[studentId]) return {
+      status: pendingChanges[studentId].status,
+      arrival_time: pendingChanges[studentId].arrival_time,
+      notes: pendingChanges[studentId].notes !== undefined ? pendingChanges[studentId].notes : ''
+    };
 
     const record = records.find(r => 
       r.student_id === studentId || r.student === studentId || r.student?._id === studentId
     );
     return {
       status: record?.status || 'absent',
-      arrival_time: record?.arrival_time || null
+      arrival_time: record?.arrival_time || null,
+      notes: record?.notes || ''
     };
+  };
+
+  const handleNotesChange = (studentId, notes) => {
+    setPendingChanges(prev => {
+      const current = prev[studentId] || getStatusDataForStudent(studentId);
+      return {
+        ...prev,
+        [studentId]: {
+          ...current,
+          notes: notes
+        }
+      };
+    });
   };
 
   const handleStatusChange = (studentId, status) => {
@@ -362,10 +381,11 @@ const Attendance = () => {
   }, [students, searchTerm]);
 
   const stats = useMemo(() => {
-    const currentStats = { present: 0, absent: 0, total: students.length };
+    const currentStats = { present: 0, late: 0, absent: 0, total: students.length };
     students.forEach(student => {
       const data = getStatusDataForStudent(student.id || student._id);
       if (data.status === 'present') currentStats.present++;
+      else if (data.status === 'late') currentStats.late++;
       else if (data.status === 'absent') currentStats.absent++;
     });
     return currentStats;
@@ -386,7 +406,7 @@ const Attendance = () => {
       <main style={{ padding: '20px 0 60px 0' }}>
           {/* Header Section */}
           {/* Command Hub: Unified Header, Calendar, and Controls */}
-          <div className="glass-card" style={{ padding: '36px', marginBottom: '32px', borderRadius: '32px', background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', border: '1px solid #f1f5f9' }}>
+          <div className="glass-card" style={{ padding: '36px', marginBottom: '32px', borderRadius: '32px', background: 'linear-gradient(135deg, #ffffff 0%, #ffffff 100%)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', gap: '48px', flexWrap: 'wrap' }}>
               
               {/* Left Column: Intelligence Header & Controls */}
@@ -403,6 +423,7 @@ const Attendance = () => {
                   <p style={{ fontSize: '16px', color: '#64748b', marginTop: '12px', fontWeight: '500', maxWidth: '500px', lineHeight: '1.6' }}>
                     {isStudent ? 'Monitor your personal arrival history and punctuality records.' : 
                      isParent ? 'Track your children\'s presence and academic engagement.' : 
+                     isAdmin ? 'Comprehensive overview of institutional punctuality tracking across all tiers and nodes.' :
                      'Monitor your institutional punctuality tracking. Select a specific tier and node to commence daily operational logging.'}
                   </p>
                 </div>
@@ -412,13 +433,13 @@ const Attendance = () => {
                   <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginTop: '40px', padding: '24px', backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.02)', border: '1px solid #f1f5f9' }}>
                     
                     {isAdmin && (
-                      <>
+                      <div style={{ flex: 1, display: 'flex', gap: '16px' }}>
                         <div style={{ flex: 1, minWidth: '150px' }}>
                           <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Curriculum Tier</span>
                           <PremiumSelect
                             value={selectedClass}
                             onChange={(e) => setSelectedClass(e.target.value)}
-                            options={['KG 1', 'KG 2', 'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6', 'JHS 1', 'JHS 2', 'JHS 3'].map(g => ({ value: g, label: g }))}
+                            options={['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'JHS 1', 'JHS 2', 'JHS 3'].map(g => ({ value: g, label: g }))}
                             placeholder="Select Tier"
                           />
                         </div>
@@ -427,27 +448,19 @@ const Attendance = () => {
                           <PremiumSelect
                             value={selectedSection}
                             onChange={(e) => setSelectedSection(e.target.value)}
-                            options={['A', 'B', 'C'].map(s => ({ value: s, label: s }))}
+                            options={['A', 'B', 'C', 'D'].map(s => ({ value: s, label: mapSectionName(s) }))}
                             placeholder="Select Node"
                           />
                         </div>
-                        <button 
-                          onClick={() => handleMarkAll('present')} 
-                          disabled={isSelectedWeekend || !selectedClass || isAttendanceLocked}
-                          className="premium-btn-secondary"
-                          style={{ padding: '14px 24px', height: '52px', marginTop: '23px', whiteSpace: 'nowrap', opacity: (isSelectedWeekend || !selectedClass || isAttendanceLocked) ? 0.5 : 1 }}
-                        >
-                          Mark All Present
-                        </button>
-                      </>
+                      </div>
                     )}
 
                     {isTeacher && (
                       <>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Assigned Master Class</span>
-                          <div style={{ padding: '14px 20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px', fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
-                            {selectedClass && selectedSection ? `${selectedClass} — Section ${selectedSection}` : 'No Master Class Assigned'}
+                          <div style={{ padding: '14px 20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
+                            {selectedClass && selectedSection ? `${selectedClass} — Section ${mapSectionName(selectedSection)}` : 'No Master Class Assigned'}
                           </div>
                         </div>
                         
@@ -501,7 +514,7 @@ const Attendance = () => {
               </div>
 
               {/* Right Column: Premium Calendar */}
-              <div style={{ width: '360px', flexShrink: 0, backgroundColor: 'white', padding: '24px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
+              <div style={{ width: '400px', flexShrink: 0, backgroundColor: 'white', padding: '24px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
                 <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.3px' }}>Operational Date</span>
                   <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--brand-green)', backgroundColor: '#f0fdf4', padding: '4px 10px', borderRadius: '12px', letterSpacing: '1px' }}>TIMELINE</span>
@@ -572,6 +585,7 @@ const Attendance = () => {
             ) : (
               [
                 { label: 'Present', value: stats.present, color: '#059669', bg: '#ecfdf5', icon: <Icons.Check /> },
+                { label: 'Late', value: stats.late, color: '#d97706', bg: '#fef3c7', icon: <Icons.Clock /> },
                 { label: 'Absent', value: stats.absent, color: '#dc2626', bg: '#fef2f2', icon: <Icons.X /> },
                 { label: 'Total Enrolled', value: stats.total, color: '#2563eb', bg: '#eff6ff', icon: <Icons.Users /> }
               ].map((stat, i) => (
@@ -607,10 +621,10 @@ const Attendance = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {loading ? (
                          [...Array(5)].map((_, i) => (
-                           <div key={i} style={{ height: '60px', backgroundColor: '#f8fafc', borderRadius: '16px', animation: 'pulse 1.5s infinite' }} />
+                           <div key={i} style={{ height: '60px', backgroundColor: '#ffffff', borderRadius: '16px', animation: 'pulse 1.5s infinite' }} />
                          ))
                       ) : records.length === 0 ? (
-                        <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '24px', border: '1.5px dashed #e2e8f0' }}>
+                        <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#ffffff', borderRadius: '24px', border: '1.5px dashed #e2e8f0' }}>
                           <Icons.Clock />
                           <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: '700', color: '#94a3b8' }}>No temporal nodes recorded for this cycle.</p>
                         </div>
@@ -631,23 +645,28 @@ const Attendance = () => {
                                 width: '44px', 
                                 height: '44px', 
                                 borderRadius: '12px', 
-                                backgroundColor: record.status === 'present' ? '#f0fdf4' : '#fef2f2',
-                                color: record.status === 'present' ? '#10b981' : '#ef4444',
+                                backgroundColor: record.status === 'present' ? '#f0fdf4' : (record.status === 'late' ? '#fffbeb' : '#fef2f2'),
+                                color: record.status === 'present' ? '#10b981' : (record.status === 'late' ? '#d97706' : '#ef4444'),
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
                               }}>
-                                {record.status === 'present' ? <Icons.Check /> : <Icons.X />}
+                                {record.status === 'present' ? <Icons.Check /> : (record.status === 'late' ? <Icons.Clock /> : <Icons.X />)}
                               </div>
                               <div>
                                 <p style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>{record.period || 'General Session'}</p>
                                 <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', margin: '2px 0 0 0' }}>
                                   {new Date(record.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                                 </p>
+                                {record.notes && (
+                                  <p style={{ fontSize: '11px', color: '#b45309', fontWeight: '700', margin: '4px 0 0 0', backgroundColor: '#fffbeb', padding: '4px 8px', borderRadius: '6px', display: 'inline-block' }}>
+                                    Reason: {record.notes}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <p style={{ fontSize: '14px', fontWeight: '900', color: record.status === 'present' ? '#10b981' : '#ef4444', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              <p style={{ fontSize: '14px', fontWeight: '900', color: record.status === 'present' ? '#10b981' : (record.status === 'late' ? '#d97706' : '#ef4444'), margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 {record.status}
                               </p>
                               {record.arrival_time && (
@@ -703,7 +722,7 @@ const Attendance = () => {
                 <div style={{ padding: '20px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: '#0f172a' }}>
-                      {selectedClass ? `${selectedClass}${selectedSection ? ` — Section ${selectedSection}` : ''}` : 'Scholar Register'}
+                      {selectedClass ? `${selectedClass}${selectedSection ? ` — Section ${mapSectionName(selectedSection)}` : ''}` : 'Scholar Register'}
                     </h3>
                     <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
                       {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} · {selectedDate}
@@ -738,7 +757,7 @@ const Attendance = () => {
                 {loading ? (
                   <div style={{ padding: '40px' }}>
                     {[...Array(6)].map((_, i) => (
-                      <div key={i} style={{ height: '56px', backgroundColor: '#f8fafc', borderRadius: '12px', marginBottom: '8px', animation: 'pulse 1.5s infinite' }} />
+                      <div key={i} style={{ height: '56px', backgroundColor: '#ffffff', borderRadius: '12px', marginBottom: '8px', animation: 'pulse 1.5s infinite' }} />
                     ))}
                   </div>
                 ) : filteredStudents.length === 0 ? (
@@ -749,7 +768,7 @@ const Attendance = () => {
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ backgroundColor: '#f8fafc' }}>
+                      <tr style={{ backgroundColor: '#ffffff' }}>
                         <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #f1f5f9' }}>Scholar</th>
                         <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #f1f5f9' }}>Arrival</th>
                         <th style={{ padding: '12px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid #f1f5f9' }}>Status</th>
@@ -761,12 +780,14 @@ const Attendance = () => {
                         const data = getStatusDataForStudent(studentId);
                         const isPending = !!pendingChanges[studentId];
                         const isPresent = data.status === 'present';
+                        const isLate = data.status === 'late';
+                        const rowBgColor = isPending ? (isPresent ? '#f0fdf4' : (isLate ? '#fffbeb' : '#fef2f2')) : (idx % 2 === 0 ? 'white' : '#fafafa');
                         return (
                           <tr
                             key={studentId}
                             style={{
                               borderBottom: '1px solid #f9fafb',
-                              backgroundColor: isPending ? (isPresent ? '#f0fdf4' : '#fef2f2') : (idx % 2 === 0 ? 'white' : '#fafafa'),
+                              backgroundColor: rowBgColor,
                               transition: 'background 0.2s'
                             }}
                           >
@@ -775,8 +796,8 @@ const Attendance = () => {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <div style={{
                                   width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0,
-                                  background: isPresent ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'linear-gradient(135deg,#fee2e2,#fecaca)',
-                                  color: isPresent ? '#059669' : '#dc2626',
+                                  background: isPresent ? 'linear-gradient(135deg,#d1fae5,#a7f3d0)' : (isLate ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : 'linear-gradient(135deg,#fee2e2,#fecaca)'),
+                                  color: isPresent ? '#059669' : (isLate ? '#d97706' : '#dc2626'),
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   fontWeight: '900', fontSize: '14px', letterSpacing: '-0.5px'
                                 }}>
@@ -789,6 +810,30 @@ const Attendance = () => {
                                   <p style={{ margin: '2px 0 0', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                                     {student.admissionNumber || 'ADM—'}
                                   </p>
+                                  {data.status === 'late' && (
+                                    <div style={{ marginTop: '8px' }}>
+                                      <input
+                                        type="text"
+                                        placeholder="Reason for lateness..."
+                                        value={data.notes || ''}
+                                        disabled={isSelectedWeekend || isAttendanceLocked || isAdmin}
+                                        onChange={(e) => handleNotesChange(studentId, e.target.value)}
+                                        style={{
+                                          width: '100%',
+                                          maxWidth: '300px',
+                                          padding: '6px 12px',
+                                          fontSize: '12px',
+                                          borderRadius: '8px',
+                                          border: '1px solid #d97706',
+                                          outline: 'none',
+                                          backgroundColor: '#fffdfa',
+                                          color: '#78350f',
+                                          transition: 'all 0.2s',
+                                          boxShadow: '0 1px 2px rgba(217, 119, 6, 0.05)'
+                                        }}
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>
@@ -798,9 +843,9 @@ const Attendance = () => {
                               <span style={{
                                 display: 'inline-block', padding: '4px 12px', borderRadius: '8px',
                                 fontSize: '12px', fontWeight: '800',
-                                backgroundColor: data.arrival_time ? '#f0fdf4' : '#f8fafc',
-                                color: data.arrival_time ? '#059669' : '#94a3b8',
-                                border: `1px solid ${data.arrival_time ? '#bbf7d0' : '#e2e8f0'}`
+                                backgroundColor: data.arrival_time ? (isLate ? '#fffbeb' : '#f0fdf4') : '#ffffff',
+                                color: data.arrival_time ? (isLate ? '#d97706' : '#059669') : '#94a3b8',
+                                border: `1px solid ${data.arrival_time ? (isLate ? '#fde68a' : '#bbf7d0') : '#e2e8f0'}`
                               }}>
                                 {data.arrival_time || '— : —'}
                               </span>
@@ -811,12 +856,13 @@ const Attendance = () => {
                               <div style={{ display: 'inline-flex', gap: '8px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '12px' }}>
                                 {[
                                   { id: 'present', label: 'Present', color: '#10b981', activeColor: '#ecfdf5', icon: <Icons.Check /> },
+                                  { id: 'late',    label: 'Late',    color: '#d97706', activeColor: '#fef3c7', icon: <Icons.Clock /> },
                                   { id: 'absent',  label: 'Absent',  color: '#ef4444', activeColor: '#fef2f2', icon: <Icons.X /> }
                                 ].map(opt => (
                                   <button
                                     key={opt.id}
                                     onClick={() => handleStatusChange(studentId, opt.id)}
-                                    disabled={isSelectedWeekend || isAttendanceLocked}
+                                    disabled={isSelectedWeekend || isAttendanceLocked || isAdmin}
                                     style={{
                                       display: 'flex', alignItems: 'center', gap: '6px',
                                       padding: '8px 16px',

@@ -23,6 +23,7 @@ const mapTeacherToFrontend = (t) => {
     specialization: t.specialization,
     experience: t.experience || 0,
     status: t.status,
+    coordinatorBlock: t.coordinator_block,
     profileImage: t.profile_image,
     qualifications: t.qualifications || [],
     dateOfEmployment: t.date_of_employment,
@@ -290,20 +291,33 @@ const createTeacher = asyncHandler(async (req, res) => {
     grades,
     bio,
     role,
-    department
+    department,
+    employeeId,
+    coordinatorBlock
   } = req.body;
 
-  // Generate employee ID
-  const allTeachers = await supabaseService.getAll(COLLECTIONS.TEACHERS);
-  const count = allTeachers.length + 1;
-  const employeeId = `TCH${String(count).padStart(4, '0')}`;
+  if (!employeeId || !email) {
+    return res.status(400).json({ message: 'Employee ID and Email are required.' });
+  }
+
+  // Check uniqueness of Employee ID
+  const existingTeacher = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'employee_id', employeeId.trim());
+  if (existingTeacher) {
+    return res.status(400).json({ message: `Teacher with Employee ID '${employeeId}' already exists.` });
+  }
+
+  // Check uniqueness of Email
+  const existingUser = await supabaseService.getByField(COLLECTIONS.USERS, 'email', email.toLowerCase().trim());
+  if (existingUser) {
+    return res.status(400).json({ message: `User with email '${email}' already exists.` });
+  }
   
   // Generate default password based on employee ID
-  const defaultPassword = `${employeeId.toLowerCase()}uhas_basic_password`;
+  const defaultPassword = `${employeeId.toLowerCase().trim()}uhas_basic_password`;
 
   // Create user account in Supabase users table
   let userUid = null;
-  const userEmail = (email || `${employeeId}@uhasbasic.edu.gh`).toLowerCase().trim();
+  const userEmail = email.toLowerCase().trim();
   
   try {
     // Generate hashed password
@@ -337,7 +351,7 @@ const createTeacher = asyncHandler(async (req, res) => {
   
   // Filter out undefined values and map to snake_case
   const teacherData = {
-    employee_id: employeeId,
+    employee_id: employeeId.trim(),
     first_name: firstName,
     last_name: lastName,
     email: userEmail,
@@ -359,6 +373,7 @@ const createTeacher = asyncHandler(async (req, res) => {
     experience: parseInt(req.body.experience) || 0,
     bio: bio,
     status: 'active',
+    coordinator_block: coordinatorBlock,
     user_id: userUid
   };
 
@@ -437,7 +452,8 @@ const updateTeacher = asyncHandler(async (req, res) => {
     position: 'position',
     specialization: 'specialization',
     experience: 'experience',
-    dateOfEmployment: 'date_of_employment'
+    dateOfEmployment: 'date_of_employment',
+    coordinatorBlock: 'coordinator_block'
   };
 
   Object.keys(fieldMapping).forEach(frontendField => {
@@ -665,16 +681,19 @@ const getMyCourses = asyncHandler(async (req, res) => {
 
     console.log(`[DEBUG] Fetching academic assignments for teacher ID: ${teacher.id}`);
     
-    // 1. Get sections where they are Class Master
-    const { data: masterSections, error: masterError } = await supabase
+    // 1. Get sections where they are Class Master (or coordinator)
+    let masterSectionsQuery = supabase
       .from(COLLECTIONS.SECTIONS)
-      .select('*, class:class_id (*)')
-      .eq('class_master_id', teacher.id);
-    
+      .select('*, class:class_id (*)');
+      
+    let masterSections = [];
+    const { data: ownMasterSections, error: masterError } = await masterSectionsQuery.eq('class_master_id', teacher.id);
     if (masterError) throw masterError;
+    masterSections = ownMasterSections || [];
 
     // 2. Join class_subjects with subjects and academic_classes for taught subjects
-    const { data: assignments, error } = await supabase
+    let assignments = [];
+    const { data: ownAssignments, error } = await supabase
       .from(COLLECTIONS.CLASS_SUBJECTS)
       .select(`
         *,
@@ -684,6 +703,47 @@ const getMyCourses = asyncHandler(async (req, res) => {
       .eq('teacher_id', teacher.id);
 
     if (error) throw error;
+    assignments = ownAssignments || [];
+
+    // Coordinator logic
+    if (teacher.coordinator_block) {
+      const block = String(teacher.coordinator_block).toLowerCase().trim();
+      const allClasses = await supabaseService.getAll(COLLECTIONS.ACADEMIC_CLASSES);
+      const validClassIds = allClasses.filter(c => c.name && c.name.toLowerCase().includes(block)).map(c => c.id);
+      
+      if (validClassIds.length > 0) {
+        // Fetch all assignments for valid classes
+        const { data: coordAssignments, error: coordError } = await supabase
+          .from(COLLECTIONS.CLASS_SUBJECTS)
+          .select(`
+            *,
+            subject:subject_id (*),
+            class:class_id (*)
+          `)
+          .in('class_id', validClassIds);
+          
+        if (!coordError && coordAssignments) {
+          // Merge and deduplicate
+          const existingIds = new Set(assignments.map(a => a.id));
+          coordAssignments.forEach(ca => {
+            if (!existingIds.has(ca.id)) assignments.push(ca);
+          });
+        }
+        
+        // Fetch sections for valid classes
+        const { data: coordSections, error: coordSecError } = await supabase
+          .from(COLLECTIONS.SECTIONS)
+          .select('*, class:class_id (*)')
+          .in('class_id', validClassIds);
+          
+        if (!coordSecError && coordSections) {
+          const existingSecIds = new Set(masterSections.map(s => s.id));
+          coordSections.forEach(cs => {
+            if (!existingSecIds.has(cs.id)) masterSections.push(cs);
+          });
+        }
+      }
+    }
 
     const getGradeVariations = (gName) => {
       const lower = String(gName || '').toLowerCase();

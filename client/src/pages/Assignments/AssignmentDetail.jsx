@@ -26,10 +26,18 @@ const AssignmentDetail = () => {
     content: '',
     file: null
   });
+  const [students, setStudents] = useState([]);
+  const [gradingData, setGradingData] = useState({});
 
   useEffect(() => {
     fetchAssignment();
   }, [id]);
+
+  useEffect(() => {
+    if (assignment && user.role === 'teacher') {
+      fetchStudents();
+    }
+  }, [assignment, user]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', due_date: '' });
@@ -53,6 +61,30 @@ const AssignmentDetail = () => {
     }
   };
 
+  const fetchStudents = async () => {
+    try {
+      // Find all students in this grade/section
+      const response = await studentAPI.getAll({ 
+        grade: assignment.grade || assignment.class,
+        section: assignment.section
+      });
+      if (response.data.success) {
+        setStudents(response.data.data);
+        // Initialize grading data from existing submissions
+        const initialGrading = {};
+        (assignment.submissions || []).forEach(s => {
+          initialGrading[s.student] = {
+            score: s.score || '',
+            feedback: s.feedback || ''
+          };
+        });
+        setGradingData(initialGrading);
+      }
+    } catch (error) {
+      console.error('Error fetching students for grading:', error);
+    }
+  };
+
   const handleUpdate = async () => {
     try {
       setSubmitting(true);
@@ -70,6 +102,7 @@ const AssignmentDetail = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!submission.content.trim()) return;
     setSubmitting(true);
     try {
       await assignmentAPI.submit(id, submission);
@@ -79,6 +112,36 @@ const AssignmentDetail = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleGrade = async (studentId) => {
+    const data = gradingData[studentId];
+    if (!data || data.score === '') return;
+    
+    try {
+      const response = await assignmentAPI.grade(id, {
+        studentId,
+        score: data.score,
+        feedback: data.feedback
+      });
+      if (response.data.success) {
+        setAssignment(response.data.data);
+        alert('Grade submitted successfully');
+      }
+    } catch (error) {
+      console.error('Grading failed:', error);
+      alert('Failed to submit grade');
+    }
+  };
+
+  const handleGradingChange = (studentId, field, value) => {
+    setGradingData(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [field]: value
+      }
+    }));
   };
 
   if (loading) {
@@ -107,10 +170,12 @@ const AssignmentDetail = () => {
   const dueDate = assignment.due_date || assignment.dueDate;
   const createdAt = assignment.created_at || assignment.createdAt;
   const subject = assignment.course_name || assignment.subject || 'Academic Course';
+  
+  // Find current student's submission
+  const mySubmission = user.role === 'student' ? (assignment.submissions || []).find(s => s.student === user.studentId || s.student_id === user.studentId) : null;
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-        {/* Animated Background Blobs */}
         <div style={{ position: 'fixed', top: '10%', right: '5%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(0, 132, 62, 0.03) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(60px)', zIndex: 0 }}></div>
 
         <main style={{ position: 'relative', zIndex: 1 }}>
@@ -202,7 +267,7 @@ const AssignmentDetail = () => {
                 )}
 
                 {assignment.fileUrl && (
-                  <div style={{ marginTop: '40px', padding: '24px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ marginTop: '40px', padding: '24px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <div style={{ width: '56px', height: '56px', borderRadius: '14px', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-green)', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                         <FileText size={28} />
@@ -220,24 +285,130 @@ const AssignmentDetail = () => {
               </div>
 
               {user.role === 'student' && (
-                <div className="glass-card" style={{ padding: '48px' }}>
+                <div className="glass-card" style={{ padding: '48px', marginBottom: '32px' }}>
                   <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', marginBottom: '24px' }}>Resolution Submission</h3>
-                  <form onSubmit={handleSubmit}>
-                    <textarea 
-                      placeholder="Enter your resolution details or comments here..."
-                      style={{ width: '100%', minHeight: '200px', padding: '24px', borderRadius: '20px', border: '2px solid #f1f5f9', backgroundColor: '#f8fafc', fontSize: '16px', fontWeight: '500', outline: 'none', transition: 'all 0.3s', marginBottom: '24px' }}
-                      value={submission.content}
-                      onChange={e => setSubmission({...submission, content: e.target.value})}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <button type="button" className="premium-btn-secondary" style={{ padding: '14px 28px' }}>
-                        <Upload size={18} /> Attach Evidence
-                      </button>
-                      <button type="submit" disabled={submitting} className="premium-btn-primary" style={{ padding: '16px 40px' }}>
-                        {submitting ? 'Transmitting...' : 'Commit Submission'}
-                      </button>
+                  {mySubmission ? (
+                    <div style={{ padding: '24px', backgroundColor: '#f0fdf4', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#166534', marginBottom: '16px' }}>
+                        <CheckCircle2 size={24} />
+                        <span style={{ fontWeight: '800' }}>Submission Successfully Received</span>
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#166534', fontWeight: '500', marginBottom: '16px' }}>
+                        Submitted on {new Date(mySubmission.submittedAt).toLocaleString()}
+                      </div>
+                      <div style={{ padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #dcfce7', color: '#1e293b', fontSize: '14px' }}>
+                        {mySubmission.content}
+                      </div>
                     </div>
-                  </form>
+                  ) : (
+                    <form onSubmit={handleSubmit}>
+                      <textarea 
+                        placeholder="Enter your resolution details or comments here..."
+                        style={{ width: '100%', minHeight: '200px', padding: '24px', borderRadius: '20px', border: '2px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '16px', fontWeight: '500', outline: 'none', transition: 'all 0.3s', marginBottom: '24px' }}
+                        value={submission.content}
+                        onChange={e => setSubmission({...submission, content: e.target.value})}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <button type="button" className="premium-btn-secondary" style={{ padding: '14px 28px' }}>
+                          <Upload size={18} /> Attach Evidence
+                        </button>
+                        <button type="submit" disabled={submitting} className="premium-btn-primary" style={{ padding: '16px 40px' }}>
+                          {submitting ? 'Transmitting...' : 'Commit Submission'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {mySubmission && mySubmission.status === 'graded' && (
+                    <div style={{ marginTop: '32px', padding: '32px', background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)', borderRadius: '24px', border: '1px solid #99f6e4' }}>
+                      <h4 style={{ fontSize: '18px', fontWeight: '900', color: '#134e4a', marginBottom: '20px' }}>Institutional Feedback</h4>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ margin: 0, fontSize: '11px', fontWeight: '800', color: '#5eead4', textTransform: 'uppercase' }}>Score</p>
+                          <p style={{ margin: 0, fontSize: '32px', fontWeight: '950', color: '#0f766e' }}>{mySubmission.score}<span style={{ fontSize: '16px', opacity: 0.7 }}>/{assignment.max_score || 100}</span></p>
+                        </div>
+                        <div style={{ flex: 1, paddingLeft: '32px', borderLeft: '2px solid rgba(19, 78, 74, 0.1)' }}>
+                          <p style={{ margin: 0, fontSize: '11px', fontWeight: '800', color: '#5eead4', textTransform: 'uppercase' }}>Teacher's Remarks</p>
+                          <p style={{ margin: '8px 0 0', fontSize: '15px', color: '#134e4a', fontWeight: '600', fontStyle: 'italic' }}>"{mySubmission.feedback || 'No comments provided.'}"</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {user.role === 'teacher' && (
+                <div className="glass-card" style={{ padding: '48px' }}>
+                  <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', marginBottom: '32px' }}>Resolution Auditing</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    {students.length === 0 ? (
+                      <p style={{ textAlign: 'center', color: '#94a3b8', padding: '40px' }}>No students discovered in this cohort node.</p>
+                    ) : students.map(student => {
+                      const submission = (assignment.submissions || []).find(s => s.student === student.id);
+                      const currentGrading = gradingData[student.id] || { score: '', feedback: '' };
+                      
+                      return (
+                        <div key={student.id} style={{ padding: '24px', backgroundColor: '#ffffff', borderRadius: '24px', border: '1px solid #f1f5f9' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                              <div style={{ width: '48px', height: '48px', borderRadius: '16px', backgroundColor: 'var(--brand-green)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
+                                {student.firstName?.[0] || 'S'}
+                              </div>
+                              <div>
+                                <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#1e293b' }}>{student.firstName} {student.lastName}</h4>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: submission ? '#059669' : '#94a3b8' }}>
+                                  {submission ? `Submitted at ${new Date(submission.submittedAt).toLocaleDateString()}` : 'Pending Submission'}
+                                </span>
+                              </div>
+                            </div>
+                            {submission && (
+                              <span style={{ padding: '4px 12px', backgroundColor: submission.status === 'graded' ? '#ecfdf5' : '#fff7ed', color: submission.status === 'graded' ? '#10b981' : '#f97316', borderRadius: '12px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}>
+                                {submission.status}
+                              </span>
+                            )}
+                          </div>
+
+                          {submission && (
+                            <div style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                              <p style={{ margin: 0, fontSize: '12px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Submission Content</p>
+                              <div style={{ fontSize: '14px', color: '#334155', lineHeight: '1.6' }}>{submission.content}</div>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 150px', gap: '16px', alignItems: 'flex-end' }}>
+                            <div>
+                              <p style={{ margin: 0, fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>Award Score</p>
+                              <input 
+                                type="number" 
+                                placeholder={`0-${assignment.max_score || 100}`}
+                                value={currentGrading.score}
+                                onChange={e => handleGradingChange(student.id, 'score', e.target.value)}
+                                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', fontSize: '14px', fontWeight: '700' }}
+                              />
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>Feedback Narrative</p>
+                              <input 
+                                type="text" 
+                                placeholder="Enter qualitative feedback..."
+                                value={currentGrading.feedback}
+                                onChange={e => handleGradingChange(student.id, 'feedback', e.target.value)}
+                                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', fontSize: '14px', fontWeight: '600' }}
+                              />
+                            </div>
+                            <button 
+                              onClick={() => handleGrade(student.id)}
+                              disabled={!submission || currentGrading.score === ''}
+                              className="premium-btn-primary" 
+                              style={{ padding: '12px', borderRadius: '12px', fontSize: '13px' }}
+                            >
+                              Commit Grade
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </section>
@@ -272,7 +443,7 @@ const AssignmentDetail = () => {
 
               <div className="glass-card" style={{ padding: '32px' }}>
                 <h4 style={{ fontSize: '13px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '24px', letterSpacing: '1px' }}>Fidelity Status</h4>
-                <div style={{ textAlign: 'center', padding: '24px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
+                <div style={{ textAlign: 'center', padding: '24px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
                   <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-green)', margin: '0 auto 16px', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                     <CheckCircle2 size={28} />
                   </div>

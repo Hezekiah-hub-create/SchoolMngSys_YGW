@@ -40,7 +40,7 @@ const departmentOptions = [
 
 const InfoRow = ({ icon, label, value }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 0' }}>
-    <div style={{ color: 'var(--brand-purple)', backgroundColor: '#f5f3ff', padding: '10px', borderRadius: '12px', border: '1px solid #ede9fe' }}>{icon}</div>
+    <div style={{ color: 'var(--brand-green)', backgroundColor: '#f0fdf4', padding: '10px', borderRadius: '12px', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
     <div>
       <p style={{ fontSize: '10px', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '900' }}>{label}</p>
       <p style={{ fontSize: '14px', color: '#0f172a', margin: '2px 0 0', fontWeight: '700' }}>{value || 'N/A'}</p>
@@ -51,7 +51,7 @@ const InfoRow = ({ icon, label, value }) => (
 const FormSection = ({ title, icon, children }) => (
   <div style={{ backgroundColor: 'var(--brand-slate-50)', border: '1px solid var(--brand-slate-100)', borderRadius: '24px', padding: '32px' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px', color: '#0f172a' }}>
-      <div style={{ color: 'var(--brand-purple)' }}>{icon}</div>
+      <div style={{ color: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
       <h4 style={{ fontSize: '18px', fontWeight: '900', margin: 0, letterSpacing: '-0.5px' }}>{title}</h4>
     </div>
     {children}
@@ -80,7 +80,7 @@ const DataBlock = ({ label, value, fullWidth = false, badge = false }) => (
   <div style={{ gridColumn: fullWidth ? 'span 2' : 'auto' }}>
     <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>{label}</p>
     {badge ? (
-      <span style={{ display: 'inline-block', padding: '8px 16px', borderRadius: '12px', backgroundColor: 'var(--brand-slate-50)', color: 'var(--brand-purple)', fontSize: '13px', fontWeight: '800', textTransform: 'uppercase', border: '1px solid var(--brand-slate-100)' }}>{value || 'N/A'}</span>
+      <span style={{ display: 'inline-block', padding: '8px 16px', borderRadius: '12px', backgroundColor: 'var(--brand-slate-50)', color: 'var(--brand-green)', fontSize: '13px', fontWeight: '800', textTransform: 'uppercase', border: '1px solid var(--brand-slate-100)' }}>{value || 'N/A'}</span>
     ) : (
       <p style={{ fontSize: '16px', color: '#0f172a', fontWeight: '700', margin: 0 }}>{value || 'Institutional Null'}</p>
     )}
@@ -218,232 +218,215 @@ const StaffProfile = () => {
 
   if (!staff) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-        <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-        <div style={{ marginLeft: '260px', flex: 1 }}>
-          <TopNav user={user} onLogout={handleLogout} />
-          <main style={{ padding: '100px 40px 40px' }}>
-            <div style={{ textAlign: 'center', padding: '60px' }}>
-              <h2 style={{ color: '#1e293b' }}>Staff not found</h2>
-              <button onClick={() => navigate('/staff/non-teaching')} className="premium-btn-primary" style={{ margin: '20px auto 0' }}>Back to Staff</button>
-            </div>
-          </main>
-        </div>
+      <div style={{ textAlign: 'center', padding: '60px' }}>
+        <h2 style={{ color: '#1e293b' }}>Staff not found</h2>
+        <button onClick={() => navigate('/staff/non-teaching')} className="premium-btn-primary" style={{ margin: '20px auto 0' }}>Back to Staff</button>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={user} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={user} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
-          {/* Header Action Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <button 
-                onClick={() => navigate('/staff/non-teaching')} 
-                className="premium-btn-secondary"
-                style={{ width: '48px', height: '48px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Icons.ArrowLeft />
-              </button>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ padding: '4px 12px', backgroundColor: '#f3e8ff', color: '#7e22ce', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Support Node</span>
-                  <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Personnel Ledger</span>
-                </div>
-                <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>
-                  {staff?.firstName || staff?.first_name} <span style={{ color: 'var(--brand-purple)' }}>{staff?.lastName || staff?.last_name}</span>
-                </h1>
-                <p style={{ fontSize: '16px', color: '#475569', marginTop: '8px', fontWeight: '500' }}>Institutional profile and professional standing for node {staff?.employeeId || staff?.employee_id || 'N/A'}.</p>
-              </div>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      {/* Header Action Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <button 
+            onClick={() => navigate('/staff/non-teaching')} 
+            className="premium-btn-secondary"
+            style={{ width: '48px', height: '48px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icons.ArrowLeft />
+          </button>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <span style={{ padding: '6px 14px', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', borderRadius: '12px', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.05em', border: '1px solid #dcfce7' }}>Support Staff</span>
+              <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Personnel Registry</span>
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {editing ? (
-                <>
-                  <button onClick={handleSave} disabled={saving} className="premium-btn-primary" style={{ backgroundColor: 'var(--brand-purple)' }}>
-                    {saving ? <div className="mini-spinner"></div> : <Icons.Check />}
-                    Commit Profile
-                  </button>
-                  <button onClick={() => setEditing(false)} className="premium-btn-secondary">
-                    <Icons.X />
-                    Abort
-                  </button>
-                </>
-              ) : (
-                <button onClick={startEdit} className="premium-btn-primary" style={{ backgroundColor: 'var(--brand-purple)' }}>
-                  <Icons.Edit />
-                  Update Credentials
-                </button>
-              )}
+            <h1 style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>
+              {staff?.firstName || staff?.first_name} <span style={{ color: 'var(--brand-green)' }}>{staff?.lastName || staff?.last_name}</span>
+            </h1>
+            <p style={{ fontSize: '16px', color: '#475569', marginTop: '8px', fontWeight: '500' }}>Institutional profile and professional standing for staff ID {staff?.employeeId || staff?.employee_id || 'N/A'}.</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {editing ? (
+            <>
+              <button onClick={handleSave} disabled={saving} className="premium-btn-primary" style={{ backgroundColor: 'var(--brand-green)' }}>
+                {saving ? <div className="mini-spinner"></div> : <Icons.Check />}
+                Commit Profile
+              </button>
+              <button onClick={() => setEditing(false)} className="premium-btn-secondary">
+                <Icons.X />
+                Abort
+              </button>
+            </>
+          ) : (
+            <button onClick={startEdit} className="premium-btn-primary" style={{ backgroundColor: 'var(--brand-green)' }}>
+              <Icons.Edit />
+              Update Credentials
+            </button>
+          )}
+        </div>
+      </div>
+
+      {success && <div style={{ backgroundColor: '#f5f3ff', color: '#6b21a8', padding: '16px 24px', borderRadius: '12px', marginBottom: '24px', borderLeft: '4px solid #9333ea', fontWeight: '500', animation: 'slideIn 0.3s ease-out' }}>{success}</div>}
+      {error && <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '16px 24px', borderRadius: '12px', marginBottom: '24px', borderLeft: '4px solid #ef4444', fontWeight: '500' }}>{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '32px' }}>
+        {/* Profile Sidebar */}
+        <aside>
+          <div className="glass-card" style={{ padding: '40px 32px', textAlign: 'center' }}>
+            <div style={{ 
+              width: '140px', 
+              height: '140px', 
+              borderRadius: '40px', 
+              backgroundColor: 'var(--brand-green)', 
+              margin: '0 auto 28px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              color: 'white', 
+              fontSize: '48px', 
+              fontWeight: '900', 
+              boxShadow: '0 20px 40px rgba(168, 85, 247, 0.2)',
+              border: '4px solid white'
+            }}>
+              {(staff?.firstName || staff?.first_name)?.[0]}{(staff?.lastName || staff?.last_name)?.[0]}
+            </div>
+            <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '8px', letterSpacing: '-0.5px' }}>{staff?.firstName || staff?.first_name} {staff?.lastName || staff?.last_name}</h2>
+            <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '24px', fontWeight: '600' }}>{staff?.position || staff?.role || 'Staff Member'} • {staff?.department || 'N/A'}</p>
+            <div style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              padding: '8px 20px', 
+              borderRadius: '20px', 
+              backgroundColor: staff?.status === 'active' ? '#ecfdf5' : '#fef2f2', 
+              color: staff?.status === 'active' ? '#065f46' : '#991b1b', 
+              fontSize: '11px', 
+              fontWeight: '900', 
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              border: `1px solid ${staff?.status === 'active' ? '#d1fae5' : '#fee2e2'}`
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'currentColor' }}></span>
+              {staff?.status || 'Active'}
+            </div>
+
+            <div style={{ marginTop: '40px', borderTop: '1px solid var(--brand-slate-100)', paddingTop: '40px', textAlign: 'left' }}>
+              <h3 style={{ fontSize: '11px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '24px' }}>Contact Details</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <InfoRow icon={<Icons.Mail />} label="Institutional Email" value={staff?.email} />
+                <InfoRow icon={<Icons.Phone />} label="Personal Phone" value={staff?.phone} />
+                <InfoRow icon={<Icons.Briefcase />} label="Employee ID" value={staff?.employeeId || staff?.employee_id} />
+                <InfoRow icon={<Icons.MapPin />} label="Current Location" value={staff?.address?.city} />
+              </div>
             </div>
           </div>
+        </aside>
 
-          {success && <div style={{ backgroundColor: '#f5f3ff', color: '#6b21a8', padding: '16px 24px', borderRadius: '12px', marginBottom: '24px', borderLeft: '4px solid #9333ea', fontWeight: '500', animation: 'slideIn 0.3s ease-out' }}>{success}</div>}
-          {error && <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '16px 24px', borderRadius: '12px', marginBottom: '24px', borderLeft: '4px solid #ef4444', fontWeight: '500' }}>{error}</div>}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '32px' }}>
-            {/* Profile Sidebar */}
-            <aside>
-              <div className="glass-card" style={{ padding: '40px 32px', textAlign: 'center' }}>
-                <div style={{ 
-                  width: '140px', 
-                  height: '140px', 
-                  borderRadius: '40px', 
-                  backgroundColor: 'var(--brand-purple)', 
-                  margin: '0 auto 28px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  color: 'white', 
-                  fontSize: '48px', 
-                  fontWeight: '900', 
-                  boxShadow: '0 20px 40px rgba(168, 85, 247, 0.2)',
-                  border: '4px solid white'
-                }}>
-                  {(staff?.firstName || staff?.first_name)?.[0]}{(staff?.lastName || staff?.last_name)?.[0]}
-                </div>
-                <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '8px', letterSpacing: '-0.5px' }}>{staff?.firstName || staff?.first_name} {staff?.lastName || staff?.last_name}</h2>
-                <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '24px', fontWeight: '600' }}>{staff?.position || staff?.role || 'Staff Member'} • {staff?.department || 'N/A'}</p>
-                <div style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  padding: '8px 20px', 
-                  borderRadius: '20px', 
-                  backgroundColor: staff?.status === 'active' ? '#ecfdf5' : '#fef2f2', 
-                  color: staff?.status === 'active' ? '#065f46' : '#991b1b', 
-                  fontSize: '11px', 
-                  fontWeight: '900', 
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  border: `1px solid ${staff?.status === 'active' ? '#d1fae5' : '#fee2e2'}`
-                }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'currentColor' }}></span>
-                  {staff?.status || 'Active'}
-                </div>
-
-                <div style={{ marginTop: '40px', borderTop: '1px solid var(--brand-slate-100)', paddingTop: '40px', textAlign: 'left' }}>
-                  <h3 style={{ fontSize: '11px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '24px' }}>Communication Nodes</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <InfoRow icon={<Icons.Mail />} label="Electronic Mail" value={staff?.email} />
-                    <InfoRow icon={<Icons.Phone />} label="Institutional Line" value={staff?.phone} />
-                    <InfoRow icon={<Icons.Briefcase />} label="Employee ID" value={staff?.employeeId || staff?.employee_id} />
-                    <InfoRow icon={<Icons.MapPin />} label="Geographic Node" value={staff?.address?.city} />
-                  </div>
-                </div>
+        {/* Main Content Area */}
+        <section>
+          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+            {!editing && (
+              <div style={{ display: 'flex', padding: '0 32px', backgroundColor: 'var(--brand-slate-50)', borderBottom: '1px solid var(--brand-slate-100)' }}>
+                {['personal', 'professional'].map(tab => (
+                  <button 
+                    key={tab} 
+                    onClick={() => setActiveTab(tab)} 
+                    style={{ 
+                      padding: '24px 32px', 
+                      border: 'none', 
+                      background: 'none', 
+                      fontSize: '13px', 
+                      fontWeight: '900', 
+                      color: activeTab === tab ? 'var(--brand-green)' : '#94a3b8', 
+                      borderBottom: activeTab === tab ? '3px solid var(--brand-green)' : '3px solid transparent', 
+                      cursor: 'pointer', 
+                      transition: 'all 0.2s', 
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px'
+                    }}
+                  >
+                    {tab} Data Matrix
+                  </button>
+                ))}
               </div>
-            </aside>
+            )}
 
-            {/* Main Content Area */}
-            <section>
-              <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-                {!editing && (
-                  <div style={{ display: 'flex', padding: '0 32px', backgroundColor: 'var(--brand-slate-50)', borderBottom: '1px solid var(--brand-slate-100)' }}>
-                    {['personal', 'professional'].map(tab => (
-                      <button 
-                        key={tab} 
-                        onClick={() => setActiveTab(tab)} 
-                        style={{ 
-                          padding: '24px 32px', 
-                          border: 'none', 
-                          background: 'none', 
-                          fontSize: '13px', 
-                          fontWeight: '900', 
-                          color: activeTab === tab ? 'var(--brand-purple)' : '#94a3b8', 
-                          borderBottom: activeTab === tab ? '3px solid var(--brand-purple)' : '3px solid transparent', 
-                          cursor: 'pointer', 
-                          transition: 'all 0.2s', 
-                          textTransform: 'uppercase',
-                          letterSpacing: '1px'
-                        }}
-                      >
-                        {tab} Matrix
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div style={{ padding: '40px' }}>
-                  {editing ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
-                      <FormSection title="Identity & Personal" icon={<Icons.User />}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                          <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
-                          <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
-                          <FormGroup label="Gender" name="gender" value={formData.gender} onChange={handleChange} type="select" options={[{v:'male', l:'Male'}, {v:'female', l:'Female'}]} />
-                          <FormGroup label="Date of Birth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} type="date" />
-                          <FormGroup label="Nationality" name="nationality" value={formData.nationality} onChange={handleChange} />
-                          <FormGroup label="SSNIT Number" name="socialSecurity" value={formData.socialSecurity} onChange={handleChange} />
-                        </div>
-                      </FormSection>
-
-                      <FormSection title="Contact & Residence" icon={<Icons.MapPin />}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                          <FormGroup label="Personal Email" name="email" value={formData.email} onChange={handleChange} />
-                          <FormGroup label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
-                          <FormGroup label="Street Address" name="address.street" value={formData.address?.street} onChange={handleChange} />
-                          <FormGroup label="City" name="address.city" value={formData.address?.city} onChange={handleChange} />
-                          <FormGroup label="Emergency Contact" name="emergencyContact.name" value={formData.emergencyContact?.name} onChange={handleChange} />
-                          <FormGroup label="Emergency Phone" name="emergencyContact.phone" value={formData.emergencyContact?.phone} onChange={handleChange} />
-                        </div>
-                      </FormSection>
-
-                      <FormSection title="Professional Career" icon={<Icons.Briefcase />}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                          <FormGroup label="Department" name="department" value={formData.department} onChange={handleChange} type="select" options={departmentOptions.map(d => ({v:d.value, l:d.label}))} />
-                          <FormGroup label="Position/Role" name="role" value={formData.role} onChange={handleChange} type="select" options={roleOptions.map(r => ({v:r.value, l:r.label}))} />
-                          <FormGroup label="Contract" name="contractType" value={formData.contractType} onChange={handleChange} type="select" options={[{v:'permanent', l:'Permanent'}, {v:'contract', l:'Contract'}]} />
-                          <FormGroup label="Highest Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} />
-                          <FormGroup label="Monthly Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
-                          <FormGroup label="Employment Date" name="dateOfEmployment" value={formData.dateOfEmployment} onChange={handleChange} type="date" />
-                          <FormGroup label="Employment Status" name="status" value={formData.status} onChange={handleChange} type="select" options={[{v:'active', l:'Active'}, {v:'inactive', l:'Inactive'}]} />
-                        </div>
-                      </FormSection>
+            <div style={{ padding: '40px' }}>
+              {editing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+                  <FormSection title="Identity & Personal" icon={<Icons.User />}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                      <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
+                      <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
+                      <FormGroup label="Gender" name="gender" value={formData.gender} onChange={handleChange} type="select" options={[{v:'male', l:'Male'}, {v:'female', l:'Female'}]} />
+                      <FormGroup label="Date of Birth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} type="date" />
+                      <FormGroup label="Nationality" name="nationality" value={formData.nationality} onChange={handleChange} />
+                      <FormGroup label="SSNIT Number" name="socialSecurity" value={formData.socialSecurity} onChange={handleChange} />
                     </div>
-                  ) : (
-                    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-                      {activeTab === 'personal' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
-                          <DataBlock label="Gender Specification" value={staff?.gender} />
-                          <DataBlock label="Temporal Birth" value={staff?.dateOfBirth} />
-                          <DataBlock label="National Identity" value={staff?.nationality} />
-                          <DataBlock label="SSNIT Identifier" value={staff?.socialSecurity} />
-                          <DataBlock label="Residential Node" value={`${staff?.address?.street || ''}, ${staff?.address?.city || ''}`.trim().replace(/^,|,$/g, '') || 'N/A'} fullWidth />
-                          <DataBlock label="Emergency Protocol" value={`${staff?.emergencyContact?.name || ''} ${staff?.emergencyContact?.phone ? `(${staff.emergencyContact.phone})` : ''}`.trim() || 'N/A'} fullWidth />
-                        </div>
-                      )}
-                      {activeTab === 'professional' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
-                          <DataBlock label="Commission Date" value={staff?.dateOfEmployment} />
-                          <DataBlock label="Contract Status" value={staff?.contractType} badge />
-                          <DataBlock label="Highest Qualification" value={staff?.qualifications} />
-                          <DataBlock label="Department" value={staff?.department} />
-                          <DataBlock label="Institutional Remuneration" value={staff?.salary ? `GHS ${Number(staff.salary).toLocaleString()}` : 'N/A'} />
-                          <DataBlock label="Faculty Role" value={staff?.position || staff?.role} />
-                        </div>
-                      )}
+                  </FormSection>
+
+                  <FormSection title="Contact & Residence" icon={<Icons.MapPin />}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                      <FormGroup label="Personal Email" name="email" value={formData.email} onChange={handleChange} />
+                      <FormGroup label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
+                      <FormGroup label="Street Address" name="address.street" value={formData.address?.street} onChange={handleChange} />
+                      <FormGroup label="City" name="address.city" value={formData.address?.city} onChange={handleChange} />
+                      <FormGroup label="Emergency Contact" name="emergencyContact.name" value={formData.emergencyContact?.name} onChange={handleChange} />
+                      <FormGroup label="Emergency Phone" name="emergencyContact.phone" value={formData.emergencyContact?.phone} onChange={handleChange} />
+                    </div>
+                  </FormSection>
+
+                  <FormSection title="Professional Career" icon={<Icons.Briefcase />}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                      <FormGroup label="Department" name="department" value={formData.department} onChange={handleChange} type="select" options={departmentOptions.map(d => ({v:d.value, l:d.label}))} />
+                      <FormGroup label="Position/Role" name="role" value={formData.role} onChange={handleChange} type="select" options={roleOptions.map(r => ({v:r.value, l:r.label}))} />
+                      <FormGroup label="Contract" name="contractType" value={formData.contractType} onChange={handleChange} type="select" options={[{v:'permanent', l:'Permanent'}, {v:'contract', l:'Contract'}]} />
+                      <FormGroup label="Highest Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} />
+                      <FormGroup label="Monthly Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
+                      <FormGroup label="Employment Date" name="dateOfEmployment" value={formData.dateOfEmployment} onChange={handleChange} type="date" />
+                      <FormGroup label="Employment Status" name="status" value={formData.status} onChange={handleChange} type="select" options={[{v:'active', l:'Active'}, {v:'inactive', l:'Inactive'}]} />
+                    </div>
+                  </FormSection>
+                </div>
+              ) : (
+                <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                  {activeTab === 'personal' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
+                      <DataBlock label="Biological Gender" value={staff?.gender} />
+                      <DataBlock label="Date of Birth" value={staff?.dateOfBirth} />
+                      <DataBlock label="National Identity" value={staff?.nationality} />
+                      <DataBlock label="SSNIT Identifier" value={staff?.socialSecurity} />
+                      <DataBlock label="Residential Address" value={`${staff?.address?.street || ''}, ${staff?.address?.city || ''}`.trim().replace(/^,|,$/g, '') || 'N/A'} fullWidth />
+                      <DataBlock label="Emergency Protocol" value={`${staff?.emergencyContact?.name || ''} ${staff?.emergencyContact?.phone ? `(${staff.emergencyContact.phone})` : ''}`.trim() || 'N/A'} fullWidth />
+                    </div>
+                  )}
+                  {activeTab === 'professional' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
+                      <DataBlock label="Commission Date" value={staff?.dateOfEmployment} />
+                      <DataBlock label="Contract Status" value={staff?.contractType} badge />
+                      <DataBlock label="Highest Qualification" value={staff?.qualifications} />
+                      <DataBlock label="Department" value={staff?.department} />
+                      <DataBlock label="Institutional Remuneration" value={staff?.salary ? `GHS ${Number(staff.salary).toLocaleString()}` : 'N/A'} />
+                      <DataBlock label="Faculty Role" value={staff?.position || staff?.role} />
                     </div>
                   )}
                 </div>
-              </div>
-            </section>
+              )}
+            </div>
           </div>
-        </main>
+        </section>
       </div>
-      
-      {/* Styles & Animations */}
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
-        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--brand-purple); borderRadius: 50%; animation: spin 1s linear infinite; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--brand-green); borderRadius: 50%; animation: spin 1s linear infinite; }
         .mini-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; borderRadius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        input:focus, select:focus { border-color: var(--brand-purple) !important; box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.1) !important; outline: none !important; }
+        input:focus, select:focus { border-color: var(--brand-green) !important; box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.1) !important; outline: none !important; }
       `}</style>
     </div>
   );

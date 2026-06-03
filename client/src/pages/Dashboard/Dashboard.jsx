@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentAPI, teacherAPI, courseAPI, feeAPI, settingsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
 import { 
   BarChart as ReBarChart, 
   Bar as ReBar, 
@@ -433,7 +434,7 @@ const BarChart = ({ feesData, loading }) => {
     <div style={{ padding: '20px', height: '300px', width: '100%' }}>
       {loading ? (
         <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc', borderRadius: '12px', animation: 'pulse 1.5s infinite' }}></div>
+          <div style={{ width: '100%', height: '100%', backgroundColor: '#ffffff', borderRadius: '12px', animation: 'pulse 1.5s infinite' }}></div>
         </div>
       ) : (
         <ReResponsiveContainer width="100%" height="100%">
@@ -716,7 +717,7 @@ const Calendar = ({ events = [] }) => {
               key={index}
               style={{
                 padding: '8px 12px',
-                backgroundColor: '#f8fafc',
+                backgroundColor: '#ffffff',
                 borderRadius: '6px',
                 marginBottom: '6px',
                 fontSize: '12px',
@@ -748,7 +749,7 @@ const UpcomingEvents = () => {
           key={index}
           style={{
             padding: '16px',
-            backgroundColor: '#f8fafc',
+            backgroundColor: '#ffffff',
             borderRadius: '10px',
             marginBottom: index < events.length - 1 ? '12px' : '0',
             display: 'flex',
@@ -872,7 +873,7 @@ const Dashboard = () => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f8fafc'
+        backgroundColor: '#ffffff'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{
@@ -1004,7 +1005,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#ffffff', fontFamily: 'system-ui, sans-serif' }}>
       {/* Sidebar */}
       <Sidebar onLogout={handleLogout} />
       
@@ -1115,7 +1116,7 @@ const Dashboard = () => {
                 <Calendar />
               </div>
 
-              {/* Upcoming Events */}
+              {/* Upcoming Academic Activities */}
               <div style={{ 
                 backgroundColor: 'white', 
                 borderRadius: '12px', 
@@ -1123,9 +1124,9 @@ const Dashboard = () => {
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
-                  <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Upcoming Events</h2>
+                  <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Upcoming Academic Activities</h2>
                 </div>
-                <UpcomingEvents />
+                <AcademicCalendarWidget />
               </div>
             </div>
           </div>

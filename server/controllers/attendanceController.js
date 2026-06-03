@@ -143,14 +143,9 @@ const recordAttendance = asyncHandler(async (req, res) => {
     const studentData = await supabaseService.getById(COLLECTIONS.STUDENTS, student);
     if (!studentData) return res.status(404).json({ message: 'Student not found' });
 
-    // Resolve class_id from grade string - support both Primary and Basic
+    // Resolve class_id from grade string
     const studentGrade = studentData.grade;
-    const altGrade = studentGrade.includes('Primary') ? studentGrade.replace('Primary', 'Basic') : (studentGrade.includes('Basic') ? studentGrade.replace('Basic', 'Primary') : studentGrade);
-    
-    let academicClass = await supabaseService.getByField(COLLECTIONS.ACADEMIC_CLASSES, 'name', studentGrade);
-    if (!academicClass) {
-      academicClass = await supabaseService.getByField(COLLECTIONS.ACADEMIC_CLASSES, 'name', altGrade);
-    }
+    const academicClass = await supabaseService.getByField(COLLECTIONS.ACADEMIC_CLASSES, 'name', studentGrade);
     
     if (!academicClass) return res.status(403).json({ message: `Class mapping not found for student grade: ${studentGrade}` });
     const classId = academicClass.id;

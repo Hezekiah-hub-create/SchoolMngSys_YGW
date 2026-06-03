@@ -23,6 +23,7 @@ const ExamSchedule = () => {
   const { showAlert } = useAlert();
   const [activeMenu, setActiveMenu] = useState('Exams');
   const [showModal, setShowModal] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     subject: '', class: '', date: '', time: '', duration: '', venue: ''
@@ -39,6 +40,25 @@ const ExamSchedule = () => {
   const isAdmin = user?.role === 'admin' || user?.role === 'teacher';
 
   const [exams, setExams] = useState([]);
+
+  // Extract all available subjects from the classes data
+  const allAvailableSubjects = React.useMemo(() => {
+    const unique = new Map();
+    dbGrades.forEach(g => {
+      (g.subjects || []).forEach(sub => {
+        if (sub.name && !unique.has(sub.name)) unique.set(sub.name, sub.name);
+      });
+    });
+    return Array.from(unique.values()).sort();
+  }, [dbGrades]);
+
+  // Filter available grades based on the selected subject
+  const filteredGrades = React.useMemo(() => {
+    if (!formData.subject) return dbGrades;
+    return dbGrades.filter(g => 
+      (g.subjects || []).some(sub => sub.name === formData.subject)
+    );
+  }, [dbGrades, formData.subject]);
 
   useEffect(() => {
     fetchMetadata();
@@ -127,18 +147,27 @@ const ExamSchedule = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await examAPI.createSchedule({
+      const payload = {
         ...formData,
         term: selectedTerm,
         academicYear: selectedSession
-      });
+      };
+      
+      let res;
+      if (editId) {
+        res = await examAPI.updateSchedule(editId, payload);
+      } else {
+        res = await examAPI.createSchedule(payload);
+      }
+      
       if (res.data?.success) {
         setShowModal(false);
+        setEditId(null);
         setFormData({ subject: '', class: '', date: '', time: '', duration: '', venue: '' });
         fetchExams();
         showAlert({
-          title: 'Schedule Synchronized',
-          message: 'The new examination event has been successfully logged into the institutional calendar.',
+          title: editId ? 'Schedule Updated' : 'Schedule Synchronized',
+          message: editId ? 'The examination event has been successfully updated.' : 'The new examination event has been successfully logged into the institutional calendar.',
           type: 'success'
         });
       }
@@ -149,6 +178,19 @@ const ExamSchedule = () => {
         type: 'error'
       });
     }
+  };
+
+  const handleEdit = (exam) => {
+    setEditId(exam._id || exam.id);
+    setFormData({
+      subject: exam.subject || '',
+      class: exam.class || '',
+      date: exam.date || '',
+      time: exam.time || '',
+      duration: exam.duration || '',
+      venue: exam.venue || ''
+    });
+    setShowModal(true);
   };
 
   const handleDelete = async (id) => {
@@ -185,7 +227,7 @@ const ExamSchedule = () => {
         </div>
         {(user?.role === 'admin' || user?.role === 'teacher') && (
           <button 
-            onClick={() => setShowModal(true)}
+            onClick={() => { setEditId(null); setFormData({ subject: '', class: '', date: '', time: '', duration: '', venue: '' }); setShowModal(true); }}
             className="premium-btn-primary"
           >
             <Icons.Plus />
@@ -240,7 +282,7 @@ const ExamSchedule = () => {
         <div style={{ padding: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ backgroundColor: '#f8fafc' }}>
+              <tr style={{ backgroundColor: '#ffffff' }}>
                 <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Curriculum Scope</th>
                 <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Temporal Alignment</th>
                 <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Session Span</th>
@@ -263,7 +305,7 @@ const ExamSchedule = () => {
                 <tr key={exam.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={{ padding: '20px 24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f8fafc', color: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#ffffff', color: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f1f5f9' }}>
                         <Icons.Book />
                       </div>
                       <div>
@@ -292,13 +334,20 @@ const ExamSchedule = () => {
                     <span style={{ padding: '6px 14px', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px', backgroundColor: '#ecfdf5', color: '#10b981', border: '1px solid #d1fae5' }}>{exam.status}</span>
                   </td>
                   {isAdmin && (
-                    <td style={{ padding: '20px 24px' }}>
+                    <td style={{ padding: '20px 24px', display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => handleEdit(exam)}
+                        style={{ background: '#fefce8', border: '1px solid #fef08a', color: '#a16207', borderRadius: '8px', cursor: 'pointer', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '800' }}
+                        title="Edit Session"
+                      >
+                        <Icons.FileText /> Edit
+                      </button>
                       <button 
                         onClick={() => handleDelete(exam._id || exam.id)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' }}
+                        style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', borderRadius: '8px', cursor: 'pointer', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '800' }}
                         title="Delete Session"
                       >
-                        <Icons.X />
+                        <Icons.X /> Delete
                       </button>
                     </td>
                   )}
@@ -320,10 +369,10 @@ const ExamSchedule = () => {
           <div className="premium-modal-content" style={{ width: '560px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
               <div>
-                <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>New Assessment</h2>
-                <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>Register a new examination event into the institutional log.</p>
+                <h2 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{editId ? 'Update Assessment' : 'New Assessment'}</h2>
+                <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>{editId ? 'Modify an existing examination event.' : 'Register a new examination event into the institutional log.'}</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="premium-close-btn">
+              <button onClick={() => { setShowModal(false); setEditId(null); }} className="premium-close-btn">
                 <Icons.X />
               </button>
             </div>
@@ -331,7 +380,13 @@ const ExamSchedule = () => {
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '24px' }}>
                 <label className="premium-label">Subject Identification</label>
-                <input type="text" name="subject" className="premium-input" value={formData.subject} onChange={handleInputChange} required placeholder="e.g. Advanced Mathematics" />
+                <PremiumSelect 
+                  name="subject"
+                  value={formData.subject}
+                  onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value, class: '' }))}
+                  options={allAvailableSubjects.map(s => ({ value: s, label: s }))}
+                  placeholder="Select Subject"
+                />
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
@@ -341,7 +396,7 @@ const ExamSchedule = () => {
                     name="class"
                     value={formData.class}
                     onChange={(e) => setFormData(prev => ({ ...prev, class: e.target.value }))}
-                    options={dbGrades.map(g => ({ value: g.name, label: g.name }))}
+                    options={filteredGrades.map(g => ({ value: g.name, label: g.name }))}
                     placeholder="Select Level"
                   />
                 </div>
@@ -374,8 +429,8 @@ const ExamSchedule = () => {
               </div>
 
               <div style={{ display: 'flex', gap: '16px' }}>
-                <button type="submit" className="premium-btn-primary" style={{ flex: 1, padding: '16px', fontSize: '15px' }}>Sync Schedule</button>
-                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '16px 28px', backgroundColor: 'var(--brand-slate-100)', color: 'var(--brand-slate-600)', border: 'none', borderRadius: '16px', fontWeight: '800', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" className="premium-btn-primary" style={{ flex: 1, padding: '16px', fontSize: '15px' }}>{editId ? 'Update Schedule' : 'Sync Schedule'}</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditId(null); }} style={{ padding: '16px 28px', backgroundColor: 'var(--brand-slate-100)', color: 'var(--brand-slate-600)', border: 'none', borderRadius: '16px', fontWeight: '800', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
               </div>
             </form>
           </div>

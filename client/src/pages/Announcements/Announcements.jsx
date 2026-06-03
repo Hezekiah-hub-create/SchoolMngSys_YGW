@@ -229,7 +229,7 @@ const AnnouncementCard = ({ announcement }) => {
           </div>
           <span style={{ 
             padding: '6px 12px', 
-            backgroundColor: '#f8fafc', 
+            backgroundColor: '#ffffff', 
             borderRadius: '10px', 
             fontSize: '11px', 
             fontWeight: '700', 
@@ -245,7 +245,7 @@ const AnnouncementCard = ({ announcement }) => {
         </p>
         
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '13px', fontWeight: '700', color: '#1e293b', cursor: 'pointer', transition: 'all 0.2s' }}>
+          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '13px', fontWeight: '700', color: '#1e293b', cursor: 'pointer', transition: 'all 0.2s' }}>
             Read Full Announcement <Icons.ArrowRight />
           </button>
         </div>

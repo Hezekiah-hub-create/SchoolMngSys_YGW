@@ -184,7 +184,7 @@ const Income = () => {
                 <tbody>
                   {loading ? (
                     [...Array(5)].map((_, i) => (
-                      <tr key={i}><td colSpan={5} style={{ padding: '32px' }}><div style={{ height: '24px', backgroundColor: '#f8fafc', borderRadius: '8px', animation: 'pulse 1.5s infinite' }}></div></td></tr>
+                      <tr key={i}><td colSpan={5} style={{ padding: '32px' }}><div style={{ height: '24px', backgroundColor: '#ffffff', borderRadius: '8px', animation: 'pulse 1.5s infinite' }}></div></td></tr>
                     ))
                   ) : filteredIncome.length === 0 ? (
                     <tr><td colSpan={5} style={{ padding: '80px', textAlign: 'center' }}>
@@ -194,7 +194,7 @@ const Income = () => {
                       </div>
                     </td></tr>
                   ) : filteredIncome.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #f8fafc', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fcfcfd'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    <tr key={item.id} style={{ borderBottom: '1px solid #ffffff', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fcfcfd'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: '24px 32px' }}>
                         <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{item.description}</p>
                         <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>{item.source || 'Miscellaneous'}</p>

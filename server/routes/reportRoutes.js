@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const reportController = require('../controllers/reportController');
+const { getStudentReport, getClassReport, sendReportToParents, getPublishedReports } = require('../controllers/reportController');
 const { auth } = require('../middleware/authMiddleware');
 
-router.use(auth);
-
-// Generate student report payload
-router.get('/student/:studentId', reportController.getStudentReport);
-router.get('/class/:grade', reportController.getClassReport);
+router.get('/student/:studentId', auth, getStudentReport);
+router.get('/class/:grade', auth, getClassReport);
+router.post('/send', auth, sendReportToParents);
+router.get('/published', auth, getPublishedReports);
+router.delete('/published/:id', auth, require('../controllers/reportController').deletePublishedReport);
 
 module.exports = router;

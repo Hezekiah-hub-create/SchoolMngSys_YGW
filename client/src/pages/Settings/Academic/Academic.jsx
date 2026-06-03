@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { settingsAPI } from '../../../services/api';
+import { settingsAPI, academicCalendarAPI } from '../../../services/api';
 import SettingsTabs from '../../../components/layout/SettingsTabs';
+import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
+import PremiumSelect from '../../../components/common/PremiumSelect';
+import PremiumAlert from '../../../components/common/PremiumAlert';
 import '../Settings.css';
 
 const SettingsAcademic = () => {
@@ -23,6 +26,13 @@ const SettingsAcademic = () => {
     classes: 0,
     sections: 0,
     subjects: 0
+  });
+
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [showCalModal, setShowCalModal] = useState(false);
+  const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, id: null });
+  const [currentCalEvent, setCurrentCalEvent] = useState({
+    id: null, term: '', week: '', startDate: '', endDate: '', activity: '', status: 'Pending'
   });
 
   useEffect(() => {
@@ -47,6 +57,13 @@ const SettingsAcademic = () => {
 
       if (statsRes.data.success) {
         setAcademicStats(statsRes.data.data);
+      }
+
+      try {
+        const calRes = await academicCalendarAPI.getAll();
+        if (calRes.data.success) setCalendarEvents(calRes.data.data);
+      } catch (e) {
+        console.error('Failed to load academic calendar', e);
       }
     } catch (error) {
       console.error('Error fetching academic data:', error);
@@ -81,6 +98,41 @@ const SettingsAcademic = () => {
       console.error('Error updating settings:', error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveCalEvent = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...currentCalEvent,
+        date_range: currentCalEvent.endDate ? `${currentCalEvent.startDate}|${currentCalEvent.endDate}` : currentCalEvent.startDate,
+        dateRange: currentCalEvent.endDate ? `${currentCalEvent.startDate}|${currentCalEvent.endDate}` : currentCalEvent.startDate
+      };
+      if (currentCalEvent.id) {
+        await academicCalendarAPI.update(currentCalEvent.id, payload);
+      } else {
+        await academicCalendarAPI.create(payload);
+      }
+      setShowCalModal(false);
+      setCurrentCalEvent({ id: null, term: '', week: '', startDate: '', endDate: '', activity: '', status: 'Pending' });
+      fetchData(); // refresh calendar
+      setSuccess('Academic Calendar updated successfully.');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      console.error('Error saving calendar event:', err);
+    }
+  };
+
+  const handleDeleteCalEvent = async () => {
+    if (deleteAlert.id) {
+      try {
+        await academicCalendarAPI.delete(deleteAlert.id);
+        fetchData();
+        setDeleteAlert({ isOpen: false, id: null });
+      } catch (err) {
+        console.error('Failed to delete activity:', err);
+      }
     }
   };
 
@@ -181,15 +233,14 @@ const SettingsAcademic = () => {
             </div>
             <div className="settings-input-group">
               <label className="settings-label">Active Academic Session</label>
-              <select 
+              <input 
+                type="text"
                 name="current_session"
                 value={settings.current_session}
                 onChange={handleInputChange}
                 className="settings-input"
-              >
-                <option value="2023/2024">2023/2024 Academic Year</option>
-                <option value="2024/2025">2024/2025 Academic Year</option>
-              </select>
+                placeholder="e.g. 2024/2025"
+              />
             </div>
           </div>
         </div>
@@ -209,7 +260,7 @@ const SettingsAcademic = () => {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ backgroundColor: '#f8fafc' }}>
+                <tr style={{ backgroundColor: '#ffffff' }}>
                   <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Grade</th>
                   <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Min</th>
                   <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Max</th>
@@ -273,6 +324,91 @@ const SettingsAcademic = () => {
           </div>
         </div>
 
+        {/* Academic Calendar Section */}
+        <div className="settings-card animate-fade-in" style={{ padding: 0, overflow: 'hidden', marginBottom: '32px' }}>
+          <div style={{ padding: '28px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 className="settings-card-title">Academic Calendar</h3>
+              <p style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', marginTop: '4px' }}>Define terms, weeks, and key activities for the academic year</p>
+            </div>
+            <button 
+              className="premium-btn-secondary" 
+              style={{ fontSize: '12px', padding: '8px 16px' }}
+              onClick={() => {
+                setCurrentCalEvent({ id: null, term: settings.current_term || '1st', week: '', startDate: '', endDate: '', activity: '', status: 'Pending' });
+                setShowCalModal(true);
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ marginRight: '6px' }}><path d="M12 5v14M5 12h14"/></svg>
+              Add Activity
+            </button>
+          </div>
+          
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc' }}>
+                  <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', width: '60px' }}>S/N</th>
+                  <th style={{ padding: '16px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Term</th>
+                  <th style={{ padding: '16px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>WK</th>
+                  <th style={{ padding: '16px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Date</th>
+                  <th style={{ padding: '16px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Activity</th>
+                  <th style={{ padding: '16px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Status</th>
+                  <th style={{ padding: '16px 32px', textAlign: 'right', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {calendarEvents.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>No academic calendar activities defined.</td>
+                  </tr>
+                ) : (
+                  calendarEvents.map((evt, idx) => (
+                    <tr key={evt.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '16px 32px', fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>{idx + 1}</td>
+                      <td style={{ padding: '16px 16px', fontSize: '14px', fontWeight: '600', color: '#64748b' }}>{evt.term || evt.term}</td>
+                      <td style={{ padding: '16px 16px', fontSize: '14px', fontWeight: '600', color: '#64748b' }}>{evt.week}</td>
+                      <td style={{ padding: '16px 16px', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
+                        {(() => {
+                          const range = evt.date_range || evt.dateRange || '';
+                          if (!range) return '';
+                          if (!range.includes('|')) {
+                            return new Date(range).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                          }
+                          const [s, e] = range.split('|');
+                          return `${new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${new Date(e).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                        })()}
+                      </td>
+                      <td style={{ padding: '16px 16px', fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>{evt.activity}</td>
+                      <td style={{ padding: '16px 16px' }}>
+                        <span style={{ 
+                          padding: '4px 10px', borderRadius: '24px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase',
+                          backgroundColor: (evt.status || '').toLowerCase() === 'completed' ? '#dcfce7' : (evt.status || '').toLowerCase() === 'ongoing' ? '#fef3c7' : '#f1f5f9',
+                          color: (evt.status || '').toLowerCase() === 'completed' ? '#166534' : (evt.status || '').toLowerCase() === 'ongoing' ? '#92400e' : '#475569'
+                        }}>
+                          {evt.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '16px 32px', textAlign: 'right' }}>
+                        <button onClick={() => { 
+                          const range = evt.date_range || evt.dateRange || '';
+                          let start = range, end = '';
+                          if (range.includes('|')) {
+                            [start, end] = range.split('|');
+                          }
+                          setCurrentCalEvent({ id: evt.id, term: evt.term, week: evt.week, startDate: start, endDate: end, activity: evt.activity, status: evt.status }); 
+                          setShowCalModal(true); 
+                        }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '16px', fontWeight: '700' }}>Edit</button>
+                        <button onClick={() => setDeleteAlert({ isOpen: true, id: evt.id })} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: '700' }}>Delete</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Floating Save Bar */}
         <div className={`settings-save-bar ${hasChanges ? 'visible' : ''}`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -294,6 +430,78 @@ const SettingsAcademic = () => {
             </button>
           </div>
         </div>
+
+        {/* Academic Calendar Modal */}
+        {showCalModal && (
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }} className="animate-fade-in">
+              <h2 style={{ fontSize: '24px', fontWeight: '950', color: '#0f172a', marginBottom: '24px', letterSpacing: '-0.5px' }}>
+                {currentCalEvent.id ? 'Edit Activity' : 'Add Activity'}
+              </h2>
+              <form onSubmit={handleSaveCalEvent}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div className="settings-input-group">
+                    <label className="settings-label">Term</label>
+                    <input required type="text" className="settings-input" value={currentCalEvent.term} onChange={e => setCurrentCalEvent(p => ({...p, term: e.target.value}))} placeholder="e.g. 1st" />
+                  </div>
+                  <div className="settings-input-group">
+                    <label className="settings-label">Week (Optional)</label>
+                    <input type="text" className="settings-input" value={currentCalEvent.week} onChange={e => setCurrentCalEvent(p => ({...p, week: e.target.value}))} placeholder="e.g. 1" />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div className="settings-input-group">
+                    <label className="settings-label">Start Date</label>
+                    <PremiumDatePicker 
+                      value={currentCalEvent.startDate} 
+                      onChange={val => setCurrentCalEvent(p => ({...p, startDate: val}))} 
+                      placeholder="Select Start Date" 
+                    />
+                  </div>
+                  <div className="settings-input-group">
+                    <label className="settings-label">End Date (Optional)</label>
+                    <PremiumDatePicker 
+                      value={currentCalEvent.endDate} 
+                      onChange={val => setCurrentCalEvent(p => ({...p, endDate: val}))} 
+                      placeholder="Select End Date" 
+                    />
+                  </div>
+                </div>
+                <div className="settings-input-group" style={{ marginBottom: '16px' }}>
+                  <label className="settings-label">Activity Description</label>
+                  <input required type="text" className="settings-input" value={currentCalEvent.activity} onChange={e => setCurrentCalEvent(p => ({...p, activity: e.target.value}))} placeholder="e.g. School Resumes" />
+                </div>
+                <div className="settings-input-group" style={{ marginBottom: '24px' }}>
+                  <label className="settings-label">Status</label>
+                  <PremiumSelect 
+                    value={currentCalEvent.status} 
+                    onChange={val => setCurrentCalEvent(p => ({...p, status: val}))}
+                    options={[
+                      { value: 'Pending', label: 'Pending' },
+                      { value: 'Ongoing', label: 'Ongoing' },
+                      { value: 'Completed', label: 'Completed' }
+                    ]}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={() => setShowCalModal(false)} style={{ padding: '12px 24px', backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}>Cancel</button>
+                  <button type="submit" className="premium-btn-primary" style={{ padding: '12px 24px' }}>Save Activity</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <PremiumAlert
+          isOpen={deleteAlert.isOpen}
+          title="Delete Activity"
+          message="Are you sure you want to permanently delete this academic calendar activity? This action cannot be undone."
+          type="confirm"
+          confirmText="Yes, Delete"
+          cancelText="Cancel"
+          onConfirm={handleDeleteCalEvent}
+          onCancel={() => setDeleteAlert({ isOpen: false, id: null })}
+        />
         </>
       )}
     </>

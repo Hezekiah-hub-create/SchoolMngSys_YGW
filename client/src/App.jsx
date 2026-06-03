@@ -6,7 +6,6 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import Login from './pages/Login/Login';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import TeacherDashboard from './pages/Dashboard/TeacherDashboard';
-import StudentDashboard from './pages/Dashboard/StudentDashboard';
 import ParentDashboard from './pages/Dashboard/ParentDashboard';
 import FinanceDashboard from './pages/Dashboard/FinanceDashboard';
 import ITSupportDashboard from './pages/Dashboard/ITSupportDashboard';
@@ -22,7 +21,6 @@ import Courses from './pages/Courses/Courses';
 import Classes from './pages/Classes/Classes';
 import Subjects from './pages/Subjects/Subjects';
 import Timetable from './pages/Timetable/Timetable';
-import Calendar from './pages/Calendar/Calendar';
 import Attendance from './pages/Attendance/Attendance';
 import Parents from './pages/Parents/Parents';
 import ParentProfile from './pages/Parents/ParentProfile/ParentProfile';
@@ -54,6 +52,7 @@ import StaffProfile from './pages/Staff/StaffProfile/StaffProfile';
 import HelpSupport from './pages/Account/HelpSupport';
 import LoginHistory from './pages/Account/LoginHistory';
 import Configuration from './pages/Account/Configuration';
+import ActivityLogs from './pages/Admin/ActivityLogs/ActivityLogs';
 import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
 import './index.css';
 
@@ -68,7 +67,7 @@ const PublicRoute = ({ children }) => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f8fafc'
+        backgroundColor: '#ffffff'
       }}>
         <div style={{
           width: '48px',
@@ -123,18 +122,16 @@ const RoleBasedRoute = ({ children }) => {
     '/parent-dashboard',
     '/students',
     '/courses',
+    '/subjects',
     '/attendance',
     '/assignments',
     '/exams/results',
-    '/fees',
-    '/calendar',
-    '/timetable',
-    '/results',
-    '/exam-results',
+    '/exams/marks',
     '/exams/schedule',
-    '/parents/:id',
+    '/timetable',
+    '/fees',
     '/announcements',
-    '/account/help',
+    '/reports/academic',
     '/account/login-history',
     '/account/config',
   ]);
@@ -153,30 +150,9 @@ const RoleBasedRoute = ({ children }) => {
     '/subjects',
     '/courses',
     '/reports',
-    '/reports/academic',
-    '/calendar',
-    '/account/help',
     '/account/login-history',
     '/account/config',
   ]);
-
-  const studentAllowedPaths = new Set([
-    '/',
-    '/student-dashboard',
-    '/courses',
-    '/timetable',
-    '/calendar',
-    '/attendance',
-    '/assignments',
-    '/exams/results',
-    '/exams/schedule',
-    '/fees',
-    '/announcements',
-    '/account/help',
-    '/account/login-history',
-    '/account/config',
-  ]);
-
 
   if (loading) {
     return (
@@ -185,7 +161,7 @@ const RoleBasedRoute = ({ children }) => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f8fafc'
+        backgroundColor: '#ffffff'
       }}>
         <div style={{
           width: '48px',
@@ -214,19 +190,13 @@ const RoleBasedRoute = ({ children }) => {
   if (location.pathname === '/') {
     if (user.role === 'teacher') return <Navigate to="/teacher-dashboard" replace />;
     if (user.role === 'parent') return <Navigate to="/parent-dashboard" replace />;
-    if (user.role === 'student') return <Navigate to="/student-dashboard" replace />;
     if (user.role === 'admission') return <Navigate to="/admission-dashboard" replace />;
     if (user.role === 'finance') return <Navigate to="/finance-dashboard" replace />;
     if (user.role === 'itsupport') return <Navigate to="/it-dashboard" replace />;
     if (user.role === 'admin') return <Navigate to="/admin-dashboard" replace />;
   }
 
-  if (user.role === 'student') {
-    const isAllowed = studentAllowedPaths.has(location.pathname) || 
-                      location.pathname.startsWith('/assignments/') || 
-                      location.pathname.startsWith('/students/');
-    if (!isAllowed) return <Navigate to="/student-dashboard" replace />;
-  }
+
   
   if (user.role === 'teacher') {
     const isAllowed = teacherAllowedPaths.has(location.pathname) || location.pathname.startsWith('/assignments/');
@@ -271,7 +241,6 @@ function App() {
             <Route path="/" element={<AdminDashboard />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
-            <Route path="/student-dashboard" element={<StudentDashboard />} />
             <Route path="/parent-dashboard" element={<ParentDashboard />} />
             <Route path="/finance-dashboard" element={<FinanceDashboard />} />
             <Route path="/it-dashboard" element={<ITSupportDashboard />} />
@@ -293,14 +262,16 @@ function App() {
             <Route path="/classes" element={<Classes />} />
             <Route path="/subjects" element={<Subjects />} />
             <Route path="/timetable" element={<Timetable />} />
-            <Route path="/calendar" element={<Calendar />} />
             <Route path="/attendance" element={<Attendance />} />
             
             {/* Parents Route */}
             <Route path="/parents" element={<Parents />} />
             <Route path="/parents/:id" element={<ParentProfile />} />
             
-            {/* Assignments */}
+            {/* System / Admin Routes */}
+            <Route path="/admin/activity-logs" element={<ActivityLogs />} />
+            
+            {/* Assignments Routes */}
             <Route path="/assignments" element={<Assignments />} />
             <Route path="/assignments/create" element={<CreateAssignment />} />
             <Route path="/assignments/:id" element={<AssignmentDetail />} />

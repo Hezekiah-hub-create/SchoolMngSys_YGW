@@ -27,7 +27,7 @@ const SystemHealth = () => {
   return (
     <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {items.map((item, i) => (
-        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: '#ffffff', borderRadius: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={item.statusColor} strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d={item.icon}/></svg>
@@ -67,7 +67,7 @@ const ErrorLogsTable = ({ onViewAll }) => {
         <tbody>
           {logs.map((log, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
-              onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+              onMouseOver={e => e.currentTarget.style.backgroundColor = '#ffffff'}
               onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               <td style={{ padding: '14px 8px', fontSize: '13px', fontWeight: '600', color: 'var(--brand-green)' }}>{log.id}</td>
@@ -181,7 +181,7 @@ const ITSupportDashboard = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {userMgmtActions.map((action, i) => (
                   <button key={i} onClick={() => navigate(action.path)} style={{ padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left', width: '100%' }}
-                    onMouseOver={e => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.borderColor = 'var(--brand-green)'; }}
+                    onMouseOver={e => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.borderColor = 'var(--brand-green)'; }}
                     onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
                   >
                     <div style={{ backgroundColor: '#f1f5f9', padding: '8px', borderRadius: '6px', flexShrink: 0 }}>

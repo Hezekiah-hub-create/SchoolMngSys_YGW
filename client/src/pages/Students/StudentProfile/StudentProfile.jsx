@@ -4,6 +4,7 @@ import { studentAPI, attendanceAPI, gradeAPI, assignmentAPI, academicClassesAPI,
 import { useAuth } from '../../../context/AuthContext';
 import PremiumSelect from '../../../components/common/PremiumSelect';
 import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
+import { mapSectionName } from '../../../utils/sectionHelper';
 
 // Premium Icon Components
 const Icons = {
@@ -142,6 +143,12 @@ const StudentProfile = () => {
       grade: student?.grade || '',
       section: student?.section || 'A',
       status: student?.status || 'active',
+      fatherName: student?.fatherName || student?.father_name || '',
+      fatherPhone: student?.fatherPhone || student?.father_phone || '',
+      motherName: student?.motherName || student?.mother_name || '',
+      motherPhone: student?.motherPhone || student?.mother_phone || '',
+      guardianEmail: student?.guardianEmail || '',
+      guardianStreet: student?.guardianStreet || '',
       address: student?.address || { street: '', city: '', region: '', country: 'Ghana' },
       emergencyContact: student?.emergencyContact || { name: '', relationship: '', phone: '', email: '' },
       medicalInfo: student?.medicalInfo || { bloodType: '', allergies: '', medicalConditions: '' }
@@ -194,7 +201,7 @@ const StudentProfile = () => {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}><div className="premium-loader"></div></div>;
+  if (loading) return <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' }}><div className="premium-loader"></div></div>;
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -308,7 +315,7 @@ const StudentProfile = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--brand-slate-500)' }}>{displayGrade(student?.grade)}</span>
                   <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand-slate-300)' }}></div>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--brand-slate-500)' }}>Section {student?.section || 'A'}</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--brand-slate-500)' }}>Section {mapSectionName(student?.section || 'A')}</span>
                 </div>
               </div>
 
@@ -401,8 +408,26 @@ const StudentProfile = () => {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
-                      <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Contact & Address" /></div>
+                      <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Guardian & Contact" /></div>
+                      <div style={{ gridColumn: 'span 2', marginBottom: '-10px' }}>
+                        <h4 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase' }}>Father / Mother Information</h4>
+                      </div>
+                      <FormGroup label="Father/Mother Name" name="fatherName" value={editFormData.fatherName} onChange={handleEditChange} />
+                      <FormGroup label="Father/Mother Phone" name="fatherPhone" value={editFormData.fatherPhone} onChange={handleEditChange} />
+                      <FormGroup label="Parent Email" name="parentEmail" value={editFormData.parentEmail} onChange={handleEditChange} />
                       <FormGroup label="Street Address" name="address.street" value={editFormData.address?.street} onChange={handleEditChange} />
+                      
+                      <div style={{ gridColumn: 'span 2', marginBottom: '-10px', marginTop: '10px' }}>
+                        <h4 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase' }}>Guardian Information</h4>
+                      </div>
+                      <FormGroup label="Guardian's Name" name="motherName" value={editFormData.motherName} onChange={handleEditChange} />
+                      <FormGroup label="Guardian's Phone" name="motherPhone" value={editFormData.motherPhone} onChange={handleEditChange} />
+                      <FormGroup label="Guardian Email" name="guardianEmail" value={editFormData.guardianEmail} onChange={handleEditChange} />
+                      <FormGroup label="Guardian Address" name="guardianStreet" value={editFormData.guardianStreet} onChange={handleEditChange} />
+                      
+                      <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
+                        <SectionTitle title="Additional Details" />
+                      </div>
                       <FormGroup label="City" name="address.city" value={editFormData.address?.city} onChange={handleEditChange} />
                       <FormGroup label="Emergency Contact Name" name="emergencyContact.name" value={editFormData.emergencyContact?.name} onChange={handleEditChange} />
                       <FormGroup label="Emergency Contact Phone" name="emergencyContact.phone" value={editFormData.emergencyContact?.phone} onChange={handleEditChange} />

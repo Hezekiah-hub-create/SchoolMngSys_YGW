@@ -239,7 +239,7 @@ const FeesCollection = () => {
                 {showSearchDropdown && searchTerm.length > 0 && (
                   <div style={{ position: 'absolute', top: 'calc(100% + 12px)', left: 0, right: 0, backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', border: '1px solid var(--brand-slate-100)', zIndex: 1000, overflow: 'hidden' }}>
                     {filteredStudents.length > 0 ? filteredStudents.map(s => (
-                      <div key={s.id} onClick={() => handleStudentSelect(s)} style={{ padding: '16px 24px', cursor: 'pointer', borderBottom: '1px solid var(--brand-slate-50)', display: 'flex', alignItems: 'center', gap: '16px', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--brand-slate-50)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <div key={s.id} onClick={() => handleStudentSelect(s)} style={{ padding: '16px 24px', cursor: 'pointer', borderBottom: '1px solid var(--brand-slate-50)', display: 'flex', alignItems: 'center', gap: '16px', transition: 'all 0.2s ease' }} onMouseOver={e => { e.currentTarget.style.backgroundColor = 'rgba(0, 132, 62, 0.06)'; e.currentTarget.style.color = 'var(--brand-green)'; }} onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'inherit'; }}>
                         <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'var(--brand-slate-100)', color: 'var(--brand-slate-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '900' }}>{s.firstName[0]}</div>
                         <div>
                           <p style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{s.firstName} {s.lastName}</p>
@@ -329,7 +329,7 @@ const FeesCollection = () => {
                           </div>
                         </div>
                       )) : (
-                        <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px dashed #e2e8f0', color: '#64748b' }}>
+                        <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px dashed #e2e8f0', color: '#64748b' }}>
                           No fees assigned to this student yet.
                         </div>
                       )}
@@ -338,7 +338,7 @@ const FeesCollection = () => {
                 </div>
               ) : (
                 <div style={{ height: '400px', backgroundColor: 'white', borderRadius: '24px', border: '2px dashed #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '16px' }}>
-                  <div style={{ width: '64px', height: '64px', borderRadius: '20px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '20px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Icons.User />
                   </div>
                   <p style={{ fontSize: '16px', fontWeight: '600' }}>Select a student to view financial profile</p>
@@ -438,7 +438,7 @@ const FeesCollection = () => {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount (₵) *</label>
-                    <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} placeholder="0.00" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#f8fafc', fontWeight: '800', color: '#00843e', fontSize: '18px' }} required />
+                    <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} placeholder="0.00" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#ffffff', fontWeight: '800', color: '#00843e', fontSize: '18px' }} required />
                   </div>
 
                   <div>
@@ -458,12 +458,12 @@ const FeesCollection = () => {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reference #</label>
-                    <input type="text" name="referenceNumber" value={formData.referenceNumber} onChange={handleInputChange} placeholder="TXN-XXXX" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#f8fafc', fontWeight: '600' }} />
+                    <input type="text" name="referenceNumber" value={formData.referenceNumber} onChange={handleInputChange} placeholder="TXN-XXXX" style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', backgroundColor: '#ffffff', fontWeight: '600' }} />
                   </div>
 
                   <div style={{ gridColumn: 'span 2' }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</label>
-                    <textarea name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Reason for payment..." style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', height: '80px', resize: 'none', backgroundColor: '#f8fafc' }}></textarea>
+                    <textarea name="notes" value={formData.notes} onChange={handleInputChange} placeholder="Reason for payment..." style={{ width: '100%', padding: '14px', borderRadius: '16px', border: '2px solid #f1f5f9', outline: 'none', height: '80px', resize: 'none', backgroundColor: '#ffffff' }}></textarea>
                   </div>
 
                   <div style={{ gridColumn: 'span 2', display: 'flex', gap: '16px', marginTop: '16px' }}>

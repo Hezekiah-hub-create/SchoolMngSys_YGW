@@ -57,9 +57,9 @@ const AdmissionRow = ({ student, onClick }) => (
       borderRadius: '16px',
       cursor: 'pointer',
       transition: 'all 0.2s',
-      borderBottom: '1px solid #f8fafc'
+      borderBottom: '1px solid #ffffff'
     }}
-    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
     onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
   >
     <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'var(--brand-green)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>

@@ -60,7 +60,7 @@ const getAllFees = asyncHandler(async (req, res) => {
     const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', req.user.id);
     if (studentProfile) {
       fees = fees.filter(f => {
-        const normalize = (g) => g ? g.toString().toLowerCase().replace('basic', 'primary').replace(/\s/g, '') : '';
+        const normalize = (g) => g ? g.toString().toLowerCase().replace(/\s/g, '') : '';
         return normalize(f.grade) === normalize(studentProfile.grade);
       });
     } else {
@@ -257,12 +257,11 @@ const getStudentFees = asyncHandler(async (req, res) => {
   if (!student) return res.status(404).json({ message: 'Student not found' });
 
   const studentGrade = student.grade;
-  const altGrade = studentGrade.includes('Primary') ? studentGrade.replace('Primary', 'Basic') : (studentGrade.includes('Basic') ? studentGrade.replace('Basic', 'Primary') : studentGrade);
   
   const { data: fees, error } = await supabase
     .from(COLLECTIONS.FEES)
     .select('*')
-    .or(`grade.eq."${studentGrade}",grade.eq."${altGrade}"`);
+    .eq('grade', studentGrade);
     
   if (error) throw error;
 
@@ -309,7 +308,7 @@ const getFeeStats = asyncHandler(async (req, res) => {
       payments = payments.filter(p => (p.student_id === studentProfile.id || p.student === studentProfile.id));
       students = students.filter(s => s.id === studentProfile.id);
       fees = fees.filter(f => {
-        const normalize = (g) => g ? g.toString().toLowerCase().replace('basic', 'primary').replace(/\s/g, '') : '';
+        const normalize = (g) => g ? g.toString().toLowerCase().replace(/\s/g, '') : '';
         return normalize(f.grade) === normalize(studentProfile.grade);
       });
     } else {
@@ -323,7 +322,7 @@ const getFeeStats = asyncHandler(async (req, res) => {
     payments = payments.filter(p => childIds.includes(p.student_id || p.student));
     students = children || [];
     fees = fees.filter(f => {
-      const normalize = (g) => g ? g.toString().toLowerCase().replace('basic', 'primary').replace(/\s/g, '') : '';
+      const normalize = (g) => g ? g.toString().toLowerCase().replace(/\s/g, '') : '';
       return childGrades.some(cg => normalize(f.grade) === normalize(cg));
     });
   }

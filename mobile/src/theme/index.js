@@ -32,7 +32,6 @@ export const commonStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.03,
     shadowRadius: 30,
-    elevation: 5,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.5)',
   },
@@ -51,7 +50,6 @@ export const commonStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2,
     shadowRadius: 20,
-    elevation: 8,
   },
   premiumBtnSecondary: {
     backgroundColor: COLORS.secondary,
@@ -59,7 +57,6 @@ export const commonStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
-    elevation: 4,
   },
   btnText: {
     fontSize: 14,

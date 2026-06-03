@@ -3,8 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
 // For local development, use your computer's IP address
-// Example: http://192.168.1.100:5000
-const BASE_URL = 'http://localhost:5000/api'; // This should be updated by the user for physical devices
+// Update this IP if your network changes
+const BASE_URL = 'http://10.255.6.19:5001/api';
 
 const client = axios.create({
   baseURL: BASE_URL,

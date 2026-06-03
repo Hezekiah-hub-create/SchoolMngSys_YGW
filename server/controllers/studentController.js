@@ -85,12 +85,10 @@ const getAllStudents = asyncHandler(async (req, res) => {
         return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
       }
 
-      // Helper to match Basic vs Primary grade names
+      // Helper to match grade names
       const isGradeMatch = (g1, g2) => {
         if (!g1 || !g2) return false;
-        const n1 = g1.replace('Basic', 'Primary').trim();
-        const n2 = g2.replace('Basic', 'Primary').trim();
-        return n1 === n2;
+        return g1.trim().toLowerCase() === g2.trim().toLowerCase();
       };
 
       // Filter students by grade and section (case-insensitive)
@@ -108,11 +106,11 @@ const getAllStudents = asyncHandler(async (req, res) => {
     students = students.filter(s => s.user_id === req.user.id);
   }
 
-  // Helper to match Basic vs Primary grade names
+  // Helper to match grade names
   const isGradeMatch = (g1, g2) => {
     if (!g1 || !g2) return false;
-    const n1 = g1.toLowerCase().replace('basic', 'primary').trim();
-    const n2 = g2.toLowerCase().replace('basic', 'primary').trim();
+    const n1 = g1.toLowerCase().trim();
+    const n2 = g2.toLowerCase().trim();
     // Check for exact match or if one is a substring of the other (for partial search)
     return n1.includes(n2) || n2.includes(n1);
   };
@@ -252,18 +250,12 @@ const createStudent = asyncHandler(async (req, res) => {
     // Normalize grade to match database check constraints
     let dbGrade = grade;
     if (grade && typeof grade === 'string') {
-      // Map "Basic 1-6" to "Primary 1-6" for database compatibility
-      const basicMatch = grade.match(/^Basic\s*([1-6])$/i);
-      if (basicMatch) {
-        dbGrade = `Primary ${basicMatch[1]}`;
-      } else {
-        // Standard normalization: ensure space between name and number (e.g., "JHS1" -> "JHS 1")
-        const standardMatch = grade.match(/^([a-zA-Z\s]+)(\d+)$/);
-        if (standardMatch) {
-          const namePart = standardMatch[1].trim();
-          const numPart = standardMatch[2];
-          dbGrade = `${namePart} ${numPart}`;
-        }
+      // Standard normalization: ensure space between name and number (e.g., "Basic1" -> "Basic 1")
+      const standardMatch = grade.match(/^([a-zA-Z\s]+)(\d+)$/);
+      if (standardMatch) {
+        const namePart = standardMatch[1].trim();
+        const numPart = standardMatch[2];
+        dbGrade = `${namePart} ${numPart}`;
       }
     }
 
@@ -429,18 +421,12 @@ const updateStudent = asyncHandler(async (req, res) => {
       
       // Normalize grade to match database check constraints
       if (frontendField === 'grade' && value && typeof value === 'string') {
-        // Map "Basic 1-6" to "Primary 1-6" for database compatibility
-        const basicMatch = value.match(/^Basic\s*([1-6])$/i);
-        if (basicMatch) {
-          value = `Primary ${basicMatch[1]}`;
-        } else {
-          // Standard normalization: ensure space between name and number (e.g., "JHS1" -> "JHS 1")
-          const standardMatch = value.match(/^([a-zA-Z\s]+)(\d+)$/);
-          if (standardMatch) {
-            const namePart = standardMatch[1].trim();
-            const numPart = standardMatch[2];
-            value = `${namePart} ${numPart}`;
-          }
+        // Standard normalization: ensure space between name and number (e.g., "Basic1" -> "Basic 1")
+        const standardMatch = value.match(/^([a-zA-Z\s]+)(\d+)$/);
+        if (standardMatch) {
+          const namePart = standardMatch[1].trim();
+          const numPart = standardMatch[2];
+          value = `${namePart} ${numPart}`;
         }
       }
 

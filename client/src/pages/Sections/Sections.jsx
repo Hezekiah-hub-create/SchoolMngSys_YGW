@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { academicClassesAPI, academicSectionsAPI, studentAPI, teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
+import { mapSectionName } from '../../utils/sectionHelper';
 
 const normalizeGrade = (g) => {
   if (!g) return '';
@@ -182,7 +183,7 @@ const Sections = () => {
                           const count = allStudents.filter(st => normalizeGrade(st.grade) === normalizeGrade(cls.name) && st.section === section.name).length;
                           return (
                             <div key={section.id} className="section-pill-container" onClick={() => openRosterModal(section)}>
-                              <span className="glass-pill section-pill">Section {section.name} <span style={{ opacity: 0.6, marginLeft: '4px' }}>({count})</span></span>
+                              <span className="glass-pill section-pill">Section {mapSectionName(section.name)} <span style={{ opacity: 0.6, marginLeft: '4px' }}>({count})</span></span>
                               <div className="section-master-hint" onClick={(e) => { e.stopPropagation(); setSelectedSection(section); setMasterFormData({ class_master_id: section.class_master_id || '' }); setShowMasterModal(true); }}>
                                 {getTeacherName(section.class_master_id)}
                               </div>
@@ -227,7 +228,7 @@ const Sections = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
               <div>
                 <h3 className="modal-title">Division Roster</h3>
-                <p className="modal-subtitle">{displayGrade(currentGradeName)} • Section {selectedSection?.name}</p>
+                <p className="modal-subtitle">{displayGrade(currentGradeName)} • Section {mapSectionName(selectedSection?.name)}</p>
               </div>
               <button onClick={() => setShowRosterModal(false)} className="premium-close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             </div>
@@ -268,7 +269,7 @@ const Sections = () => {
                           fontSize: '11px', fontWeight: '800', padding: '4px 10px', borderRadius: '8px', 
                           background: s.section ? '#ecfdf5' : '#f1f5f9', 
                           color: s.section ? '#059669' : '#94a3b8' 
-                        }}>{s.section ? `Section ${s.section}` : 'Unallocated'}</span>
+                        }}>{s.section ? `Section ${mapSectionName(s.section)}` : 'Unallocated'}</span>
                       </td>
                     </tr>
                   ))}
@@ -291,7 +292,7 @@ const Sections = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
               <div>
                 <h3 className="modal-title">Section Leadership</h3>
-                <p className="modal-subtitle">Assign Master for {displayGrade(currentGradeName)} - {selectedSection?.name}</p>
+                <p className="modal-subtitle">Assign Master for {displayGrade(currentGradeName)} - {mapSectionName(selectedSection?.name)}</p>
               </div>
               <button onClick={() => setShowMasterModal(false)} className="premium-close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             </div>
@@ -319,7 +320,7 @@ const Sections = () => {
         
         :root {
           --brand-green: #00843e;
-          --brand-slate-50: #f8fafc;
+          --brand-slate-50: #ffffff;
           --brand-slate-100: #f1f5f9;
           --brand-slate-200: #e2e8f0;
           --brand-slate-400: #94a3b8;

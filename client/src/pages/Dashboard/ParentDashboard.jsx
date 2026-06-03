@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
 
 const displayGrade = (g) => {
   if (!g) return 'N/A';
@@ -193,7 +194,7 @@ const ParentDashboard = () => {
                   <button onClick={() => navigate('/students')} className="premium-btn-secondary" style={{ padding: '8px 16px', fontSize: '12px' }}>View All</button>
                 </div>
                 <div style={{ padding: '24px' }}>
-                  {loading ? [...Array(2)].map((_, i) => <div key={i} style={{ height: '80px', backgroundColor: '#f8fafc', borderRadius: '16px', marginBottom: '16px', animation: 'pulse 1.5s infinite' }}></div>)
+                  {loading ? [...Array(2)].map((_, i) => <div key={i} style={{ height: '80px', backgroundColor: '#ffffff', borderRadius: '16px', marginBottom: '16px', animation: 'pulse 1.5s infinite' }}></div>)
                     : children.length > 0 ? children.map((child, i) => (
                       <div key={i} onClick={() => navigate('/students')} className="glass-card" style={{ padding: '20px', marginBottom: i < children.length - 1 ? '16px' : '0', display: 'flex', alignItems: 'center', gap: '20px', cursor: 'pointer', border: '1.5px solid transparent', transition: 'all 0.3s' }}
                         onMouseOver={e => { e.currentTarget.style.transform = 'translateX(8px)'; e.currentTarget.style.borderColor = 'var(--brand-green)'; }}
@@ -254,12 +255,21 @@ const ParentDashboard = () => {
                 <div style={{ padding: '24px' }}>
                   {loading ? <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Syncing...</div>
                     : announcements.length > 0 ? announcements.slice(0, 3).map((announce, i) => (
-                      <div key={i} className="glass-card" style={{ padding: '16px', backgroundColor: '#f8fafc', marginBottom: i < 2 ? '12px' : 0, border: 'none' }}>
+                      <div key={i} className="glass-card" style={{ padding: '16px', backgroundColor: '#ffffff', marginBottom: i < 2 ? '12px' : 0, border: 'none' }}>
                         <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', marginBottom: '6px' }}>{announce.title || 'Announcement'}</h4>
                         <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '500', lineHeight: '1.5' }}>{announce.description?.substring(0, 100) || 'New administrative update...'}...</p>
                       </div>
                     )) : <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontWeight: '600' }}>No active directives.</div>}
                 </div>
+              </div>
+
+              {/* Academic Calendar */}
+              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
+                <div style={{ padding: '24px 28px', borderBottom: '1.5px solid #f1f5f9' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>Academic Calendar</h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', fontWeight: '600' }}>Upcoming institutional activities</p>
+                </div>
+                <AcademicCalendarWidget />
               </div>
 
             </div>
@@ -276,7 +286,7 @@ const ParentDashboard = () => {
                       const student = children.find(c => (c.id || c._id) === (att.studentId || att.student?._id || att.student?.id));
                       const studentName = student ? `${student.firstName} ${student.lastName}` : 'Scholar';
                       return (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < attendance.length - 1 ? '1.5px solid #f8fafc' : 'none' }}>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < attendance.length - 1 ? '1.5px solid #ffffff' : 'none' }}>
                           <div>
                             <span style={{ fontWeight: '900', color: '#0f172a', fontSize: '15px' }}>{studentName}</span>
                             <br/>
@@ -297,7 +307,7 @@ const ParentDashboard = () => {
                 <div style={{ padding: '24px' }}>
                   {loading ? <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Syncing...</div>
                     : assignments.length > 0 ? assignments.slice(0, 5).map((assign, i) => (
-                      <div key={i} className="glass-card" style={{ padding: '16px', backgroundColor: '#f8fafc', marginBottom: i < 4 ? '12px' : 0, border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div key={i} className="glass-card" style={{ padding: '16px', backgroundColor: '#ffffff', marginBottom: i < 4 ? '12px' : 0, border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <span style={{ fontWeight: '900', color: '#0f172a', fontSize: '14px' }}>{assign.title || assign.name || 'Task'}</span>
                           <br/>
@@ -320,7 +330,7 @@ const ParentDashboard = () => {
                       const student = children.find(c => (c.id || c._id) === (fee.studentId || fee.student?._id || fee.student?.id));
                       const studentName = student ? `${student.firstName} ${student.lastName}` : (fee.studentName || 'Scholar Node');
                       return (
-                        <div key={i} onClick={() => navigate('/fees')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < fees.length - 1 ? '1.5px solid #f8fafc' : 'none', cursor: 'pointer' }}>
+                        <div key={i} onClick={() => navigate('/fees')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < fees.length - 1 ? '1.5px solid #ffffff' : 'none', cursor: 'pointer' }}>
                           <div>
                             <span style={{ fontWeight: '900', color: '#0f172a', fontSize: '15px' }}>{studentName}</span>
                             <br/>

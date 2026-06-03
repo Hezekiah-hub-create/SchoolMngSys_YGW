@@ -251,9 +251,9 @@ const Subjects = () => {
                 <label className="premium-label">Curriculum Description</label>
                 <textarea className="premium-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Overview of the subject scope..." rows="3" style={{ resize: 'none' }} />
               </div>
-              <div className="modal-footer">
-                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Syncing...' : (editingSubject ? 'Update Catalog' : 'Enroll Subject')}</button>
+              <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setShowModal(false)} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
+                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Syncing...' : (editingSubject ? 'Update Catalog' : 'Enroll Subject')}</button>
               </div>
             </form>
           </div>
@@ -303,7 +303,7 @@ const Subjects = () => {
         .subject-node:hover { border-color: var(--brand-green); }
 
         .node-top { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-        .icon-wrap { width: 54px; height: 54px; border-radius: 18px; background: #f8fafc; color: #64748b; display: flex; align-items: center; justify-content: center; }
+        .icon-wrap { width: 54px; height: 54px; border-radius: 18px; background: #ffffff; color: #64748b; display: flex; align-items: center; justify-content: center; }
         
         .sub-title { margin: 0; font-size: 22px; font-weight: 1000; color: #0f172a; letter-spacing: -1px; }
         .sub-code { font-size: 12px; font-weight: 900; color: var(--brand-green); text-transform: uppercase; letter-spacing: 1.5px; }
@@ -317,7 +317,7 @@ const Subjects = () => {
         .node-description { margin-bottom: 24px; min-height: 50px; }
         .node-description p { margin: 0; font-size: 14px; color: #64748b; line-height: 1.7; font-weight: 600; }
 
-        .node-footer { border-top: 1.5px solid #f8fafc; padding-top: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .node-footer { border-top: 1.5px solid #ffffff; padding-top: 24px; display: flex; justify-content: space-between; align-items: center; }
         .curriculum-tag { font-size: 11px; font-weight: 900; color: #cbd5e1; text-transform: uppercase; letter-spacing: 2px; }
         
         .category-tag {
@@ -338,7 +338,7 @@ const Subjects = () => {
         .premium-label { display: block; font-size: 12px; font-weight: 900; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
         .premium-input {
           width: 100%; padding: 16px 20px; border-radius: 16px; border: 2px solid #f1f5f9;
-          background: #f8fafc; font-weight: 700; color: #1e293b; outline: none; transition: all 0.2s; font-size: 15px;
+          background: #ffffff; font-weight: 700; color: #1e293b; outline: none; transition: all 0.2s; font-size: 15px;
         }
         .premium-input:focus { border-color: var(--brand-green); background: white; box-shadow: 0 10px 30px rgba(0, 132, 62, 0.05); }
 

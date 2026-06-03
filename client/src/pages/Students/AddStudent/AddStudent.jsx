@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
+import { mapSectionName } from '../../../utils/sectionHelper';
 import TopNav from '../../../components/layout/TopNav';
 
 import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
@@ -124,6 +125,7 @@ const AddStudent = () => {
     email: '', phone: '', street: '', city: '', state: '', postalCode: '',
     admissionNumber: '', admissionDate: new Date().toISOString().split('T')[0], grade: '', section: '', rollNumber: '',
     fatherName: '', fatherPhone: '', fatherOccupation: '', motherName: '', motherPhone: '', motherOccupation: '', parentEmail: '',
+    guardianEmail: '', guardianStreet: '',
     medicalConditions: '', allergies: '', emergencyContact: '',
     status: 'active'
   });
@@ -136,8 +138,13 @@ const AddStudent = () => {
   ];
 
   const sectionOptions = availableSections.length > 0 
-    ? availableSections.map(s => ({ value: s.name, label: `Section ${s.name}` }))
-    : [{ value: 'A', label: 'Section A' }, { value: 'B', label: 'Section B' }];
+    ? availableSections.map(s => ({ value: s.name, label: `Section ${mapSectionName(s.name)}` }))
+    : [
+        { value: 'A', label: `Section ${mapSectionName('A')}` },
+        { value: 'B', label: `Section ${mapSectionName('B')}` },
+        { value: 'C', label: `Section ${mapSectionName('C')}` },
+        { value: 'D', label: `Section ${mapSectionName('D')}` }
+      ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -166,10 +173,10 @@ const AddStudent = () => {
     setFormData(prev => ({
       ...prev,
       fatherName: parent.relationship === 'father' ? `${parent.firstName} ${parent.lastName}` : prev.fatherName,
-      motherName: parent.relationship === 'mother' ? `${parent.firstName} ${parent.lastName}` : prev.motherName,
+      motherName: (parent.relationship === 'mother' || parent.relationship === 'guardian') ? `${parent.firstName} ${parent.lastName}` : prev.motherName,
       parentEmail: parent.email,
       fatherPhone: parent.relationship === 'father' ? parent.phone : prev.fatherPhone,
-      motherPhone: parent.relationship === 'mother' ? parent.phone : prev.motherPhone,
+      motherPhone: (parent.relationship === 'mother' || parent.relationship === 'guardian') ? parent.phone : prev.motherPhone,
     }));
     setParentSearch(`${parent.firstName} ${parent.lastName} (${parent.email})`);
     setShowParentDropdown(false);
@@ -304,8 +311,14 @@ const AddStudent = () => {
                               gap: '12px',
                               transition: 'background 0.2s'
                             }}
-                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 132, 62, 0.06)';
+                              e.currentTarget.style.color = 'var(--brand-green)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.backgroundColor = 'white';
+                              e.currentTarget.style.color = 'inherit';
+                            }}
                           >
                             <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '13px' }}>
                               {parent.firstName?.[0] || 'P'}
@@ -326,12 +339,21 @@ const AddStudent = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
-                  <FormInput label="Father's Name" name="fatherName" value={formData.fatherName} onChange={handleChange} placeholder="Full Name" />
-                  <FormInput label="Father's Phone" name="fatherPhone" value={formData.fatherPhone} onChange={handleChange} placeholder="+233..." />
-                  <FormInput label="Mother's Name" name="motherName" value={formData.motherName} onChange={handleChange} placeholder="Full Name" />
-                  <FormInput label="Mother's Phone" name="motherPhone" value={formData.motherPhone} onChange={handleChange} placeholder="+233..." />
+                  <div style={{ gridColumn: '1 / -1', marginBottom: '-10px' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: '900', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Father / Mother Information</h4>
+                  </div>
+                  <FormInput label="Father/Mother Name" name="fatherName" value={formData.fatherName} onChange={handleChange} placeholder="Full Name" />
+                  <FormInput label="Father/Mother Phone" name="fatherPhone" value={formData.fatherPhone} onChange={handleChange} placeholder="+233..." />
                   <FormInput label="Parent Email" name="parentEmail" type="email" value={formData.parentEmail} onChange={handleChange} placeholder="email@example.com" />
                   <FormInput label="Street Address" name="street" value={formData.street} onChange={handleChange} placeholder="123 School St" />
+                  
+                  <div style={{ gridColumn: '1 / -1', marginBottom: '-10px', marginTop: '12px' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: '900', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Guardian Information</h4>
+                  </div>
+                  <FormInput label="Guardian's Name" name="motherName" value={formData.motherName} onChange={handleChange} placeholder="Full Name" />
+                  <FormInput label="Guardian's Phone" name="motherPhone" value={formData.motherPhone} onChange={handleChange} placeholder="+233..." />
+                  <FormInput label="Guardian Email" name="guardianEmail" type="email" value={formData.guardianEmail} onChange={handleChange} placeholder="guardian@example.com" />
+                  <FormInput label="Guardian Address" name="guardianStreet" value={formData.guardianStreet} onChange={handleChange} placeholder="Guardian's Address" />
                 </div>
               </div>
 

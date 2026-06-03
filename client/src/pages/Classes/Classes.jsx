@@ -388,9 +388,9 @@ const Classes = () => {
                 <label className="premium-label">Grade Nomenclature</label>
                 <input className="premium-input" value={classFormData.name} onChange={e => setClassFormData({...classFormData, name: e.target.value})} placeholder="e.g. Basic 1" required />
               </div>
-              <div className="modal-footer">
-                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Processing...' : 'Confirm Enrollment'}</button>
+              <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setShowClassModal(false)} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
+                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Processing...' : 'Confirm Enrollment'}</button>
               </div>
             </form>
           </div>
@@ -419,9 +419,9 @@ const Classes = () => {
                   </label>
                 ))}
               </div>
-              <div className="modal-footer" style={{ marginTop: '30px' }}>
-                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Syncing...' : 'Update Curriculum'}</button>
+              <div className="modal-footer" style={{ marginTop: '30px', display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setShowSubjectModal(false)} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
+                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Syncing...' : 'Update Curriculum'}</button>
               </div>
             </form>
           </div>
@@ -443,9 +443,9 @@ const Classes = () => {
                 <label className="premium-label">Section Identifier</label>
                 <input className="premium-input" value={sectionFormData.name} onChange={e => setSectionFormData({...sectionFormData, name: e.target.value})} placeholder="e.g. A, Gold, etc." required />
               </div>
-              <div className="modal-footer">
-                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Creating...' : 'Finalize Section'}</button>
+              <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setShowSectionModal(false)} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
+                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Creating...' : 'Finalize Section'}</button>
               </div>
             </form>
           </div>
@@ -473,9 +473,9 @@ const Classes = () => {
                   required
                 />
               </div>
-              <div className="modal-footer">
-                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Assigning...' : 'Confirm Assignment'}</button>
+              <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setShowSectionMasterModal(false)} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
+                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Assigning...' : 'Confirm Assignment'}</button>
               </div>
             </form>
           </div>
@@ -505,7 +505,7 @@ const Classes = () => {
           display: flex; 
           align-items: center; 
           gap: 24px; 
-          background: linear-gradient(to bottom, #f8fafc, white);
+          background: linear-gradient(to bottom, #ffffff, white);
           border-bottom: 1px solid var(--brand-slate-50);
         }
 

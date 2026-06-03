@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { studentAPI, parentAPI, academicClassesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
+import { mapSectionName } from '../../utils/sectionHelper';
 
 const Students = () => {
   const navigate = useNavigate();
@@ -218,11 +219,11 @@ const Students = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                     <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--brand-green)' }}>{displayGrade(student.grade)}</span>
                     <span style={{ color: '#cbd5e1' }}>•</span>
-                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>Section {student.section || 'A'}</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>Section {mapSectionName(student.section || 'A')}</span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', padding: '16px', backgroundColor: '#ffffff', borderRadius: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
                     <span style={{ fontSize: '12px', color: '#475569', fontWeight: '500' }}>{student.parentName || student.guardian || 'Parent Info Pending'}</span>

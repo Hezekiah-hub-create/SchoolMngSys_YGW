@@ -150,7 +150,7 @@ const CollectionChart = ({ data, loading }) => {
     <div style={{ padding: '20px', height: '350px', width: '100%', position: 'relative', minWidth: '0' }}>
       {loading ? (
         <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: '100%', height: '100%', backgroundColor: '#f8fafc', borderRadius: '12px', animation: 'pulse 1.5s infinite' }}></div>
+          <div style={{ width: '100%', height: '100%', backgroundColor: '#ffffff', borderRadius: '12px', animation: 'pulse 1.5s infinite' }}></div>
         </div>
       ) : (
         <ResponsiveContainer width="99%" height={300} debounce={50}>
@@ -206,7 +206,7 @@ const FinanceDashboard = () => {
     if (!authLoading && !isAuthenticated) navigate('/login', { replace: true });
   }, [isAuthenticated, authLoading, navigate]);
 
-  if (authLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f8fafc' }}><div style={{ width: '48px', height: '48px', border: '4px solid #e2e8f0', borderTop: '4px solid #00843e', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div></div>;
+  if (authLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#ffffff' }}><div style={{ width: '48px', height: '48px', border: '4px solid #e2e8f0', borderTop: '4px solid #00843e', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div></div>;
   if (!isAuthenticated) return null;
 
   const [stats, setStats] = useState({ totalCollected: 0, totalPending: 0, students: 0, transactions: 0 });

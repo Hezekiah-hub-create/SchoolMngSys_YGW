@@ -23,18 +23,30 @@ import {
   ChevronRight,
   Globe,
   BarChart3,
-  Zap
+  Zap,
+  Send,
+  Trash2
 } from "lucide-react";
 import { 
   studentAPI, 
   reportAPI, 
   settingsAPI, 
   academicSectionsAPI,
-  academicClassesAPI 
+  academicClassesAPI,
+  parentAPI 
 } from '../../services/api';
 import RLogo from '../../assets/R.png';
 import UbsLogo from '../../assets/UBS.png';
 import './Reports.css';
+
+const mapSectionName = (name) => {
+  if (!name) return name;
+  if (name.toUpperCase() === 'A') return 'Yellow (Y)';
+  if (name.toUpperCase() === 'B') return 'Green (G)';
+  if (name.toUpperCase() === 'C') return 'Red (R)';
+  if (name.toUpperCase() === 'D') return 'Blue (B)';
+  return name;
+};
 
 const Reports = () => {
   const { user } = useAuth();
@@ -52,8 +64,14 @@ const Reports = () => {
   const [reportMonth, setReportMonth] = useState('FEBRUARY');
   const [vacationDate, setVacationDate] = useState('');
   const [resumptionDate, setResumptionDate] = useState('');
+  const [conduct, setConduct] = useState('VERY GOOD');
+  const [attitude, setAttitude] = useState('CONSISTENT');
+  const [interest, setInterest] = useState('ACADEMIC EXCELLENCE');
+  const [teacherRemarks, setTeacherRemarks] = useState('A very good performance. Keep it up.');
   const [generating, setGenerating] = useState(false);
   const [generatedReports, setGeneratedReports] = useState(null);
+  const [pdfExportProgress, setPdfExportProgress] = useState(null); // { current, total, name }
+  const [publishedReports, setPublishedReports] = useState([]); // For parents
   const reportRef = useRef();
 
   const [selectedTerm, setSelectedTerm] = useState('First Term');
@@ -61,6 +79,7 @@ const Reports = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const isTeacher = user?.role === 'teacher';
+  const isParent = user?.role === 'parent';
 
 
   const isGradeMatch = (g1, g2) => {
@@ -81,8 +100,13 @@ const Reports = () => {
   });
 
   useEffect(() => {
-    fetchInfrastructure();
-  }, []);
+    if (isParent) {
+      setOperationalScope('Individual');
+      fetchPublishedReports();
+    } else {
+      fetchInfrastructure();
+    }
+  }, [isParent]);
 
   useEffect(() => {
     if (selectedSection) {
@@ -94,15 +118,110 @@ const Reports = () => {
 
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
 
+  const fetchPublishedReports = async () => {
+    setIsLoadingStudents(true);
+    try {
+      const res = await reportAPI.getPublishedReports();
+      console.log('[DEBUG] Published reports response:', res.data);
+      if (res.data?.success) {
+        setPublishedReports(res.data.data || []);
+        console.log('[DEBUG] Reports set:', res.data.data?.length, 'items');
+      } else {
+        console.warn('[DEBUG] API returned success=false:', res.data);
+      }
+    } catch (err) {
+      console.error('[DEBUG] Published reports fetch error:', err?.response?.status, err?.response?.data || err.message);
+    } finally {
+      setIsLoadingStudents(false);
+    }
+  };
+
+  const handleViewPublishedReport = async (report) => {
+    setGenerating(true);
+    setGeneratedReports(null);
+    try {
+      const termDisplay = { '1st': 'First Term', '2nd': 'Second Term', '3rd': 'Third Term' };
+      const readableTerm = termDisplay[report.term] || report.term;
+      const storedReportType = report.conduct?.report_type || 'Terminal Report';
+      const isMidTerm = storedReportType === 'Mid-Term' || storedReportType === 'mid-term';
+
+      const res = await reportAPI.getStudentReport(report.student_id, {
+        reportType: isMidTerm ? 'mid-term' : 'terminal',
+        term: readableTerm,
+        academicYear: report.academic_year
+      });
+      if (res.data?.success) {
+        setGeneratedReports([{
+          ...res.data.data,
+          id: report.id,                        // store the report_cards row ID for deletion
+          year: report.academic_year,           // ensure data.year is populated for ReportTemplate
+          academicYear: report.academic_year,
+          term: readableTerm,                   // use readable term (First Term) for template display
+          type: isMidTerm ? 'Mid-Term' : 'Terminal Report'
+        }]);
+        setTimeout(() => {
+          if (reportRef.current) {
+            reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 500);
+      }
+    } catch (e) {
+      console.error('Error fetching published report:', e);
+      if (e.response?.status === 403) {
+        showAlert({ title: 'Report Unavailable', message: e.response.data.message || 'Report not published.', type: 'error' });
+      } else {
+        showAlert({ title: 'Error', message: 'Failed to load report.', type: 'error' });
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDeleteReport = async () => {
+    const reportId = generatedReports?.[0]?.id;
+    if (!reportId) return;
+
+    showAlert({
+      title: 'Remove Report',
+      message: 'Are you sure you want to remove this report from your library?',
+      type: 'confirm',
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const res = await reportAPI.deletePublishedReport(reportId);
+          if (res.data?.success) {
+            showAlert({ title: 'Success', message: 'Report removed successfully.', type: 'success' });
+            setGeneratedReports(null);
+            fetchPublishedReports();
+          }
+        } catch (e) {
+          console.error('Error deleting report:', e);
+          showAlert({ title: 'Error', message: 'Failed to remove report.', type: 'error' });
+        }
+      }
+    });
+  };
+
   const fetchInfrastructure = async () => {
     try {
-      const [secRes, classRes] = await Promise.all([
+      const [secRes, classRes, settingsRes] = await Promise.all([
         academicSectionsAPI.getAll(),
-        academicClassesAPI.getAll()
+        academicClassesAPI.getAll(),
+        settingsAPI.getSettings().catch(() => ({ data: { data: null } }))
       ]);
       
       const secData = secRes.data?.data || secRes.data || [];
       const classData = classRes.data?.data || classRes.data || [];
+      const settingsData = settingsRes.data?.settings || settingsRes.data?.data || settingsRes.data;
+
+      if (settingsData) {
+        if (settingsData.current_session) setSelectedYear(settingsData.current_session.replace('-', '/'));
+        if (settingsData.current_term) {
+          const reverseMapping = { '1st': 'First Term', '2nd': 'Second Term', '3rd': 'Third Term' };
+          setSelectedTerm(reverseMapping[settingsData.current_term] || settingsData.current_term);
+        }
+      }
       
       setSections(Array.isArray(secData) ? secData : []);
       setGrades(Array.isArray(classData) ? classData : []);
@@ -197,7 +316,11 @@ const Reports = () => {
         academicYear: selectedYear,
         month: reportMonth,
         vacationDate,
-        resumptionDate
+        resumptionDate,
+        conduct,
+        attitude,
+        interest,
+        teacherRemarks
       };
 
       if (operationalScope === 'Individual') {
@@ -213,6 +336,15 @@ const Reports = () => {
             }
           } catch (e) {
             console.error(`Error fetching report for student ${studentId}:`, e);
+            if (e.response?.status === 403) {
+              setGenerating(false);
+              showAlert({
+                title: 'Report Unavailable',
+                message: e.response.data.message || 'The report has not been published.',
+                type: 'error'
+              });
+              return;
+            }
           }
         }
       } else {
@@ -259,32 +391,104 @@ const Reports = () => {
   };
 
   const downloadPDF = async () => {
-    const element = reportRef.current;
-    if (!element) return;
-    
+    const container = reportRef.current;
+    if (!container) return;
+
     const html2canvas = (await import('html2canvas')).default;
     const jsPDF = (await import('jspdf')).default;
-    
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Academic_Report_${new Date().getTime()}.pdf`);
+
+    // For individual scope with multiple reports, export one PDF per report card
+    if (operationalScope === 'Individual' && generatedReports && generatedReports.length > 1) {
+      const reportCards = container.querySelectorAll('.report-card');
+      const total = reportCards.length;
+
+      for (let i = 0; i < total; i++) {
+        const card = reportCards[i];
+        const report = generatedReports[i];
+        const scholarName = (report?.studentName || `Scholar_${i + 1}`)
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9_]/g, '');
+
+        setPdfExportProgress({ current: i + 1, total, name: report?.studentName || `Scholar ${i + 1}` });
+
+        const canvas = await html2canvas(card, {
+          scale: 2,
+          useCORS: true,
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Report_${scholarName}_${selectedTerm.replace(/\s+/g, '_')}.pdf`);
+
+        // Small delay between downloads to avoid browser congestion
+        if (i < total - 1) {
+          await new Promise(resolve => setTimeout(resolve, 700));
+        }
+      }
+
+      setPdfExportProgress(null);
+    } else {
+      // Single report or cohort-wide: export as one PDF
+      setPdfExportProgress({ current: 1, total: 1, name: 'Report' });
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+      const label = operationalScope === 'Cohort-Wide'
+        ? `Cohort_Report_${selectedGrade?.replace(/\s+/g, '_')}_${selectedTerm.replace(/\s+/g, '_')}`
+        : `Report_${(generatedReports?.[0]?.studentName || 'Scholar').replace(/\s+/g, '_')}`;
+
+      pdf.save(`${label}.pdf`);
+      setPdfExportProgress(null);
+    }
   };
 
   const handleGradeChange = (val) => {
     setSelectedGrade(val);
     setSelectedSection('');
     setStudents([]);
+  };
+
+  const [sendingToParents, setSendingToParents] = useState(false);
+
+  const handleSendToParents = async () => {
+    if (!generatedReports || generatedReports.length === 0) return;
+    
+    setSendingToParents(true);
+    try {
+      const res = await reportAPI.sendToParents(generatedReports);
+      if (res.data?.success) {
+        showAlert({
+          title: 'Dispatch Successful',
+          message: res.data.message || 'Reports successfully dispatched to parents.',
+          type: 'success'
+        });
+      }
+    } catch (err) {
+      showAlert({
+        title: 'Dispatch Failed',
+        message: 'Failed to send reports to parents. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setSendingToParents(false);
+    }
   };
 
   let allowedGrades = grades;
@@ -310,7 +514,9 @@ const Reports = () => {
     label: g.name.replace(/Primary|Basic/i, 'Basic') 
   }));
 
-  const sectionOptions = allowedSections.map(s => ({ value: s.id, label: s.name }));
+
+
+  const sectionOptions = allowedSections.map(s => ({ value: s.id, label: mapSectionName(s.name) }));
   const monthOptions = [
     'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 
     'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
@@ -333,101 +539,166 @@ const Reports = () => {
                       margin: 0,
                       fontFamily: 'Outfit, sans-serif'
                     }}>
-                      Academic <span style={{ color: 'var(--brand-green)' }}>Synthesis</span>
+                      {isParent ? (
+                        <>Official <span style={{ color: 'var(--brand-green)' }}>Reports</span></>
+                      ) : (
+                        <>Academic <span style={{ color: 'var(--brand-green)' }}>Synthesis</span></>
+                      )}
                     </h1>
                     <p style={{ color: 'var(--slate-500)', fontWeight: '600', marginTop: '4px' }}>
-                      Configure academic vectors and consolidate terminal performance data.
+                      {isParent ? 'View and download official academic reports.' : 'Configure academic vectors and consolidate terminal performance data.'}
                     </p>
                   </div>
                   
                   {generatedReports && (
-                    <div style={{ display: 'flex', gap: '16px' }}>
-                      <button onClick={handlePrint} className="premium-btn-secondary">
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      {pdfExportProgress && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          background: 'var(--brand-green-soft)',
+                          border: '1.5px solid var(--brand-green)',
+                          borderRadius: '16px',
+                          padding: '10px 20px'
+                        }}>
+                          <RefreshCw size={16} className="animate-spin" style={{ color: 'var(--brand-green)' }} />
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--brand-green)' }}>
+                            Exporting {pdfExportProgress.current}/{pdfExportProgress.total}: {pdfExportProgress.name}
+                          </span>
+                        </div>
+                      )}
+                      <button onClick={handlePrint} className="premium-btn-secondary" disabled={!!pdfExportProgress}>
                         <Printer size={20} />
                         Execute Print
                       </button>
-                      <button onClick={downloadPDF} className="premium-btn-primary">
+                      <button onClick={downloadPDF} className="premium-btn-primary" disabled={!!pdfExportProgress || sendingToParents}>
                         <Download size={20} />
-                        Export PDF
+                        {pdfExportProgress
+                          ? `${pdfExportProgress.current}/${pdfExportProgress.total} Exporting...`
+                          : operationalScope === 'Individual' && generatedReports?.length > 1
+                            ? `Export ${generatedReports.length} PDFs`
+                            : 'Export PDF'
+                        }
                       </button>
+                      {isParent && (
+                        <button 
+                          onClick={handleDeleteReport} 
+                          className="premium-btn-primary" 
+                          style={{ background: '#ef4444', border: 'none', color: 'white' }}
+                          disabled={!!pdfExportProgress}
+                        >
+                          <Trash2 size={20} />
+                          Remove Report
+                        </button>
+                      )}
+                      {!isParent && (
+                        <button 
+                          onClick={handleSendToParents} 
+                          className="premium-btn-primary" 
+                          style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', border: 'none', color: 'white' }}
+                          disabled={!!pdfExportProgress || sendingToParents}
+                        >
+                          {sendingToParents ? <RefreshCw size={20} className="animate-spin" /> : <Send size={20} />}
+                          {sendingToParents ? 'Dispatching...' : 'Send to Parents'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             </header>
 
-            <div className="stats-grid">
-              <div className="stat-item-nexus">
-                <div className="stat-icon" style={{ backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)' }}>
-                  <Users size={26} />
+            {!isParent ? (
+              <div className="stats-grid">
+                <div className="stat-item-nexus">
+                  <div className="stat-icon" style={{ backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)' }}>
+                    <Users size={26} />
+                  </div>
+                  <div>
+                    <span className="stat-label">Active Scholars</span>
+                    <div className="stat-value">{students.length}</div>
+                  </div>
                 </div>
-                <div>
-                  <span className="stat-label">Active Scholars</span>
-                  <div className="stat-value">{students.length}</div>
+                <div className="stat-item-nexus">
+                  <div className="stat-icon" style={{ backgroundColor: 'var(--brand-yellow-soft)', color: 'var(--brand-yellow)' }}>
+                    <Award size={26} />
+                  </div>
+                  <div>
+                    <span className="stat-label">Selected Nodes</span>
+                    <div className="stat-value">{selectedStudents.length}</div>
+                  </div>
+                </div>
+                <div className="stat-item-nexus">
+                  <div className="stat-icon" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                    <Layers size={26} />
+                  </div>
+                  <div>
+                    <span className="stat-label">Curriculum Tier</span>
+                    <div className="stat-value">{selectedGrade?.split(' ')[1] || 'N/A'}</div>
+                  </div>
                 </div>
               </div>
-              <div className="stat-item-nexus">
-                <div className="stat-icon" style={{ backgroundColor: 'var(--brand-yellow-soft)', color: 'var(--brand-yellow)' }}>
-                  <Award size={26} />
-                </div>
-                <div>
-                  <span className="stat-label">Selected Nodes</span>
-                  <div className="stat-value">{selectedStudents.length}</div>
-                </div>
-              </div>
-              <div className="stat-item-nexus">
-                <div className="stat-icon" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-                  <Layers size={26} />
-                </div>
-                <div>
-                  <span className="stat-label">Curriculum Tier</span>
-                  <div className="stat-value">{selectedGrade?.split(' ')[1] || 'N/A'}</div>
+            ) : (
+              <div className="stats-grid">
+                <div className="stat-item-nexus">
+                  <div className="stat-icon" style={{ backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)' }}>
+                    <FileText size={26} />
+                  </div>
+                  <div>
+                    <span className="stat-label">Published Reports</span>
+                    <div className="stat-value">{publishedReports.length}</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="reports-grid">
               <aside className="intelligence-matrix">
-                <div className="glass-card" style={{ padding: '28px' }}>
-                  <div style={{ marginBottom: '32px' }}>
-                    <h3 className="premium-label">Synthesis Scope</h3>
-                    <div className="scope-toggle-nexus">
-                      <button 
-                        className={`type-btn-nexus ${operationalScope === 'Individual' ? 'active' : ''}`}
-                        onClick={() => setOperationalScope('Individual')}
-                      >
-                        Individual
-                      </button>
-                      <button 
-                        className={`type-btn-nexus ${operationalScope === 'Cohort-Wide' ? 'active' : ''}`}
-                        onClick={() => setOperationalScope('Cohort-Wide')}
-                      >
-                        Cohort-Wide
-                      </button>
-                    </div>
-                  </div>
+                {!isParent ? (
+                  <>
+                    <div className="glass-card" style={{ padding: '28px' }}>
+                      <div style={{ marginBottom: '32px' }}>
+                        <h3 className="premium-label">Synthesis Scope</h3>
+                        <div className="scope-toggle-nexus">
+                          <button 
+                            className={`type-btn-nexus ${operationalScope === 'Individual' ? 'active' : ''}`}
+                            onClick={() => setOperationalScope('Individual')}
+                          >
+                            Individual
+                          </button>
+                          <button 
+                            className={`type-btn-nexus ${operationalScope === 'Cohort-Wide' ? 'active' : ''}`}
+                            onClick={() => setOperationalScope('Cohort-Wide')}
+                          >
+                            Cohort-Wide
+                          </button>
+                        </div>
+                      </div>
 
-                  <div className="synthesis-parameters" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                      <div>
-                        <span className="parameter-label">CURRICULUM TIER</span>
-                        <PremiumSelect 
-                          value={selectedGrade} 
-                          onChange={(e) => handleGradeChange(e.target.value)}
-                          options={gradeOptions}
-                          placeholder="Grade"
-                        />
+                      <div className="synthesis-parameters" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    {!isParent && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <span className="parameter-label">CURRICULUM TIER</span>
+                          <PremiumSelect 
+                            value={selectedGrade} 
+                            onChange={(e) => handleGradeChange(e.target.value)}
+                            options={gradeOptions}
+                            placeholder="Grade"
+                          />
+                        </div>
+                        <div>
+                          <span className="parameter-label">SECTION NODE</span>
+                          <PremiumSelect 
+                            value={selectedSection} 
+                            onChange={(e) => setSelectedSection(e.target.value)}
+                            options={sectionOptions}
+                            placeholder={operationalScope === 'Cohort-Wide' ? "Select Section (Required)" : "All Sections"}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <span className="parameter-label">SECTION NODE</span>
-                        <PremiumSelect 
-                          value={selectedSection} 
-                          onChange={(e) => setSelectedSection(e.target.value)}
-                          options={sectionOptions}
-                          placeholder={operationalScope === 'Cohort-Wide' ? "Select Section (Required)" : "All Sections"}
-                        />
-                      </div>
-                    </div>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
@@ -455,118 +726,246 @@ const Reports = () => {
                       </div>
                     </div>
 
-                    <div style={{ background: 'var(--slate-50)', padding: '20px', borderRadius: '20px', border: '1.5px dashed var(--slate-200)' }}>
-                      <h4 style={{ fontSize: '12px', fontWeight: '900', color: 'var(--slate-900)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <Clock size={16} style={{ color: 'var(--brand-green)' }} />
-                        Temporal Constraints
-                      </h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        {reportType === 'Mid-Term' ? (
-                          <div style={{ gridColumn: 'span 2' }}>
-                            <span className="parameter-label">TARGET MONTH</span>
-                            <PremiumSelect 
-                              value={reportMonth} 
-                              onChange={(e) => setReportMonth(e.target.value)}
-                              options={monthOptions}
+                    {!isParent && (
+                      <div style={{ background: 'var(--slate-50)', padding: '20px', borderRadius: '20px', border: '1.5px dashed var(--slate-200)' }}>
+                        <h4 style={{ fontSize: '12px', fontWeight: '900', color: 'var(--slate-900)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Clock size={16} style={{ color: 'var(--brand-green)' }} />
+                          Temporal Constraints
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          {reportType === 'Mid-Term' ? (
+                            <div style={{ gridColumn: 'span 2' }}>
+                              <span className="parameter-label">TARGET MONTH</span>
+                              <PremiumSelect 
+                                value={reportMonth} 
+                                onChange={(e) => setReportMonth(e.target.value)}
+                                options={monthOptions}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <span className="parameter-label">VACATION DATE</span>
+                                <PremiumDatePicker 
+                                  value={vacationDate} 
+                                  onChange={(val) => setVacationDate(val)} 
+                                  placeholder="Select Date"
+                                />
+                              </div>
+                              <div>
+                                <span className="parameter-label">NEXT TERM BEGINS</span>
+                                <PremiumDatePicker 
+                                  value={resumptionDate} 
+                                  onChange={(val) => setResumptionDate(val)} 
+                                  placeholder="Select Date"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {!isParent && (
+                      <div style={{ background: 'var(--slate-50)', padding: '20px', borderRadius: '20px', border: '1.5px dashed var(--slate-200)', marginTop: '16px' }}>
+                        <h4 style={{ fontSize: '12px', fontWeight: '900', color: 'var(--slate-900)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <FileText size={16} style={{ color: 'var(--brand-green)' }} />
+                          Behavioral & Remarks Configuration
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                          <div>
+                            <span className="parameter-label">CONDUCT</span>
+                            <input 
+                              type="text" 
+                              className="premium-input-nexus" 
+                              value={conduct} 
+                              onChange={(e) => setConduct(e.target.value)}
+                              placeholder="e.g. VERY GOOD"
+                              style={{ width: '100%', padding: '12px', border: '1px solid #ccc', borderRadius: '8px' }}
                             />
                           </div>
+                          <div>
+                            <span className="parameter-label">ATTITUDE</span>
+                            <input 
+                              type="text" 
+                              className="premium-input-nexus" 
+                              value={attitude} 
+                              onChange={(e) => setAttitude(e.target.value)}
+                              placeholder="e.g. CONSISTENT"
+                              style={{ width: '100%', padding: '12px', border: '1px solid #ccc', borderRadius: '8px' }}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          <div>
+                            <span className="parameter-label">INTEREST</span>
+                            <input 
+                              type="text" 
+                              className="premium-input-nexus" 
+                              value={interest} 
+                              onChange={(e) => setInterest(e.target.value)}
+                              placeholder="e.g. ACADEMIC EXCELLENCE"
+                              style={{ width: '100%', padding: '12px', border: '1px solid #ccc', borderRadius: '8px' }}
+                            />
+                          </div>
+                          <div>
+                            <span className="parameter-label">TEACHER'S REMARKS</span>
+                            <input 
+                              type="text" 
+                              className="premium-input-nexus" 
+                              value={teacherRemarks} 
+                              onChange={(e) => setTeacherRemarks(e.target.value)}
+                              placeholder="e.g. A very good performance..."
+                              style={{ width: '100%', padding: '12px', border: '1px solid #ccc', borderRadius: '8px' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                      <button 
+                        className="premium-btn-primary" 
+                        style={{ width: '100%', padding: '20px', marginTop: '8px' }}
+                        onClick={generateSynthesis}
+                        disabled={generating}
+                      >
+                        {generating ? (
+                          <>
+                            <RefreshCw size={20} className="animate-spin" />
+                            {isParent ? 'Retrieving Report...' : 'Compiling Data...'}
+                          </>
                         ) : (
                           <>
-                            <div>
-                              <span className="parameter-label">VACATION DATE</span>
-                              <PremiumDatePicker 
-                                value={vacationDate} 
-                                onChange={(val) => setVacationDate(val)} 
-                                placeholder="Select Date"
-                              />
-                            </div>
-                            <div>
-                              <span className="parameter-label">NEXT TERM BEGINS</span>
-                              <PremiumDatePicker 
-                                value={resumptionDate} 
-                                onChange={(val) => setResumptionDate(val)} 
-                                placeholder="Select Date"
-                              />
-                            </div>
+                            <Zap size={20} />
+                            {isParent ? 'View Child Report' : 'Execute Synthesis'}
                           </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {operationalScope === 'Individual' && (
+                    <div className="glass-card" style={{ padding: '28px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <span className="premium-label" style={{ margin: 0 }}>Scholar Hub</span>
+                        {students.length > 0 && (
+                          <button onClick={handleSelectAll} style={{ background: 'none', border: 'none', color: 'var(--brand-green)', fontWeight: '900', fontSize: '11px', cursor: 'pointer', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                            {selectedStudents.length === filteredStudents.length ? 'Deselect All' : 'Select All'}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="scholar-search-box">
+                        <Search className="search-icon-overlay" size={18} />
+                        <input 
+                          type="text" 
+                          className="scholar-search-input" 
+                          placeholder="Search scholars..." 
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="scholar-grid-container scrollbar-hide" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                        {isLoadingStudents ? (
+                          <div style={{ padding: '40px', textAlign: 'center' }}>
+                            <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--brand-green)', margin: '0 auto' }} />
+                          </div>
+                        ) : filteredStudents.length > 0 ? filteredStudents.map(student => (
+                          <div 
+                            key={student.id} 
+                            className={`scholar-node-item ${selectedStudents.includes(student.id) ? 'active' : ''}`}
+                            onClick={() => handleStudentSelect(student.id)}
+                          >
+                            <div className="selection-indicator">
+                              {selectedStudents.includes(student.id) && <CheckCircle2 size={14} color="white" strokeWidth={3} />}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--slate-900)' }}>{student.firstName} {student.lastName}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--slate-500)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{student.admissionNumber || 'SCH-NODE'}</div>
+                            </div>
+                            <ChevronRight size={14} style={{ opacity: 0.3 }} />
+                          </div>
+                        )) : (
+                          <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                            <div style={{ color: 'var(--slate-300)', marginBottom: '12px' }}>
+                              <Users size={32} style={{ margin: '0 auto' }} />
+                            </div>
+                            <p style={{ color: 'var(--slate-400)', fontSize: '13px', fontWeight: '600' }}>
+                              {searchTerm ? `No matches for "${searchTerm}"` : 'No scholars found in this node'}
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
-
-                    <button 
-                      className="premium-btn-primary" 
-                      style={{ width: '100%', padding: '20px', marginTop: '8px' }}
-                      onClick={generateSynthesis}
-                      disabled={generating}
-                    >
-                      {generating ? (
-                        <>
-                          <RefreshCw size={20} className="animate-spin" />
-                          Compiling Data...
-                        </>
-                      ) : (
-                        <>
-                          <Zap size={20} />
-                          Execute Synthesis
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {operationalScope === 'Individual' && (
+                  )}
+                </>
+              ) : (
                   <div className="glass-card" style={{ padding: '28px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      <span className="premium-label" style={{ margin: 0 }}>Scholar Hub</span>
-                      {students.length > 0 && (
-                        <button onClick={handleSelectAll} style={{ background: 'none', border: 'none', color: 'var(--brand-green)', fontWeight: '900', fontSize: '11px', cursor: 'pointer', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                          {selectedStudents.length === filteredStudents.length ? 'Deselect All' : 'Select All'}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="scholar-search-box">
-                      <Search className="search-icon-overlay" size={18} />
-                      <input 
-                        type="text" 
-                        className="scholar-search-input" 
-                        placeholder="Search scholars..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="scholar-grid-container scrollbar-hide" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                      {isLoadingStudents ? (
-                        <div style={{ padding: '40px', textAlign: 'center' }}>
-                          <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--brand-green)', margin: '0 auto' }} />
-                        </div>
-                      ) : filteredStudents.length > 0 ? filteredStudents.map(student => (
-                        <div 
-                          key={student.id} 
-                          className={`scholar-node-item ${selectedStudents.includes(student.id) ? 'active' : ''}`}
-                          onClick={() => handleStudentSelect(student.id)}
-                        >
-                          <div className="selection-indicator">
-                            {selectedStudents.includes(student.id) && <CheckCircle2 size={14} color="white" strokeWidth={3} />}
+                    <h3 className="premium-label" style={{ marginBottom: '24px' }}>Document Library</h3>
+                    {isLoadingStudents ? (
+                      <div style={{ padding: '40px', textAlign: 'center' }}>
+                        <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--brand-green)', margin: '0 auto' }} />
+                        <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--slate-500)', fontWeight: '600' }}>Loading Reports...</div>
+                      </div>
+                    ) : publishedReports.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {publishedReports.map(report => (
+                          <div 
+                            key={report.id} 
+                            onClick={() => handleViewPublishedReport(report)}
+                            style={{ 
+                              padding: '16px', 
+                              borderRadius: '16px', 
+                              border: '1px solid var(--slate-200)', 
+                              background: 'var(--slate-50)', 
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '16px',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--brand-green)';
+                              e.currentTarget.style.background = 'white';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--slate-200)';
+                              e.currentTarget.style.background = 'var(--slate-50)';
+                              e.currentTarget.style.transform = 'none';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(0, 132, 62, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-green)' }}>
+                              <FileText size={24} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--slate-900)' }}>
+                                {report.student?.first_name} {report.student?.last_name}
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--slate-500)', fontWeight: '600', marginTop: '4px' }}>
+                                {{ '1st': 'First Term', '2nd': 'Second Term', '3rd': 'Third Term' }[report.term] || report.term} {report.conduct?.report_type === 'Mid-Term' || report.conduct?.report_type === 'mid-term' ? '(Mid-Term)' : ''} • {(report.academic_year || '').replace('-', '/')}
+                              </div>
+                            </div>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', border: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-green)' }}>
+                              <ChevronRight size={16} />
+                            </div>
                           </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--slate-900)' }}>{student.firstName} {student.lastName}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--slate-500)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{student.admissionNumber || 'SCH-NODE'}</div>
-                          </div>
-                          <ChevronRight size={14} style={{ opacity: 0.3 }} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                        <div style={{ color: 'var(--slate-300)', marginBottom: '12px' }}>
+                          <FileText size={48} style={{ margin: '0 auto' }} />
                         </div>
-                      )) : (
-                        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                          <div style={{ color: 'var(--slate-300)', marginBottom: '12px' }}>
-                            <Users size={32} style={{ margin: '0 auto' }} />
-                          </div>
-                          <p style={{ color: 'var(--slate-400)', fontSize: '13px', fontWeight: '600' }}>
-                            {searchTerm ? `No matches for "${searchTerm}"` : 'No scholars found in this node'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                        <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--slate-900)', marginBottom: '8px' }}>No Reports Available</h4>
+                        <p style={{ color: 'var(--slate-500)', fontSize: '14px', lineHeight: '1.5' }}>
+                          The school administration has not published any reports for your children yet.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </aside>
@@ -711,7 +1110,7 @@ const ReportTemplate = ({ data }) => {
                   {isMidTerm ? 'SPECIAL MID-TERM EVALUATION' : 'OFFICIAL ACADEMIC REPORT'}
                 </div>
                 <div style={{ fontSize: '10px', fontWeight: '800', color: '#005a2b', textTransform: 'uppercase', marginTop: '2px', opacity: 0.8 }}>
-                  {isMidTerm ? `${data.month || 'FEBRUARY'} SYNTHESIS, ${data.year}` : `${data.term}, ${data.year} ACADEMIC CYCLE`}
+                  {isMidTerm ? `${data.month || 'FEBRUARY'}, ${(data.year || '').replace('-', '/')}` : `${data.term}, ${(data.year || '').replace('-', '/')} ACADEMIC CYCLE`}
                 </div>
               </div>
               <img src={UbsLogo} alt="UBS Logo" style={{ width: useUltraCompactMode ? '60px' : '75px', height: useUltraCompactMode ? '60px' : '75px', objectFit: 'contain' }} />
@@ -727,7 +1126,7 @@ const ReportTemplate = ({ data }) => {
               </div>
               <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-yellow)', background: 'var(--slate-50)', borderRadius: '6px' }}>
                 <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>BASIC / SECTION</div>
-                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.class?.toUpperCase().replace('BASIC', '').replace('PRIMARY', '').trim()} - {data.section}</div>
+                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.class?.toUpperCase().replace('BASIC', '').replace('PRIMARY', '').trim()} - {mapSectionName(data.section)}</div>
               </div>
               <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-green)', background: 'var(--slate-50)', borderRadius: '6px' }}>
                 <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>ADMISSION NO.</div>
@@ -735,7 +1134,7 @@ const ReportTemplate = ({ data }) => {
               </div>
               <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-yellow)', background: 'var(--slate-50)', borderRadius: '6px' }}>
                 <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>ACADEMIC CYCLE</div>
-                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.term} | {data.year}</div>
+                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.term} | {(data.year || '').replace('-', '/')}</div>
               </div>
               <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-green)', background: 'var(--brand-green-soft)', borderRadius: '6px' }}>
                 <div style={{ fontSize: '8px', color: 'var(--brand-green)', fontWeight: '900', marginBottom: '1px' }}>TERM AGGREGATE</div>
@@ -823,12 +1222,12 @@ const ReportTemplate = ({ data }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', marginTop: '8px' }}>
             <table style={{ border: '2px solid #005a2b', borderCollapse: 'collapse', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
               <tbody>
-                <tr style={{ fontSize: '9px' }}>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', width: '40%', backgroundColor: 'var(--slate-50)' }}>ATTENDANCE</td>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', textAlign: 'center', fontWeight: '800' }}>{data.attendance || '--'}</td>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', textAlign: 'center', backgroundColor: 'var(--slate-50)' }}>OUT OF</td>
-                  <td style={{ border: '1px solid #005a2b', padding: '4px 8px', textAlign: 'center', fontWeight: '800' }}>{data.totalDays || '--'}</td>
-                </tr>
+                {!isMidTerm && (
+                  <tr style={{ fontSize: '9px' }}>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', width: '40%', backgroundColor: 'var(--slate-50)' }}>ATTENDANCE</td>
+                    <td colSpan={3} style={{ border: '1px solid #005a2b', padding: '4px 8px', textAlign: 'center', fontWeight: '800' }}>{data.attendance || '--'} out of {data.totalDays || '--'}</td>
+                  </tr>
+                )}
                 {!isMidTerm && (
                   <tr style={{ fontSize: '9px' }}>
                     <td colSpan={2} style={{ border: '1px solid #005a2b', padding: '4px 8px', fontWeight: '900', backgroundColor: 'var(--slate-50)' }}>PROMOTED TO</td>
@@ -926,6 +1325,7 @@ const ReportTemplate = ({ data }) => {
 const CohortSummaryTemplate = ({ reports, filters }) => {
   if (!reports || reports.length === 0) return null;
 
+  const isMidTerm = filters?.type === 'Mid-Term';
   const classAvg = reports.reduce((sum, r) => sum + Number(r.aggregate || 0), 0) / reports.length;
   const topScore = Math.max(...reports.map(r => Number(r.aggregate || 0)));
 
@@ -972,7 +1372,7 @@ const CohortSummaryTemplate = ({ reports, filters }) => {
                 CLASS PERFORMANCE SYNTHESIS (BROADSHEET)
               </div>
               <div style={{ fontSize: '12px', fontWeight: '800', color: '#00843e', textTransform: 'uppercase', marginTop: '5px', opacity: 0.8 }}>
-                {filters.grade} - {filters.section ? `SECTION ${filters.section}` : 'ALL SECTIONS'} | {filters.term}, {filters.year}
+                {filters.grade} - {filters.section ? `SECTION ${mapSectionName(filters.section)}` : 'ALL SECTIONS'} | {filters.term}, {(filters.year || '').replace('-', '/')}
               </div>
             </div>
             <img src={UbsLogo} alt="UBS Logo" style={{ width: useUltraCompact ? '60px' : '85px', height: useUltraCompact ? '60px' : '85px', objectFit: 'contain' }} />
@@ -985,7 +1385,7 @@ const CohortSummaryTemplate = ({ reports, filters }) => {
             </div>
             <div>
               <div style={{ fontSize: '9px', color: 'var(--slate-500)', fontWeight: '900' }}>SECTION NODE</div>
-              <div style={{ fontSize: '13px', fontWeight: '1000', color: 'var(--brand-green)' }}>{filters.section || 'ALL'}</div>
+              <div style={{ fontSize: '13px', fontWeight: '1000', color: 'var(--brand-green)' }}>{mapSectionName(filters.section) || 'ALL'}</div>
             </div>
             <div>
               <div style={{ fontSize: '9px', color: 'var(--slate-500)', fontWeight: '900' }}>CLASS AVERAGE</div>
@@ -1006,7 +1406,7 @@ const CohortSummaryTemplate = ({ reports, filters }) => {
                 <th style={{ padding: getDensity('headerPadding'), textAlign: 'left', borderBottom: '2px solid #005a2b' }}>SCHOLAR IDENTITY</th>
                 <th style={{ padding: getDensity('headerPadding'), textAlign: 'center', borderBottom: '2px solid #005a2b' }}>ADMISSION</th>
                 <th style={{ padding: getDensity('headerPadding'), textAlign: 'center', borderBottom: '2px solid #005a2b' }}>AGGREGATE</th>
-                <th style={{ padding: getDensity('headerPadding'), textAlign: 'center', borderBottom: '2px solid #005a2b' }}>ATTENDANCE</th>
+                {!isMidTerm && <th style={{ padding: getDensity('headerPadding'), textAlign: 'center', borderBottom: '2px solid #005a2b' }}>ATTENDANCE</th>}
                 <th style={{ padding: getDensity('headerPadding'), textAlign: 'left', borderBottom: '2px solid #005a2b' }}>REMARKS</th>
               </tr>
             </thead>
@@ -1017,7 +1417,7 @@ const CohortSummaryTemplate = ({ reports, filters }) => {
                   <td style={{ padding: getDensity('padding'), fontWeight: '800' }}>{report.studentName?.toUpperCase()}</td>
                   <td style={{ padding: getDensity('padding'), textAlign: 'center', color: 'var(--slate-600)', fontWeight: '700' }}>{report.admissionNumber}</td>
                   <td style={{ padding: getDensity('padding'), textAlign: 'center', fontWeight: '900', color: 'var(--brand-green)' }}>{report.aggregate}</td>
-                  <td style={{ padding: getDensity('padding'), textAlign: 'center', fontWeight: '800' }}>{report.attendance} / {report.totalDays}</td>
+                  {!isMidTerm && <td style={{ padding: getDensity('padding'), textAlign: 'center', fontWeight: '800' }}>{report.attendance} / {report.totalDays}</td>}
                   <td style={{ padding: getDensity('padding'), fontSize: '8.5px', fontWeight: '700', fontStyle: 'italic', color: 'var(--slate-500)' }}>{report.teacherRemarks?.substring(0, 50)}...</td>
                 </tr>
               ))}

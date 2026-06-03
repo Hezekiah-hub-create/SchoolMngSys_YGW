@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentAPI } from '../../../services/api';
+import { studentAPI, teacherAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import PremiumSelect from '../../../components/common/PremiumSelect';
 import { useAlert } from '../../../context/AlertContext';
@@ -18,6 +18,10 @@ const PromoteStudents = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState('');
   const { showAlert } = useAlert();
+
+  const isAdmin = user?.role === 'admin';
+  const isTeacher = user?.role === 'teacher';
+  const [masterClasses, setMasterClasses] = useState([]);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -42,6 +46,20 @@ const PromoteStudents = () => {
     return gradeOptions[currentIndex + 1];
   };
 
+  useEffect(() => {
+    if (isTeacher) {
+      teacherAPI.getMyCourses().then(res => {
+        if (res.data?.success) {
+          const mClasses = res.data.masterClasses || [];
+          setMasterClasses(mClasses);
+          if (mClasses.length > 0 && !filterGrade) {
+            setFilterGrade(mClasses[0].name || mClasses[0].grade);
+          }
+        }
+      }).catch(err => console.error(err));
+    }
+  }, [user, isTeacher]);
+
   const fetchStudents = async () => {
     try {
       setLoading(true);
@@ -59,9 +77,17 @@ const PromoteStudents = () => {
     }
   };
 
+  const allowedGrades = isAdmin ? gradeOptions : masterClasses.map(m => m.name || m.grade);
+
   const filteredStudents = students.filter(s => {
     const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
     const adm = (s.admissionNumber || '').toLowerCase();
+    
+    // Teacher Master Class Restriction
+    if (!isAdmin) {
+      if (!allowedGrades.includes(s.grade)) return false;
+    }
+    
     return fullName.includes(searchTerm.toLowerCase()) || adm.includes(searchTerm.toLowerCase());
   });
 
@@ -99,7 +125,9 @@ const PromoteStudents = () => {
       const response = await studentAPI.getAll({ limit: 10000 });
       const allStudents = response?.data?.data || response?.data || [];
       
-      for (const student of allStudents) {
+      const eligibleStudents = allStudents.filter(s => isAdmin || allowedGrades.includes(s.grade));
+      
+      for (const student of eligibleStudents) {
         const newGrade = getNextGrade(student.grade);
         if (newGrade !== student.grade) {
           try {
@@ -126,7 +154,7 @@ const PromoteStudents = () => {
   const initializeGlobalAdvancement = () => {
     showAlert({
       title: 'Global Advancement Protocol',
-      message: `You are about to promote all ${totalStudents} students in the system. This action is irreversible and should only be performed after final results are verified. Proceed?`,
+      message: `You are about to promote ${isAdmin ? 'all' : 'your'} ${totalStudents} students. This action is irreversible and should only be performed after final results are verified. Proceed?`,
       type: 'confirm',
       onConfirm: () => {
         handlePromoteAll();
@@ -208,7 +236,7 @@ const PromoteStudents = () => {
             </div>
             <button 
               onClick={initializeGlobalAdvancement} 
-              disabled={loading || totalStudents === 0}
+              disabled={loading || filteredStudents.length === 0 || (!isAdmin && masterClasses.length === 0)}
               style={{ 
                 backgroundColor: 'white', 
                 color: 'var(--brand-green)', 
@@ -254,8 +282,8 @@ const PromoteStudents = () => {
                   value={filterGrade}
                   onChange={(e) => setFilterGrade(e.target.value)}
                   options={[
-                    { value: '', label: 'All Levels' },
-                    ...gradeOptions.map(g => ({ value: g, label: displayGrade(g) }))
+                    { value: '', label: isAdmin ? 'All Levels' : 'My Master Classes' },
+                    ...(isAdmin ? gradeOptions : allowedGrades).map(g => ({ value: g, label: displayGrade(g) }))
                   ]}
                   placeholder="Filter Level"
                 />
@@ -290,7 +318,7 @@ const PromoteStudents = () => {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ backgroundColor: '#f8fafc' }}>
+                <tr style={{ backgroundColor: '#ffffff' }}>
                   <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Student Identity</th>
                   <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Admission</th>
                   <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Current Phase</th>
@@ -360,7 +388,7 @@ const PromoteStudents = () => {
 
           {/* Premium Pagination */}
           {!loading && totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', backgroundColor: '#ffffff', borderTop: '1px solid #f1f5f9' }}>
               <p style={{ fontSize: '13px', color: 'var(--slate-500)', fontWeight: '600' }}>
                 Showing <span style={{ color: 'var(--slate-900)', fontWeight: '800' }}>{(page - 1) * limit + 1} - {Math.min(page * limit, totalStudents)}</span> of <span style={{ color: 'var(--slate-900)', fontWeight: '800' }}>{totalStudents}</span> students
               </p>

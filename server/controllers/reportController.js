@@ -26,9 +26,9 @@ const getInterpretation = (score, settings) => {
   if (s >= 90) return 'Highest';
   if (s >= 80) return 'Higher';
   if (s >= 70) return 'High';
-  if (s >= 60) return 'High Average';
+  if (s >= 60) return 'High Avg';
   if (s >= 55) return 'Average';
-  if (s >= 50) return 'Lower Average';
+  if (s >= 50) return 'Low Avg';
   if (s >= 40) return 'Low';
   if (s >= 35) return 'Lower';
   return 'Lowest';
@@ -44,15 +44,15 @@ const fallbackGradeBand = (score, settings) => {
   }
 
   // Fallback
-  if (s >= 90) return 'A';
-  if (s >= 80) return 'B';
-  if (s >= 70) return 'C';
-  if (s >= 60) return 'D';
-  if (s >= 55) return 'E';
-  if (s >= 50) return 'F';
-  if (s >= 40) return 'G';
-  if (s >= 35) return 'H';
-  return 'I';
+  if (s >= 90) return '1';
+  if (s >= 80) return '2';
+  if (s >= 70) return '3';
+  if (s >= 60) return '4';
+  if (s >= 55) return '5';
+  if (s >= 50) return '6';
+  if (s >= 40) return '7';
+  if (s >= 35) return '8';
+  return '9';
 };
 
 const getGradeValue = (score, settings) => {
@@ -412,12 +412,25 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     classPosition,
     subjects: mergedSubjects.filter(s => s.category === 'CORE'),
     electives: mergedSubjects.filter(s => s.category === 'ELECTIVE'),
-    attendance: attendancePresent > 0 ? attendancePresent : '--',
-    totalDays: settings.total_days || (reportMetadata ? reportMetadata.total_days : 0) || (attendanceData ? attendanceData.length : 0) || '--',
-    conduct: (reportMetadata?.conduct || 'VERY GOOD').toUpperCase(),
-    attitude: (reportMetadata?.attitude || 'CONSISTENT').toUpperCase(),
-    interest: (reportMetadata?.interest || 'ACADEMIC EXCELLENCE').toUpperCase(),
-    teacherRemarks: reportMetadata?.teacher_remarks || 'A very good performance. Keep it up.',
+    attendance: attendanceData && attendanceData.length > 0 ? attendancePresent : (reportMetadata?.attendance_days || reportMetadata?.attendance || '--'),
+    totalDays: settings.total_days || reportMetadata?.total_school_days || reportMetadata?.total_days || (attendanceData && attendanceData.length > 0 ? attendanceData.length : '--'),
+    conduct: (() => {
+      const c = reportMetadata?.conduct;
+      const val = (typeof c === 'object' && c !== null) ? (c.conduct || 'VERY GOOD') : (c || 'VERY GOOD');
+      return String(val).toUpperCase();
+    })(),
+    attitude: (() => {
+      const c = reportMetadata?.conduct;
+      const val = (typeof c === 'object' && c !== null) ? (c.attitude || 'CONSISTENT') : (reportMetadata?.attitude || 'CONSISTENT');
+      return String(val).toUpperCase();
+    })(),
+    interest: (() => {
+      const c = reportMetadata?.conduct;
+      const val = (typeof c === 'object' && c !== null) ? (c.interest || 'ACADEMIC EXCELLENCE') : (reportMetadata?.interest || 'ACADEMIC EXCELLENCE');
+      return String(val).toUpperCase();
+    })(),
+    teacherRemarks: reportMetadata?.class_teacher_remarks || reportMetadata?.teacher_remarks || 'A very good performance. Keep it up.',
+    promotedTo: String(reportMetadata?.promoted_to || student?.promoted_to || '--').toUpperCase(),
     teacherName: teacherName.toUpperCase()
   };
 };
@@ -458,6 +471,29 @@ const getStudentReport = asyncHandler(async (req, res) => {
 
     if (!isMasterOfStudent) {
       return res.status(403).json({ message: 'Access denied. You can only generate reports for students in the section you are the Class Master of.' });
+    }
+  }
+
+  // Security check for parents — only allow access to published reports
+  if (user.role === 'parent') {
+    const termMapping = { 'First Term': '1st', 'Second Term': '2nd', 'Third Term': '3rd' };
+    const reverseMapping = { '1st': 'First Term', '2nd': 'Second Term', '3rd': 'Third Term' };
+    const dbTerm = termMapping[term] || term;
+    const readableTerm = reverseMapping[term] || term;
+    // Check all possible formats the term could be stored as
+    const termVariants = [...new Set([term, dbTerm, readableTerm, term.toUpperCase(), term.toLowerCase()])];
+
+    const { data: checkMeta } = await supabase.from('report_cards')
+      .select('is_published')
+      .eq('student_id', student.id)
+      .in('term', termVariants)
+      .maybeSingle();
+
+    if (!checkMeta || !checkMeta.is_published) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'The report for this academic term has not been published by the school administration yet.' 
+      });
     }
   }
 
@@ -652,7 +688,211 @@ const getClassReport = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Send report to parents
+// @route   POST /api/reports/send
+// @access  Private
+const sendReportToParents = asyncHandler(async (req, res) => {
+  const { reports } = req.body;
+  if (!reports || reports.length === 0) {
+    return res.status(400).json({ success: false, message: 'No reports to send.' });
+  }
+
+  const supabase = require('../config/supabase');
+
+  const termMapping = {
+    'First Term': '1st',
+    'Second Term': '2nd',
+    'Third Term': '3rd'
+  };
+
+  const results = [];
+
+  for (const r of reports) {
+    const rawTerm = r.term || 'First Term';
+    const term = termMapping[rawTerm] || String(rawTerm).toLowerCase().replace(' ', '');
+    // Normalize academic year: both "2024/2025" and "2024-2025" → "2024-2025"
+    const academic_year = (r.year || r.academic_year || '2024-2025').replace('/', '-');
+    const student_id = r.studentId || r.student_id;
+    const grade = r.class || r.studentGrade || r.grade || 'N/A';
+
+    console.log(`[SEND REPORT] student_id=${student_id} term=${term} year=${academic_year} grade=${grade}`);
+
+    if (!student_id) {
+      console.warn('[SEND REPORT] Skipping report with no student_id:', JSON.stringify(r).substring(0, 200));
+      results.push({ success: false, reason: 'Missing student_id' });
+      continue;
+    }
+
+    const reportPayload = {
+      student_id,
+      grade,
+      term,
+      academic_year,
+      // conduct is a JSONB column — store all behavioral fields inside it
+      conduct: {
+        conduct: String(r.conduct || 'VERY GOOD'),
+        attitude: String(r.attitude || 'CONSISTENT'),
+        interest: String(r.interest || 'ACADEMIC EXCELLENCE'),
+        report_type: r.type || r.reportType || 'Terminal Report'
+      },
+      class_teacher_remarks: r.teacherRemarks || r.teacher_remarks || 'A very good performance. Keep it up.',
+      attendance_days: Number(r.attendance || 0),
+      total_school_days: Number(r.totalDays || r.total_days || 0),
+      is_published: true
+    };
+
+    const { data: existing } = await supabase.from('report_cards')
+      .select('id')
+      .eq('student_id', student_id)
+      .eq('term', term)
+      .eq('academic_year', academic_year)
+      .maybeSingle();
+
+    let opResult;
+    if (existing) {
+      console.log(`[SEND REPORT] Updating existing record id=${existing.id}`);
+      opResult = await supabase.from('report_cards').update(reportPayload).eq('id', existing.id);
+    } else {
+      console.log(`[SEND REPORT] Inserting new record for student_id=${student_id}`);
+      opResult = await supabase.from('report_cards').insert([reportPayload]);
+    }
+
+    if (opResult.error) {
+      console.error('[SEND REPORT] DB error:', JSON.stringify(opResult.error));
+      results.push({ success: false, error: opResult.error.message });
+    } else {
+      results.push({ success: true, student_id, term });
+    }
+  }
+
+  const successCount = results.filter(r => r.success).length;
+  const failCount = results.filter(r => !r.success).length;
+
+  console.log(`[SEND REPORT] Done: ${successCount} saved, ${failCount} failed`);
+
+  if (successCount === 0) {
+    return res.status(500).json({
+      success: false,
+      message: `Failed to save reports. Errors: ${results.map(r => r.error || r.reason).join(', ')}`
+    });
+  }
+
+  res.json({
+    success: true,
+    message: `${successCount} report(s) successfully dispatched and are now accessible in the Parent Portal.`,
+    saved: successCount,
+    failed: failCount
+  });
+});
+
+// @desc    Get published reports for a parent's children
+// @route   GET /api/reports/published
+// @access  Private (Parent)
+const getPublishedReports = asyncHandler(async (req, res) => {
+  const user = req.user;
+  if (user.role !== 'parent') {
+    return res.status(403).json({ success: false, message: 'Access denied.' });
+  }
+
+  const supabase = require('../config/supabase');
+  const { COLLECTIONS } = require('../services/supabaseService');
+
+  const { data: parentProfile } = await supabase
+    .from(COLLECTIONS.PARENTS)
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!parentProfile) return res.status(404).json({ success: false, message: 'Parent profile not found.' });
+
+  // Students store parent links as an array field: parent_ids
+  const { data: children } = await supabase
+    .from(COLLECTIONS.STUDENTS)
+    .select('id, first_name, last_name, admission_number, grade')
+    .contains('parent_ids', [parentProfile.id]);
+
+  if (!children || children.length === 0) return res.json({ success: true, data: [] });
+
+  const childIds = children.map(c => c.id);
+
+  const { data: publishedReports } = await supabase
+    .from('report_cards')
+    .select('*')
+    .in('student_id', childIds)
+    .eq('is_published', true)
+    .order('created_at', { ascending: false });
+
+  const reportsWithStudent = (publishedReports || []).map(report => {
+    const student = children.find(c => c.id === report.student_id);
+    return {
+      ...report,
+      student
+    };
+  });
+
+  res.json({ success: true, data: reportsWithStudent });
+});
+
+// @desc    Delete a published report (Parent)
+// @route   DELETE /api/reports/published/:id
+// @access  Private (Parent)
+const deletePublishedReport = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { id } = req.params;
+
+  if (user.role !== 'parent') {
+    return res.status(403).json({ success: false, message: 'Access denied.' });
+  }
+
+  const supabase = require('../config/supabase');
+  const { COLLECTIONS } = require('../services/supabaseService');
+
+  // Verify the parent actually owns this report
+  const { data: parentProfile } = await supabase
+    .from(COLLECTIONS.PARENTS)
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!parentProfile) return res.status(404).json({ success: false, message: 'Parent profile not found.' });
+
+  // Get the report to verify it belongs to one of their children
+  const { data: report } = await supabase
+    .from('report_cards')
+    .select('student_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (!report) {
+    return res.status(404).json({ success: false, message: 'Report not found.' });
+  }
+
+  const { data: children } = await supabase
+    .from(COLLECTIONS.STUDENTS)
+    .select('id')
+    .contains('parent_ids', [parentProfile.id]);
+    
+  const childIds = children?.map(c => c.id) || [];
+  
+  if (!childIds.includes(report.student_id)) {
+    return res.status(403).json({ success: false, message: 'Access denied to this report.' });
+  }
+
+  // Soft delete or just remove from this parent's view? Since report_cards are tied to students, we'll hard delete it 
+  // or set is_published to false. Since it's a "Delete report sent" action, we'll delete it.
+  const { error } = await supabase.from('report_cards').delete().eq('id', id);
+
+  if (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete report.' });
+  }
+
+  res.json({ success: true, message: 'Report successfully deleted.' });
+});
+
 module.exports = {
   getStudentReport,
-  getClassReport
+  getClassReport,
+  sendReportToParents,
+  getPublishedReports,
+  deletePublishedReport
 };

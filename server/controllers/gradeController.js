@@ -18,6 +18,18 @@ const getAllGrades = asyncHandler(async (req, res) => {
       teacherCourseIds = teacherCourses
         .filter(c => (c.teacher_id || c.teacher) === teacherProfile.id)
         .map(c => c.id);
+        
+      // Coordinator Logic
+      let coordinatorCourseIds = [];
+      if (teacherProfile.coordinator_block) {
+        const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
+        const allClasses = await supabaseService.getAll(COLLECTIONS.ACADEMIC_CLASSES);
+        const validClasses = allClasses.filter(c => c.name && c.name.toLowerCase().includes(block)).map(c => c.id);
+        
+        coordinatorCourseIds = teacherCourses.filter(cs => validClasses.includes(cs.class_id)).map(cs => cs.id);
+      }
+      
+      teacherCourseIds = [...teacherCourseIds, ...coordinatorCourseIds];
       
       // If course is requested, ensure it's one of the teacher's courses
       if (course && !teacherCourseIds.includes(course)) {
@@ -114,7 +126,17 @@ const createGrade = asyncHandler(async (req, res) => {
     
     // Verify course belongs to teacher
     const courseData = await supabaseService.getById(COLLECTIONS.COURSES, courseId);
-    if (!courseData || (courseData.teacher_id !== teacherProfile.id && courseData.teacher !== teacherProfile.id)) {
+    
+    let isCoordinator = false;
+    if (teacherProfile.coordinator_block && courseData) {
+      const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
+      const classData = await supabaseService.getById(COLLECTIONS.ACADEMIC_CLASSES, courseData.class_id);
+      if (classData && classData.name && classData.name.toLowerCase().includes(block)) {
+        isCoordinator = true;
+      }
+    }
+
+    if (!courseData || (courseData.teacher_id !== teacherProfile.id && courseData.teacher !== teacherProfile.id && !isCoordinator)) {
       return res.status(403).json({ message: 'Access denied. You can only record grades for your own classes.' });
     }
   }
@@ -206,6 +228,11 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
       message: 'Access denied. Only teachers can enter or modify student marks.' 
     });
   }
+  
+  let teacherProfile = null;
+  if (user.role === 'teacher' || user.role === 'staff') {
+    teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+  }
 
   const { grades } = req.body;
   
@@ -251,24 +278,48 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
   for (const grade of grades) {
     if (!grade.student_id || !grade.course_id) continue;
     
+    if (teacherProfile) {
+      const courseData = await supabaseService.getById(COLLECTIONS.COURSES, grade.course_id);
+      let isCoordinator = false;
+      if (teacherProfile.coordinator_block && courseData) {
+        const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
+        const classData = await supabaseService.getById(COLLECTIONS.ACADEMIC_CLASSES, courseData.class_id);
+        if (classData && classData.name && classData.name.toLowerCase().includes(block)) {
+          isCoordinator = true;
+        }
+      }
+      if (courseData && courseData.teacher_id !== teacherProfile.id && courseData.teacher !== teacherProfile.id && !isCoordinator) {
+         failedGrades.push({ name: grade.student_name, error: 'Access denied to this course' });
+         continue;
+      }
+    }
+    
     const finalTerm = mapTerm(grade.term);
-    const gradeData = {
-      student_id: grade.student_id,
-      course_id: grade.course_id,
-      academic_year: grade.academic_year,
-      term: finalTerm,
-      assessments: [
-        { name: 'Class Score', score: parseInt(grade.classScore) || 0, maxScore: 50 },
-        { name: 'Exam Score', score: parseInt(grade.examScore) || 0, maxScore: 50 }
-      ],
-      total_score: (parseInt(grade.classScore) || 0) + (parseInt(grade.examScore) || 0),
-      letter_grade: grade.grade || 'F',
-      grade_point: ((parseInt(grade.classScore) || 0) + (parseInt(grade.examScore) || 0)) >= 70 ? 4 : 
-                   ((parseInt(grade.classScore) || 0) + (parseInt(grade.examScore) || 0)) >= 60 ? 3 : 
-                   ((parseInt(grade.classScore) || 0) + (parseInt(grade.examScore) || 0)) >= 50 ? 2 : 
-                   ((parseInt(grade.classScore) || 0) + (parseInt(grade.examScore) || 0)) >= 40 ? 1 : 0,
-      remarks: grade.remarks || 'Satisfactory'
-    };
+      const cat1 = parseInt(grade.cat1) || 0;
+      const gw = parseInt(grade.gw) || 0;
+      const cat2 = parseInt(grade.cat2) || 0;
+      const pw = parseInt(grade.pw) || 0;
+      const exam = parseInt(grade.exam) || 0;
+      const rawTotal = cat1 + gw + cat2 + pw + exam;
+      const percentage = Math.round(rawTotal / 2);
+
+      const gradeData = {
+        student_id: grade.student_id,
+        course_id: grade.course_id,
+        academic_year: grade.academic_year,
+        term: finalTerm,
+        assessments: [
+          { name: 'Cat1', score: cat1, maxScore: 25 },
+          { name: 'GW', score: gw, maxScore: 25 },
+          { name: 'Cat2', score: cat2, maxScore: 25 },
+          { name: 'PW', score: pw, maxScore: 25 },
+          { name: 'Exam', score: exam, maxScore: 100 }
+        ],
+        total_score: rawTotal,
+        letter_grade: grade.grade || '9',
+        grade_point: parseInt(grade.grade) || 9,
+        remarks: grade.remarks || 'Satisfactory'
+      };
 
     const existing = existingGrades.find(g => 
       (String(g.student_id) === String(grade.student_id) || String(g.student) === String(grade.student_id)) &&

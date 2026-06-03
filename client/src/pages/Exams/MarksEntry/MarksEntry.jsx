@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { studentAPI, courseAPI, gradeAPI, settingsAPI, teacherAPI } from '../../../services/api';
+import { studentAPI, courseAPI, gradeAPI, settingsAPI, teacherAPI, academicClassesAPI } from '../../../services/api';
 import PremiumSelect from '../../../components/common/PremiumSelect';
+import { mapSectionName } from '../../../utils/sectionHelper';
 
 const displayGrade = (g) => {
   if (!g) return 'No Grade';
   let str = g.toString().trim();
-  // Transform Primary 1-6 to Basic 1-6 for UI display
   const primaryMatch = str.match(/^Primary\s*([1-6])$/i);
   if (primaryMatch) return `Basic ${primaryMatch[1]}`;
   return str;
@@ -46,6 +46,7 @@ const MarksEntry = () => {
   });
 
   const [courses, setCourses] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [marks, setMarks] = useState({});
   const [loading, setLoading] = useState(false);
@@ -58,10 +59,14 @@ const MarksEntry = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // canEdit: admin always, teacher only if the selected course is one they personally teach
+  // canEdit: only teacher if the selected course is one they personally teach (Admins are strictly view-only)
   const selectedCourse = courses.find(c => (c.id || c._id) === filters.courseId);
   const isAssignedToSelectedCourse = isTeacher && teacherCourses.some(tc => (tc.id || tc._id) === filters.courseId);
-  const canEdit = isAdmin || isAssignedToSelectedCourse;
+  const canEdit = isTeacher && isAssignedToSelectedCourse;
+
+  // Derive available sections for the selected grade (for Admins)
+  const selectedClassObj = classes.find(c => c.name === filters.grade);
+  const availableSections = selectedClassObj?.sections || [];
 
   // Derive all unique class+section combos the teacher teaches
   const teachingClasses = React.useMemo(() => {
@@ -73,9 +78,8 @@ const MarksEntry = () => {
         if (seen.has(key)) return false;
         seen.add(key); return true;
       })
-      .map(c => ({ grade: c.grade, section: c.section, label: `${displayGrade(c.grade)} — Section ${c.section}` }))
+      .map(c => ({ grade: c.grade, section: c.section, label: `${displayGrade(c.grade)} — Section ${mapSectionName(c.section)}` }))
       .sort((a, b) => {
-        // Put master class first
         if (masterClass) {
           const aIsMaster = a.grade === (masterClass.name || masterClass.grade) && a.section === masterClass.section;
           const bIsMaster = b.grade === (masterClass.name || masterClass.grade) && b.section === masterClass.section;
@@ -106,6 +110,12 @@ const MarksEntry = () => {
         }));
       }
 
+      // Fetch all academic classes for the dropdown
+      const classesRes = await academicClassesAPI.getAll();
+      if (classesRes.data?.data) {
+        setClasses(classesRes.data.data);
+      }
+
       if (isTeacher) {
         // Teachers: fetch only their own courses + master class info
         const teacherRes = await teacherAPI.getMyCourses();
@@ -117,9 +127,7 @@ const MarksEntry = () => {
           const mClasses = teacherRes.data.masterClasses || [];
           if (mClasses.length > 0) {
             const mc = mClasses[0];
-            console.log('[DEBUG] Master class data:', mc);
             setMasterClass(mc);
-            // mc.name = grade name (e.g. "JHS 1"), mc.section = section letter (e.g. "A")
             setFilters(prev => ({
               ...prev,
               grade: mc.name || mc.grade || '',
@@ -128,8 +136,9 @@ const MarksEntry = () => {
           }
         }
       } else {
-        // Admin: see all courses
-        const coursesRes = await courseAPI.getAll();
+        // Admin: see all courses and force overview mode
+        setViewMode('overview');
+        const coursesRes = await courseAPI.getAll({ limit: 1000 });
         if (coursesRes.data.success) {
           setCourses(coursesRes.data.data);
         }
@@ -176,13 +185,23 @@ const MarksEntry = () => {
       const [studentsRes, ...gradesResponses] = await Promise.all(promises);
 
       if (studentsRes.data.success) {
-        const studentList = studentsRes.data.data;
-        setStudents(studentList);
+        let studentsList = studentsRes.data.data;
+        
+        // Strict Section Filtering: if a section is selected, strictly enforce it.
+        if (filters.section && filters.section !== '') {
+          studentsList = studentsList.filter(s => {
+            const dbSec = String(s.section || '').toLowerCase().replace('section', '').trim();
+            const filterSec = String(filters.section).toLowerCase().replace('section', '').trim();
+            return dbSec.includes(filterSec) || filterSec.includes(dbSec);
+          });
+        }
+        
+        setStudents(studentsList);
         
         const allGrades = gradesResponses.flatMap(res => res.data?.data || []);
         
         const initialMarks = {};
-        studentList.forEach(s => {
+        studentsList.forEach(s => {
           const sId = s.id || s._id;
 
           // Get ALL matching grade records for this student (can be multiple from different sections)
@@ -200,17 +219,21 @@ const MarksEntry = () => {
             : null;
           
           if (existingGrade) {
-            const assessments = existingGrade.assessments || [];
-            const classScore = assessments.find(a => a.name === 'Class Score')?.score || 0;
-            const examScore = assessments.find(a => a.name === 'Exam Score')?.score || 0;
-            
+            // First try to read from the assessments array (new format), then fallback to flat fields (bulk-submit format)
+            const savedAssessments = Array.isArray(existingGrade.assessments) ? existingGrade.assessments : [];
+            const cat1 = savedAssessments.find(a => a.name === 'Cat1')?.score ?? existingGrade.cat1 ?? 0;
+            const gw   = savedAssessments.find(a => a.name === 'GW')?.score   ?? existingGrade.gw   ?? 0;
+            const cat2 = savedAssessments.find(a => a.name === 'Cat2')?.score ?? existingGrade.cat2 ?? 0;
+            const pw   = savedAssessments.find(a => a.name === 'PW')?.score   ?? existingGrade.pw   ?? 0;
+            const exam = savedAssessments.find(a => a.name === 'Exam')?.score ?? existingGrade.exam ?? 0;
+
             initialMarks[sId] = {
-              classScore, examScore,
+              cat1, gw, cat2, pw, exam,
               id: existingGrade.id || existingGrade._id,
               courseId: existingGrade.course_id || existingGrade.course || filters.courseId
             };
           } else {
-            initialMarks[sId] = { classScore: 0, examScore: 0, courseId: filters.courseId };
+            initialMarks[sId] = { cat1: 0, gw: 0, cat2: 0, pw: 0, exam: 0, courseId: filters.courseId };
           }
         });
         setMarks(initialMarks);
@@ -221,8 +244,8 @@ const MarksEntry = () => {
     finally { setLoading(false); }
   };
 
-  const handleMarkChange = (studentId, field, value) => {
-    const val = Math.min(50, Math.max(0, parseInt(value) || 0));
+  const handleMarkChange = (studentId, field, value, max) => {
+    const val = Math.min(max, Math.max(0, parseInt(value) || 0));
     setMarks(prev => ({
       ...prev,
       [studentId]: { ...prev[studentId], [field]: val }
@@ -233,14 +256,25 @@ const MarksEntry = () => {
   const calculateTotal = (studentId) => {
     const m = marks[studentId];
     if (!m) return 0;
-    return (m.classScore || 0) + (m.examScore || 0);
+    return (m.cat1 || 0) + (m.gw || 0) + (m.cat2 || 0) + (m.pw || 0) + (m.exam || 0);
   };
 
 
   const getGrade = (total) => {
-    if (!settings || !settings.gradingSystem) return total >= 70 ? 'A' : total >= 60 ? 'B' : total >= 50 ? 'C' : 'F';
-    const gradeItem = settings.gradingSystem.find(g => total >= g.minScore && total <= g.maxScore);
-    return gradeItem ? gradeItem.grade : 'F';
+    const percentage = Math.round(total / 2);
+    if (!settings || !settings.gradingSystem || settings.gradingSystem.length === 0) {
+      if (percentage >= 90) return '1';
+      if (percentage >= 80) return '2';
+      if (percentage >= 70) return '3';
+      if (percentage >= 60) return '4';
+      if (percentage >= 55) return '5';
+      if (percentage >= 50) return '6';
+      if (percentage >= 40) return '7';
+      if (percentage >= 35) return '8';
+      return '9';
+    }
+    const gradeItem = settings.gradingSystem.find(g => percentage >= g.minScore && percentage <= g.maxScore);
+    return gradeItem ? gradeItem.grade : '9';
   };
 
   const submitMarks = async () => {
@@ -251,7 +285,7 @@ const MarksEntry = () => {
       
       const gradesToSubmit = students.map(s => {
         const sId = s.id || s._id;
-        const m = marks[sId] || { classScore: 0, examScore: 0, courseId: filters.courseId };
+        const m = marks[sId] || { cat1: 0, gw: 0, cat2: 0, pw: 0, exam: 0, courseId: filters.courseId };
         const total = calculateTotal(sId);
         return {
           id: m.id,
@@ -261,8 +295,11 @@ const MarksEntry = () => {
           course_name: courses.find(c => (c.id === (m.courseId || filters.courseId) || c._id === (m.courseId || filters.courseId)))?.name,
           academic_year: currentYear,
           term: filters.term,
-          classScore: m.classScore || 0,
-          examScore: m.examScore || 0,
+          cat1: m.cat1 || 0,
+          gw: m.gw || 0,
+          cat2: m.cat2 || 0,
+          pw: m.pw || 0,
+          exam: m.exam || 0,
           score: total,
           grade: getGrade(total)
         };
@@ -362,13 +399,13 @@ const MarksEntry = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', marginBottom: '24px' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
               <div>
-                <p style={{ fontSize: '13px', fontWeight: '900', color: '#15803d', margin: 0 }}>Class Master — {masterClass.name} Section {masterClass.section}</p>
+                <p style={{ fontSize: '13px', fontWeight: '900', color: '#15803d', margin: 0 }}>Class Master — {masterClass.name} Section {mapSectionName(masterClass.section)}</p>
                 <p style={{ fontSize: '12px', fontWeight: '600', color: '#4ade80', margin: '2px 0 0' }}>You can view all student marks. You can only edit marks for subjects you personally teach.</p>
               </div>
             </div>
           )}
 
-          {/* Mode Toggle for Class Masters */}
+          {/* Mode Toggle for Class Masters (Admins are forced to overview) */}
           {isTeacher && masterClass && (
             <div style={{ display: 'flex', gap: '0', marginBottom: '32px', background: '#f1f5f9', padding: '6px', borderRadius: '16px', width: 'fit-content' }}>
               {[
@@ -420,7 +457,6 @@ const MarksEntry = () => {
           )}
 
 
-          {viewMode === 'entry' && (
           <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
 
             {/* Class Selector — for teachers, choose from all classes they teach */}
@@ -446,36 +482,54 @@ const MarksEntry = () => {
                 />
               </div>
             ) : (
+              <>
+                <div style={{ flex: '1 1 200px' }}>
+                  <label className="premium-label">Academic Grade</label>
+                  <PremiumSelect
+                    name="grade"
+                    value={filters.grade}
+                    onChange={(e) => setFilters(prev => ({ ...prev, grade: e.target.value, courseId: '' }))}
+                    options={classes.map(c => ({ value: c.name, label: displayGrade(c.name) }))}
+                    placeholder="Select Grade Level"
+                  />
+                </div>
+                <div style={{ flex: '1 1 150px' }}>
+                  <label className="premium-label">Section / Color</label>
+                  <PremiumSelect
+                    name="section"
+                    value={filters.section}
+                    onChange={(e) => setFilters(prev => ({ ...prev, section: e.target.value, courseId: '' }))}
+                    options={[
+                      { value: '', label: 'All Sections' },
+                      ...availableSections.map(s => ({ value: s.name, label: s.name }))
+                    ]}
+                    placeholder="Select Section"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Subject — filtered to courses in the selected class (Entry Mode Only) */}
+            {viewMode === 'entry' && (
               <div style={{ flex: '1 1 200px' }}>
-                <label className="premium-label">Academic Grade</label>
+                <label className="premium-label">Curriculum Subject</label>
                 <PremiumSelect
-                  name="grade"
-                  value={filters.grade}
-                  onChange={(e) => setFilters(prev => ({ ...prev, grade: e.target.value }))}
-                  options={[...new Set(courses.map(c => c.grade))].map(g => ({ value: g, label: displayGrade(g) }))}
-                  placeholder="Select Grade Level"
+                  name="courseId"
+                  value={filters.courseId}
+                  onChange={(e) => setFilters(prev => ({ ...prev, courseId: e.target.value }))}
+                  options={courses
+                    .filter(c => {
+                      if (!filters.grade) return true;
+                      const gradeMatch = c.grade === filters.grade || c.grade?.toLowerCase().includes(filters.grade?.toLowerCase());
+                      const sectionMatch = !filters.section || c.section === filters.section;
+                      return gradeMatch && sectionMatch;
+                    })
+                    .filter((c, index, self) => index === self.findIndex(t => t.name === c.name))
+                    .map(c => ({ value: c.id || c._id, label: c.name }))}
+                  placeholder={isTeacher ? 'Select your subject' : 'Select Course'}
                 />
               </div>
             )}
-
-            {/* Subject — filtered to courses in the selected class */}
-            <div style={{ flex: '1 1 200px' }}>
-              <label className="premium-label">Curriculum Subject</label>
-              <PremiumSelect
-                name="courseId"
-                value={filters.courseId}
-                onChange={(e) => setFilters(prev => ({ ...prev, courseId: e.target.value }))}
-                options={courses
-                  .filter(c => {
-                    if (!filters.grade) return true;
-                    const gradeMatch = c.grade === filters.grade || c.grade?.toLowerCase().includes(filters.grade?.toLowerCase());
-                    const sectionMatch = !filters.section || c.section === filters.section;
-                    return gradeMatch && sectionMatch;
-                  })
-                  .map(c => ({ value: c.id || c._id, label: c.name }))}
-                placeholder={isTeacher ? 'Select your subject' : 'Select Course'}
-              />
-            </div>
 
             <div style={{ flex: 1 }}>
               <label className="premium-label">Reporting Term</label>
@@ -491,20 +545,21 @@ const MarksEntry = () => {
                 placeholder="Select Term"
               />
             </div>
-            <button
-              onClick={loadStudents}
-              disabled={loading || !filters.grade || !filters.courseId}
-              className="premium-btn-secondary"
-              style={{ height: '48px', padding: '0 24px', opacity: (loading || !filters.grade || !filters.courseId) ? 0.6 : 1 }}
-            >
-              {loading ? <div className="premium-loader" style={{ width: '18px', height: '18px' }}></div> : <Icons.Search />}
-              {canEdit ? 'Initialize Sheet' : 'Load Registry'}
-            </button>
+            {viewMode === 'entry' && (
+              <button
+                onClick={loadStudents}
+                disabled={loading || !filters.grade || !filters.courseId}
+                className="premium-btn-secondary"
+                style={{ height: '48px', padding: '0 24px', opacity: (loading || !filters.grade || !filters.courseId) ? 0.6 : 1 }}
+              >
+                {loading ? <div className="premium-loader" style={{ width: '18px', height: '18px' }}></div> : <Icons.Search />}
+                {canEdit ? 'Initialize Sheet' : 'Load Registry'}
+              </button>
+            )}
           </div>
-          )}
 
           {/* Class Overview Mode — load all subjects automatically */}
-          {viewMode === 'overview' && isTeacher && masterClass && (
+          {viewMode === 'overview' && (isAdmin || (isTeacher && masterClass)) && (
             <ClassOverviewPanel
               grade={filters.grade}
               section={filters.section}
@@ -549,9 +604,12 @@ const MarksEntry = () => {
                 <thead>
                   <tr style={{ backgroundColor: 'var(--brand-slate-50)' }}>
                     <th className="premium-th">Scholar Identity</th>
-                    <th className="premium-th">Class Score (50)</th>
-                    <th className="premium-th">Exam Score (50)</th>
-                    <th className="premium-th">Aggregate Score (100)</th>
+                    <th className="premium-th">Cat1 (25)</th>
+                    <th className="premium-th">GW (25)</th>
+                    <th className="premium-th">Cat2 (25)</th>
+                    <th className="premium-th">PW (25)</th>
+                    <th className="premium-th">Exam (100)</th>
+                    <th className="premium-th">Aggregate Score (200)</th>
                     <th className="premium-th">Classification</th>
                   </tr>
 
@@ -570,19 +628,38 @@ const MarksEntry = () => {
                         </td>
                         <td style={{ padding: '20px 24px' }}>
                           {canEdit
-                            ? <input type="number" max="50" value={marks[sId]?.classScore || 0} onChange={(e) => handleMarkChange(sId, 'classScore', e.target.value)} className="premium-input" style={{ width: '100px', textAlign: 'center', fontWeight: '900', fontSize: '18px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 20px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.classScore ?? 0}</div>
+                            ? <input type="number" max="25" value={marks[sId]?.cat1 || 0} onChange={(e) => handleMarkChange(sId, 'cat1', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.cat1 ?? 0}</div>
                           }
                         </td>
                         <td style={{ padding: '20px 24px' }}>
                           {canEdit
-                            ? <input type="number" max="50" value={marks[sId]?.examScore || 0} onChange={(e) => handleMarkChange(sId, 'examScore', e.target.value)} className="premium-input" style={{ width: '100px', textAlign: 'center', fontWeight: '900', fontSize: '18px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 20px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.examScore ?? 0}</div>
+                            ? <input type="number" max="25" value={marks[sId]?.gw || 0} onChange={(e) => handleMarkChange(sId, 'gw', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.gw ?? 0}</div>
+                          }
+                        </td>
+                        <td style={{ padding: '20px 24px' }}>
+                          {canEdit
+                            ? <input type="number" max="25" value={marks[sId]?.cat2 || 0} onChange={(e) => handleMarkChange(sId, 'cat2', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.cat2 ?? 0}</div>
+                          }
+                        </td>
+                        <td style={{ padding: '20px 24px' }}>
+                          {canEdit
+                            ? <input type="number" max="25" value={marks[sId]?.pw || 0} onChange={(e) => handleMarkChange(sId, 'pw', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.pw ?? 0}</div>
+                          }
+                        </td>
+                        <td style={{ padding: '20px 24px' }}>
+                          {canEdit
+                            ? <input type="number" max="100" value={marks[sId]?.exam || 0} onChange={(e) => handleMarkChange(sId, 'exam', e.target.value, 100)} className="premium-input" style={{ width: '80px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.exam ?? 0}</div>
                           }
                         </td>
 
                         <td style={{ padding: '20px 24px' }}>
                           <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{total}</p>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0', fontWeight: '600' }}>{Math.round(total / 2)}%</p>
                         </td>
                         <td style={{ padding: '20px 24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -734,9 +811,12 @@ const ClassOverviewPanel = ({ grade, section, term, settings, getGrade, onTermCh
           // Pick the most recently updated entry
           const existing = marksMap[sId][subKey];
           const assessments = g.assessments || [];
-          const classScore = assessments.find(a => a.name === 'Class Score')?.score ?? g.classScore ?? 0;
-          const examScore  = assessments.find(a => a.name === 'Exam Score')?.score  ?? g.examScore  ?? 0;
-          const total = classScore + examScore;
+          const cat1 = assessments.find(a => a.name === 'Cat1')?.score ?? g.cat1 ?? 0;
+          const gw = assessments.find(a => a.name === 'GW')?.score ?? g.gw ?? 0;
+          const cat2 = assessments.find(a => a.name === 'Cat2')?.score ?? g.cat2 ?? 0;
+          const pw = assessments.find(a => a.name === 'PW')?.score ?? g.pw ?? 0;
+          const exam = assessments.find(a => a.name === 'Exam')?.score ?? g.exam ?? 0;
+          const total = cat1 + gw + cat2 + pw + exam;
           const ts = new Date(g.updated_at || g.created_at || 0).getTime();
           if (!existing || ts > (existing._ts || 0)) {
             marksMap[sId][subKey] = { total, _ts: ts };
@@ -770,7 +850,7 @@ const ClassOverviewPanel = ({ grade, section, term, settings, getGrade, onTermCh
       <div className="glass-card" style={{ padding: 0, overflow: 'hidden', overflowX: 'auto' }}>
         <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9' }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>
-            {grade} — Section {section}
+            {grade} — Section {mapSectionName(section)}
             <span style={{ color: '#64748b', fontWeight: '600', fontSize: '14px', marginLeft: '12px' }}>Full Class Grade Overview ({term} Term)</span>
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
@@ -786,8 +866,8 @@ const ClassOverviewPanel = ({ grade, section, term, settings, getGrade, onTermCh
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${260 + allSubjects.length * 110}px` }}>
             <thead>
-              <tr style={{ backgroundColor: '#f8fafc' }}>
-                <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', position: 'sticky', left: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>Scholar</th>
+              <tr style={{ backgroundColor: '#ffffff' }}>
+                <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', position: 'sticky', left: 0, backgroundColor: '#ffffff', zIndex: 1 }}>Scholar</th>
                 {allSubjects.map(c => (
                   <th key={c.id || c._id} style={{ padding: '14px 10px', textAlign: 'center', fontSize: '10px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', minWidth: '100px' }}>
                     {c.name}

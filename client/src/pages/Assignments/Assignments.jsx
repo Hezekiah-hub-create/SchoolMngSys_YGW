@@ -93,7 +93,7 @@ const Assignments = () => {
         <div style={{ position: 'fixed', top: '10%', right: '5%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(0, 132, 62, 0.05) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(60px)', zIndex: 0, animation: 'blobFloat 20s infinite alternate' }}></div>
         <div style={{ position: 'fixed', bottom: '10%', left: '5%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(255, 184, 28, 0.05) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(50px)', zIndex: 0, animation: 'blobFloat 15s infinite alternate-reverse' }}></div>
 
-        <main style={{ padding: '0 0 60px 0', position: 'relative', zIndex: 1 }}>
+        <main style={{ padding: 'calc(var(--top-nav-height) + 24px) 30px 30px', animation: 'fadeIn 0.5s ease-out' }}>
           <header style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -173,7 +173,7 @@ const Assignments = () => {
                   ))}
                 </div>
 
-                <div style={{ marginTop: '32px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                <div style={{ marginTop: '32px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                   <h4 style={{ fontSize: '11px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '1px' }}>Curriculum Insights</h4>
                   <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.6', fontWeight: '600' }}>
                     Ensure all tasks are submitted prior to the deadline to maintain a high academic fidelity score.
@@ -194,7 +194,7 @@ const Assignments = () => {
                     style={{
                       width: '100%',
                       padding: '16px 16px 16px 56px',
-                      backgroundColor: '#f8fafc',
+                      backgroundColor: '#ffffff',
                       border: '1.5px solid #f1f5f9',
                       borderRadius: '16px',
                       fontSize: '15px',
@@ -215,7 +215,7 @@ const Assignments = () => {
                   ))
                 ) : filteredAssignments.length === 0 ? (
                   <div style={{ padding: '100px', textAlign: 'center', background: 'white', borderRadius: '32px', border: '1.5px dashed #e2e8f0' }}>
-                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
                       <AlertCircle size={40} color="#94a3b8" />
                     </div>
                     <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0 }}>No tasks discovered</h3>
@@ -244,7 +244,7 @@ const Assignments = () => {
                           width: '64px', 
                           height: '64px', 
                           borderRadius: '18px', 
-                          background: isSubmitted ? 'var(--brand-green-soft)' : isOverdue ? '#fef2f2' : '#f8fafc', 
+                          background: isSubmitted ? 'var(--brand-green-soft)' : isOverdue ? '#fef2f2' : '#ffffff', 
                           display: 'flex', 
                           alignItems: 'center', 
                           justifyContent: 'center',
@@ -279,7 +279,7 @@ const Assignments = () => {
                             fontWeight: '900', 
                             padding: '4px 12px', 
                             borderRadius: '20px',
-                            backgroundColor: assignment.priority === 'High' ? '#fef2f2' : '#f8fafc',
+                            backgroundColor: assignment.priority === 'High' ? '#fef2f2' : '#ffffff',
                             color: assignment.priority === 'High' ? '#ef4444' : '#64748b',
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'

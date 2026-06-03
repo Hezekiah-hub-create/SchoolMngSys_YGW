@@ -134,7 +134,7 @@ const FinancialReports = () => {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(val) => `₵${val / 1000}k`} />
-                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.1)' }} />
+                    <Tooltip cursor={{ fill: '#ffffff' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.1)' }} />
                     <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={40}>
                       {reportData.chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -161,7 +161,7 @@ const FinancialReports = () => {
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+              <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                 <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.6' }}>
                   <strong>Tip:</strong> Collection for <span style={{ color: '#ef4444', fontWeight: '700' }}>Extra Curricular</span> is below target. Consider sending automated reminders.
                 </p>

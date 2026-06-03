@@ -151,7 +151,7 @@ const CreateAssignment = () => {
                         <input 
                           type="text"
                           placeholder="e.g., Advanced Calculus - Differentiation Node"
-                          style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#f8fafc', fontSize: '15px', fontWeight: '600', outline: 'none', transition: 'all 0.3s' }}
+                          style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '15px', fontWeight: '600', outline: 'none', transition: 'all 0.3s' }}
                           value={formData.title}
                           onChange={e => setFormData({...formData, title: e.target.value})}
                         />
@@ -162,7 +162,7 @@ const CreateAssignment = () => {
                         <label style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '0.5px' }}>Detailed Description</label>
                         <textarea 
                           placeholder="Provide a comprehensive summary of the task objectives..."
-                          style={{ width: '100%', minHeight: '160px', padding: '16px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#f8fafc', fontSize: '15px', fontWeight: '500', outline: 'none', transition: 'all 0.3s', lineHeight: '1.6' }}
+                          style={{ width: '100%', minHeight: '160px', padding: '16px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '15px', fontWeight: '500', outline: 'none', transition: 'all 0.3s', lineHeight: '1.6' }}
                           value={formData.description}
                           onChange={e => setFormData({...formData, description: e.target.value})}
                         />
@@ -202,7 +202,7 @@ const CreateAssignment = () => {
                       <label style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Due Date</label>
                       <input 
                         type="date"
-                        style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#f8fafc', fontSize: '15px', fontWeight: '600', outline: 'none' }}
+                        style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '15px', fontWeight: '600', outline: 'none' }}
                         value={formData.dueDate}
                         onChange={e => setFormData({...formData, dueDate: e.target.value})}
                       />
@@ -212,7 +212,7 @@ const CreateAssignment = () => {
                       <label style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Max Score</label>
                       <input 
                         type="number"
-                        style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#f8fafc', fontSize: '15px', fontWeight: '600', outline: 'none' }}
+                        style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '15px', fontWeight: '600', outline: 'none' }}
                         value={formData.maxScore}
                         onChange={e => setFormData({...formData, maxScore: e.target.value})}
                       />
@@ -271,7 +271,7 @@ const CreateAssignment = () => {
                 
                 <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {(formData.attachments || []).map((file, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                       <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{file.filename || file.name || 'Attachment'}</span>
                       <button 
                         type="button" 

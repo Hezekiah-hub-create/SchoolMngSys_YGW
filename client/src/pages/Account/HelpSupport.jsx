@@ -39,83 +39,103 @@ const HelpSupport = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Inter', sans-serif" }}>
-      <RoleBasedSidebar user={currentUser} onLogout={handleLogout} activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-      <div style={{ marginLeft: '260px', flex: 1 }}>
-        <TopNav user={currentUser} onLogout={handleLogout} />
-        
-        <main style={{ padding: '100px 40px 40px' }}>
-          {/* Header */}
-          <div style={{ marginBottom: '40px' }}>
-            <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Help & Support</h1>
-            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Find answers, documentation, and technical assistance</p>
+    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '48px' }}>
+        <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-1.5px', fontFamily: "'Outfit', sans-serif" }}>
+          Help & <span style={{ color: 'var(--brand-green)' }}>Support</span>
+        </h1>
+        <p style={{ fontSize: '16px', color: '#64748b', marginTop: '12px', fontWeight: '500', maxWidth: '600px' }}>
+          Access comprehensive documentation, interactive assistance, and direct technical protocols.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '40px' }}>
+        {/* Left Column - FAQs */}
+        <div className="glass-card" style={{ padding: '40px', borderRadius: '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+            <div style={{ padding: '12px', backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)', borderRadius: '16px', border: '1.5px solid var(--brand-green-glow)' }}><Icons.Help /></div>
+            <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', margin: 0, letterSpacing: '-0.5px' }}>Operational Protocols (FAQs)</h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
-            {/* Left Column - FAQs */}
-            <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                <div style={{ padding: '10px', backgroundColor: '#ecfdf5', color: '#10b981', borderRadius: '12px' }}><Icons.Help /></div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>Frequently Asked Questions</h2>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {faqs.map((faq, index) => (
-                  <div key={index} style={{ border: '1px solid #f1f5f9', borderRadius: '16px', overflow: 'hidden' }}>
-                    <button 
-                      onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                      style={{ width: '100%', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-                    >
-                      <span style={{ fontSize: '15px', fontWeight: '600', color: '#1e293b' }}>{faq.q}</span>
-                      <div style={{ transform: expandedFaq === index ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.2s', color: '#94a3b8' }}><Icons.ChevronDown /></div>
-                    </button>
-                    {expandedFaq === index && (
-                      <div style={{ padding: '0 20px 20px', fontSize: '14px', color: '#64748b', lineHeight: '1.6' }}>
-                        {faq.a}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Column - Contact & Docs */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Contact Card */}
-              <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '28px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>Contact Support</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '16px' }}>
-                    <div style={{ color: '#10b981' }}><Icons.Phone /></div>
-                    <div>
-                      <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', margin: 0, textTransform: 'uppercase' }}>Technical Desk</p>
-                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: '2px 0 0' }}>+233 (0) 24 000 0000</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '16px' }}>
-                    <div style={{ color: '#8b5cf6' }}><Icons.Message /></div>
-                    <div>
-                      <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', margin: 0, textTransform: 'uppercase' }}>Email Support</p>
-                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: '2px 0 0' }}>support@uhas.edu.gh</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Documentation Card */}
-              <div style={{ backgroundColor: '#00843e', borderRadius: '24px', padding: '28px', color: 'white', boxShadow: '0 20px 40px rgba(0, 132, 62, 0.2)' }}>
-                <div style={{ padding: '10px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '12px', width: 'fit-content', marginBottom: '16px' }}>
-                  <Icons.Book />
-                </div>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 8px' }}>User Manual</h3>
-                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: '1.5', marginBottom: '20px' }}>Download the complete guide for teachers, administrators, and parents.</p>
-                <button style={{ width: '100%', padding: '12px', backgroundColor: 'white', color: '#00843e', border: 'none', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
-                  Download PDF
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {faqs.map((faq, index) => (
+              <div key={index} style={{ border: '1px solid #f1f5f9', borderRadius: '20px', overflow: 'hidden', transition: 'all 0.3s ease' }}>
+                <button 
+                  onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
+                  style={{ width: '100%', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: expandedFaq === index ? '#ffffff' : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s' }}
+                >
+                  <span style={{ fontSize: '16px', fontWeight: '700', color: expandedFaq === index ? 'var(--brand-green)' : '#1e293b' }}>{faq.q}</span>
+                  <div style={{ transform: expandedFaq === index ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)', color: expandedFaq === index ? 'var(--brand-green)' : '#94a3b8' }}><Icons.ChevronDown /></div>
                 </button>
+                {expandedFaq === index && (
+                  <div style={{ padding: '0 24px 24px', fontSize: '15px', color: '#64748b', lineHeight: '1.7', fontWeight: '500', animation: 'slideDown 0.3s ease-out' }}>
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column - Contact & Docs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          {/* Contact Card */}
+          <div className="glass-card" style={{ padding: '36px', borderRadius: '32px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '24px', letterSpacing: '-0.4px' }}>Direct Intelligence Desk</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
+                <div style={{ color: 'var(--brand-green)', padding: '10px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}><Icons.Phone /></div>
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: '900', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Technical Line</p>
+                  <p style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', margin: '4px 0 0' }}>+233 (0) 24 000 0000</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
+                <div style={{ color: '#8b5cf6', padding: '10px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}><Icons.Message /></div>
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: '900', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Priority Support</p>
+                  <p style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', margin: '4px 0 0' }}>support@uhas.edu.gh</p>
+                </div>
               </div>
             </div>
           </div>
-        </main>
+
+          {/* Documentation Card */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #00843e 0%, #006831 100%)', 
+            borderRadius: '32px', 
+            padding: '36px', 
+            color: 'white', 
+            boxShadow: '0 20px 50px rgba(0, 132, 62, 0.25)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '120px', height: '120px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }}></div>
+            <div style={{ padding: '12px', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: '16px', width: 'fit-content', marginBottom: '24px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Icons.Book />
+            </div>
+            <h3 style={{ fontSize: '22px', fontWeight: '850', margin: '0 0 12px', letterSpacing: '-0.5px' }}>User Manual</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.85)', lineHeight: '1.6', marginBottom: '28px', fontWeight: '500' }}>Comprehensive system documentation for all institutional roles.</p>
+            <button 
+              className="premium-btn-secondary" 
+              style={{ 
+                width: '100%', 
+                padding: '16px', 
+                backgroundColor: 'white', 
+                color: '#00843e', 
+                border: 'none', 
+                borderRadius: '16px', 
+                fontWeight: '800', 
+                cursor: 'pointer', 
+                fontSize: '14px',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.1)'
+              }}
+            >
+              Download PDF Manual
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

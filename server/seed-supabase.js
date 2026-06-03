@@ -110,6 +110,10 @@ const lastAt = (idx) => lastNames[idx % lastNames.length];
 
 const seedData = async () => {
   try {
+    const tryInsert = async (label, fn) => {
+      try { await fn(); } catch (e) { console.warn(`  ⚠ Skipped ${label}: ${e.message}`); }
+    };
+
     console.log('Starting Supabase seed...');
     console.log('This might take a minute due to generating passwords for 750+ users...');
 
@@ -146,21 +150,30 @@ const seedData = async () => {
     staffData.push({ id: getStfId(itId), user_id: getUId(itId), employee_id: 'STF0003', first_name: 'John', last_name: 'Boateng', department: 'ITSupport', position: 'IT Support', status: 'active', email: `${itId}@uhasbasic.edu.gh` });
 
     // ==================== TEACHERS ====================
-    const teacherSubjects = [
-      { subject: 'Mathematics', grades: ['JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'Science', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'JHS 1'] },
-      { subject: 'English', grades: ['Basic 1', 'Basic 2', 'Basic 3'] },
-      { subject: 'Social Studies', grades: ['JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'Creative Arts', grades: ['KG 1', 'KG 2', 'Basic 1', 'Basic 2'] },
-      { subject: 'ICT', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'RME', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4'] },
-      { subject: 'Ghanaian Language', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'JHS 1'] },
-      { subject: 'French', grades: ['JHS 1', 'JHS 2', 'JHS 3'] },
-      { subject: 'Physical Education', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'] }
+    const subjectsConfig = [
+      { code: 'MATH', name: 'Mathematics', category: 'Core', description: 'Elementary and secondary mathematics', grades: ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'SCI', name: 'Science', category: 'Core', description: 'General science and physics/chemistry foundations', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'ENG', name: 'English Language', category: 'Core', description: 'Language arts and literature studies', grades: ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'SOC', name: 'Social Studies', category: 'Core', description: 'Geography, history, and citizenship', grades: ['Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'COMP', name: 'Computing', category: 'Core', description: 'Information and communication technology and typing skills', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'CREA', name: 'Creative Arts', category: 'Core', description: 'Fine arts, drawing, and performance', grades: ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'] },
+      { code: 'CAD', name: 'Creative Arts and Design', category: 'Elective', description: 'Advanced art, structure, and graphic design', grades: ['Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'CART', name: 'Career Technology', category: 'Core', description: 'Technical drawing, sewing, and home economics', grades: ['Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'FREN', name: 'French', category: 'Elective', description: 'French language proficiency and grammar', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'GHAN', name: 'Ghanaian Language', category: 'Core', description: 'Local Ghanaian language study (Ewe/Akan/Ga)', grades: ['Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'HIST', name: 'History', category: 'Core', description: 'Ghanaian and world history', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'] },
+      { code: 'OWOP', name: 'Our World and Our People', category: 'Core', description: 'Geography, environment, and social interactions', grades: ['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'] },
+      { code: 'PEH', name: 'Physical Education and Health', category: 'Elective', description: 'Physical exercise, sports, and healthy lifestyle habits', grades: ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] },
+      { code: 'RME', name: 'Religious and Moral Education', category: 'Core', description: 'Moral instruction, ethics, and world religions', grades: ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9', 'JHS 1', 'JHS 2', 'JHS 3'] }
     ];
 
+    const teacherSubjects = subjectsConfig.map(s => ({
+      subject: s.name,
+      grades: s.grades
+    }));
+
     const teachersData = [];
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 14; i++) {
       let tId = `t${String(i).padStart(3, '0')}`;
       let fName = nameAt(i - 1, firstNames);
       let lName = lastAt(i - 1);
@@ -223,7 +236,7 @@ const seedData = async () => {
           first_name: cFName, last_name: familyName, email: `${sId}@uhasbasic.edu.gh`,
           date_of_birth: `${2008 + (num % 6)}-${String((num % 12) + 1).padStart(2,'0')}-${String((num % 28) + 1).padStart(2,'0')}`,
           gender: num % 2 === 0 ? 'male' : 'female',
-          grade: validGrades[num % validGrades.length], section: num % 2 === 0 ? 'A' : 'B',
+          grade: validGrades[num % validGrades.length], section: num % 2 === 0 ? 'Yellow (Y)' : 'Green (G)',
           academic_year: '2024-2025', parent_ids: [getPId(pId)], status: 'active',
           phone: `+233504${String(num).padStart(4, '0')}`, nationality: 'Ghanaian',
           religion: religions[num % religions.length], house: houses[num % houses.length],
@@ -243,8 +256,9 @@ const seedData = async () => {
     const clearOrder = [
       'payments', 'fees', 'health_records', 'disciplinary_records',
       'report_cards', 'grades', 'attendance', 'assignments', 'timetable',
-      'courses', 'students', 'parents', 'teachers', 'staff',
-      'announcements', 'events', 'settings', 'users'
+      'class_subjects', 'sections', 'academic_classes', 'subjects', 'exams',
+      'students', 'parents', 'teachers', 'staff',
+      'announcements', 'events', 'settings', 'users', 'login_history'
     ];
     for (const table of clearOrder) {
       const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -297,41 +311,107 @@ const seedData = async () => {
       console.log(`Upserted students ${i + 1} to ${Math.min(i + chunkSize, studentsData.length)}`);
     }
 
-    // ==================== COURSES ====================
-    const coursesMock = [
-      { id: 'c001', name: 'Mathematics', code: 'MATH101', grade: 'JHS 1', teacherId: 't001', hoursPerWeek: 4, room: 'R101' },
-      { id: 'c002', name: 'Science', code: 'SCI101', grade: 'JHS 1', teacherId: 't002', hoursPerWeek: 3, room: 'R102' },
-      { id: 'c003', name: 'English', code: 'ENG101', grade: 'Basic 7', teacherId: 't003', hoursPerWeek: 3, room: 'R103' },
-      { id: 'c004', name: 'Social Studies', code: 'SOC101', grade: 'JHS 2', teacherId: 't004', hoursPerWeek: 4, room: 'R104' },
-      { id: 'c005', name: 'Creative Arts', code: 'ART101', grade: 'Basic 1', teacherId: 't005', hoursPerWeek: 3, room: 'R105' },
-      { id: 'c006', name: 'ICT', code: 'ICT101', grade: 'JHS 3', teacherId: 't006', hoursPerWeek: 3, room: 'R106' },
-      { id: 'c007', name: 'RME', code: 'RME101', grade: 'Basic 4', teacherId: 't007', hoursPerWeek: 3, room: 'R107' },
-      { id: 'c008', name: 'Ghanaian Language', code: 'GHA101', grade: 'Basic 5', teacherId: 't008', hoursPerWeek: 2, room: 'R108' },
-      { id: 'c009', name: 'French', code: 'FRE101', grade: 'JHS 1', teacherId: 't009', hoursPerWeek: 2, room: 'R109' },
-      { id: 'c010', name: 'Physical Education', code: 'PE101', grade: 'Basic 6', teacherId: 't010', hoursPerWeek: 2, room: 'FIELD' }
-    ];
+    // ==================== RELATIONAL SCHEMA (ACADEMIC CLASSES, SECTIONS, SUBJECTS, CLASS_SUBJECTS) ====================
+    // 1. Seed Academic Classes
+    const classesMap = {};
+    const classesData = validGrades.map(g => {
+      const id = deterministicUUID(`class-${g}`);
+      classesMap[g] = id;
+      return { id, name: g, academic_year: '2024-2025' };
+    });
+    let { error: classesError } = await supabase
+      .from('academic_classes')
+      .upsert(classesData, { onConflict: 'id' });
+    if (classesError) throw new Error('Academic classes upsert failed: ' + classesError.message);
+    console.log(`Upserted ${classesData.length} academic classes`);
 
-    const coursesData = coursesMock.map(c => ({
-      id: getCId(c.id), name: c.name, code: c.code, grade: c.grade, academic_year: '2024-2025',
-      teacher_id: getTId(c.teacherId), hours_per_week: c.hoursPerWeek, room: c.room, is_active: true
-    }));
+    // 2. Seed Sections
+    const sectionsData = [];
+    classesData.forEach((c, idx) => {
+      const sectionNames = ['Yellow (Y)', 'Green (G)', 'Red (R)', 'Blue (B)'];
+      sectionNames.forEach((secName, secIdx) => {
+        sectionsData.push({
+          id: deterministicUUID(`section-${c.name}-${secName}`),
+          class_id: c.id,
+          name: secName,
+          class_master_id: getTId(`t${String(((idx + secIdx) % 14) + 1).padStart(3, '0')}`)
+        });
+      });
+    });
+    let { error: sectionsError } = await supabase
+      .from('sections')
+      .upsert(sectionsData, { onConflict: 'id' });
+    if (sectionsError) throw new Error('Sections upsert failed: ' + sectionsError.message);
+    console.log(`Upserted ${sectionsData.length} sections`);
 
-    // Upsert courses (conflict on code)
-    let { error: coursesError } = await supabase
-      .from('courses')
-      .upsert(coursesData, { onConflict: 'code' });
-    if (coursesError) throw new Error('Courses upsert failed: ' + coursesError.message);
-    console.log(`Upserted ${coursesData.length} courses`);
+    // 3. Seed Subjects
+    const subjectsMap = {};
+    const subjectsData = subjectsConfig.map(s => {
+      const id = deterministicUUID(`subject-${s.code}`);
+      subjectsMap[s.code] = id;
+      return {
+        id,
+        name: s.name,
+        code: s.code,
+        category: s.category,
+        description: s.description
+      };
+    });
+    let { error: subjectsError } = await supabase
+      .from('subjects')
+      .upsert(subjectsData, { onConflict: 'code' });
+    if (subjectsError) throw new Error('Subjects upsert failed: ' + subjectsError.message);
+    console.log(`Upserted ${subjectsData.length} subjects`);
+
+    // 4. Seed Class Subjects (which represent active courses / teaching relationships)
+    const classSubjectsData = [];
+    const sectionsList = ['Yellow (Y)', 'Green (G)', 'Red (R)', 'Blue (B)'];
+
+    validGrades.forEach(grade => {
+      const classId = classesMap[grade];
+      if (!classId) return;
+
+      subjectsConfig.forEach((s, sIdx) => {
+        if (s.grades.includes(grade)) {
+          const subjectId = subjectsMap[s.code];
+          const teacherNum = sIdx + 1; // Teacher matching the subject index
+          const teacherId = getTId(`t${String(teacherNum).padStart(3, '0')}`);
+
+          sectionsList.forEach(section => {
+            const courseIdStr = `c-${grade}-${s.code}-${section}`;
+            classSubjectsData.push({
+              id: deterministicUUID(courseIdStr),
+              class_id: classId,
+              subject_id: subjectId,
+              teacher_id: teacherId,
+              section: section
+            });
+          });
+        }
+      });
+    });
+
+    let { error: classSubjectsError } = await supabase
+      .from('class_subjects')
+      .upsert(classSubjectsData, { onConflict: 'id' });
+    if (classSubjectsError) throw new Error('Class subjects upsert failed: ' + classSubjectsError.message);
+    console.log(`Upserted ${classSubjectsData.length} class subjects`);
 
     // ==================== GRADES ====================
-    // Grades (just for first 15 students to keep it light)
+    // Grades (seeded for the first 30 students to provide rich demo reports)
     const gradesData = [];
     const gradeLetters = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'];
     let gradeIndex = 0;
 
-    studentsData.slice(0, 15).forEach(s => {
-      coursesMock.forEach(c => {
-        if (c.grade === s.grade) {
+    const classIdToGrade = {};
+    classesData.forEach(c => {
+      classIdToGrade[c.id] = c.name;
+    });
+
+    studentsData.slice(0, 30).forEach(s => {
+      classSubjectsData.forEach(c => {
+        const courseGrade = classIdToGrade[c.class_id];
+        if (courseGrade === s.grade && c.section === s.section) {
           const classwork = 70 + Math.floor(Math.random() * 25);
           const homework = 72 + Math.floor(Math.random() * 23);
           const midterm = 68 + Math.floor(Math.random() * 27);
@@ -339,8 +419,13 @@ const seedData = async () => {
           const total = parseFloat(((classwork + homework + midterm + finalExam) / 4).toFixed(1));
           
           gradesData.push({
-            student_id: s.id, course_id: getCId(c.id), academic_year: '2024-2025', term: '1st',
-            assessments: { classwork, homework, midterm, finalExam }, total_score: total, letter_grade: gradeLetters[gradeIndex % gradeLetters.length]
+            student_id: s.id,
+            course_id: c.id,
+            academic_year: '2024-2025',
+            term: '1st',
+            assessments: { classwork, homework, midterm, finalExam },
+            total_score: total,
+            letter_grade: gradeLetters[gradeIndex % gradeLetters.length]
           });
           gradeIndex++;
         }
@@ -356,49 +441,50 @@ const seedData = async () => {
     }
 
     // ==================== FEES & PAYMENTS ====================
-    const feesMock = [
-      { id: 'fee001', name: 'Term 1 Tuition', grade: 'JHS 1', amount: 1500 },
-      { id: 'fee002', name: 'Term 1 Tuition', grade: 'Basic 6', amount: 1600 },
-      { id: 'fee003', name: 'Term 1 Tuition', grade: 'KG 1', amount: 1400 }
-    ];
+    await tryInsert('fees', async () => {
+      const feesMock = [
+        { id: 'fee001', name: 'Term 1 Tuition', grade: 'JHS 1', amount: 1500 },
+        { id: 'fee002', name: 'Term 1 Tuition', grade: 'Basic 6', amount: 1600 },
+        { id: 'fee003', name: 'Term 1 Tuition', grade: 'KG 1', amount: 1400 }
+      ];
 
-    const feesData = feesMock.map(f => ({
-      id: getFId(f.id), name: f.name, academic_year: '2024-2025', term: '1st',
-      grade: f.grade, amount: f.amount, due_date: '2024-09-15'
-    }));
+      const feesData = feesMock.map(f => ({
+        id: getFId(f.id), name: f.name, academic_year: '2024-2025', term: '1st',
+        grade: f.grade, amount: f.amount, due_date: '2024-09-15'
+      }));
 
-    let { error: feesError } = await supabase
-      .from('fees')
-      .upsert(feesData, { onConflict: 'id' });
-    if (feesError) throw new Error('Fees upsert failed: ' + feesError.message);
-    console.log(`Upserted ${feesData.length} fees`);
-
-    const paymentsData = [];
-    const paymentMethods = ['mobileMoney', 'bankTransfer', 'cash'];
-    const statuses = ['completed', 'completed', 'completed', 'pending'];
-    
-    studentsData.slice(0, 15).forEach((s, index) => {
-      paymentsData.push({
-        student_id: s.id, fee_id: getFId('fee001'), academic_year: '2024-2025', term: '1st', amount: 1500,
-        payment_method: paymentMethods[index % paymentMethods.length], status: statuses[index % statuses.length],
-        receipt_number: `RCP${String(index + 1).padStart(5, '0')}`, payment_date: new Date().toISOString()
-      });
+      let { error: feesError } = await supabase
+        .from('fees')
+        .upsert(feesData, { onConflict: 'id' });
+      if (feesError) throw feesError;
+      console.log(`Upserted ${feesData.length} fees`);
     });
 
-    if (paymentsData.length > 0) {
-      let { error: paymentsError } = await supabase
-        .from('payments')
-        .upsert(paymentsData, { onConflict: 'receipt_number' });
-      if (paymentsError) throw new Error('Payments upsert failed: ' + paymentsError.message);
-      console.log(`Upserted ${paymentsData.length} payments`);
-    }
+    await tryInsert('payments', async () => {
+      const paymentsData = [];
+      const paymentMethods = ['mobileMoney', 'bankTransfer', 'cash'];
+      const statuses = ['completed', 'completed', 'completed', 'pending'];
+      
+      studentsData.slice(0, 15).forEach((s, index) => {
+        paymentsData.push({
+          student_id: s.id, fee_id: getFId('fee001'), academic_year: '2024-2025', term: '1st', amount: 1500,
+          payment_method: paymentMethods[index % paymentMethods.length], status: statuses[index % statuses.length],
+          receipt_number: `RCP${String(index + 1).padStart(5, '0')}`, payment_date: new Date().toISOString()
+        });
+      });
+
+      if (paymentsData.length > 0) {
+        let { error: paymentsError } = await supabase
+          .from('payments')
+          .upsert(paymentsData, { onConflict: 'receipt_number' });
+        if (paymentsError) throw paymentsError;
+        console.log(`Upserted ${paymentsData.length} payments`);
+      }
+    });
 
     // ==================== NEW SCHEMA TABLES ====================
     // These tables require the updated schema.sql to be applied in the Supabase SQL Editor.
     // If not applied yet, they will be skipped gracefully.
-    const tryInsert = async (label, fn) => {
-      try { await fn(); } catch (e) { console.warn(`  ⚠ Skipped ${label} (schema not updated yet): ${e.message}`); }
-    };
 
     await tryInsert('announcements', async () => {
       const announcementsData = [
@@ -440,21 +526,51 @@ const seedData = async () => {
         { period: 7, start: '12:00', end: '13:00', isBreak: true, label: 'Lunch Break' },
         { period: 8, start: '13:00', end: '13:50' },
       ];
-      const jhs1Courses = [getCId('c001'), getCId('c002'), getCId('c009')];
-      days.forEach(day => {
-        periods.forEach(p => {
-          timetableData.push({
-            id: deterministicUUID(`tt-JHS1-A-${day}-${p.period}`),
-            academic_year: '2024-2025', term: '1st', grade: 'JHS 1', section: 'A',
-            day, period: p.period, start_time: p.start, end_time: p.end,
-            is_break: p.isBreak || false, break_label: p.label || null,
-            course_id: p.isBreak ? null : jhs1Courses[p.period % jhs1Courses.length],
-            teacher_id: p.isBreak ? null : getTId(`t${String((p.period % 3) + 1).padStart(3,'0')}`),
-            room: p.isBreak ? null : `R10${(p.period % 3) + 1}`,
-            created_by: getUId(adminId)
+
+      const gradesToSchedule = ['JHS 1', 'Basic 6', 'Basic 4', 'Basic 1'];
+      const sectionsToSchedule = ['Yellow (Y)', 'Green (G)'];
+
+      const classIdToGrade = {};
+      classesData.forEach(c => {
+        classIdToGrade[c.id] = c.name;
+      });
+
+      gradesToSchedule.forEach(grade => {
+        sectionsToSchedule.forEach(section => {
+          const gradeCourses = classSubjectsData.filter(c => {
+            const courseGrade = classIdToGrade[c.class_id];
+            return courseGrade === grade && c.section === section;
+          });
+
+          if (gradeCourses.length === 0) return;
+
+          days.forEach(day => {
+            periods.forEach(p => {
+              const courseIndex = (day.charCodeAt(0) + p.period) % gradeCourses.length;
+              const selectedCourse = gradeCourses[courseIndex];
+
+              timetableData.push({
+                id: deterministicUUID(`tt-${grade}-${section}-${day}-${p.period}`),
+                academic_year: '2024-2025',
+                term: '1st',
+                grade: grade,
+                section: section,
+                day,
+                period: p.period,
+                start_time: p.start,
+                end_time: p.end,
+                is_break: p.isBreak || false,
+                break_label: p.label || null,
+                course_id: p.isBreak ? null : selectedCourse.id,
+                teacher_id: p.isBreak ? null : selectedCourse.teacher_id,
+                room: p.isBreak ? null : `R10${(p.period % 5) + 1}`,
+                created_by: getUId(adminId)
+              });
+            });
           });
         });
       });
+
       const { error } = await supabase.from('timetable').upsert(timetableData, { onConflict: 'id' });
       if (error) throw error;
       console.log(`  Upserted ${timetableData.length} timetable entries`);
@@ -514,7 +630,20 @@ const seedData = async () => {
     console.log('  ITSupport: it001@uhasbasic.edu.gh   / it001uhas_basic_password');
 
   } catch (e) {
-    console.error('Seed error:', e);
+    if (e.message && e.message.includes('students_grade_check')) {
+      console.log('\n❌ DATABASE CONSTRAINT VIOLATION DETECTED!');
+      console.log('────────────────────────────────────────────────────────────────────────');
+      console.log('Your Supabase database has a check constraint that only allows legacy "Primary 1" - "Primary 6" grade names.');
+      console.log('To transition the database to "Basic 1" - "Basic 6", please run the following SQL command in your Supabase SQL Editor:');
+      console.log('\n============================= SQL TO RUN =============================\n');
+      console.log('ALTER TABLE students DROP CONSTRAINT IF EXISTS students_grade_check;');
+      console.log("ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN ('KG 1','KG 2','KG 3','Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6','Basic 7','Basic 8','Basic 9','SSS 1','SSS 2','SSS 3','JHS 1','JHS 2','JHS 3'));");
+      console.log('\n======================================================================\n');
+      console.log('After running the SQL query above in Supabase, please run the seed script again!');
+      console.log('────────────────────────────────────────────────────────────────────────\n');
+    } else {
+      console.error('Seed error:', e);
+    }
     process.exit(1);
   }
 };

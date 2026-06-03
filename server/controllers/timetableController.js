@@ -38,8 +38,8 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
       const myGrade = studentProfile.grade;
       const mySection = studentProfile.section || 'A';
       
-      const requested = className.toLowerCase().trim().replace('basic', 'primary').replace(/\s/g, '');
-      const myGradeNorm = myGrade.toLowerCase().trim().replace('basic', 'primary').replace(/\s/g, '');
+      const requested = className.toLowerCase().trim().replace(/\s/g, '');
+      const myGradeNorm = myGrade.toLowerCase().trim().replace(/\s/g, '');
       const myClassFullNorm = `${myGradeNorm}${mySection.toLowerCase()}`;
       
       const allowed = [myGradeNorm, myClassFullNorm, 'configuration']; // Students can view configuration for periods
@@ -57,9 +57,9 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
       const studentIds = parentProfile.student_ids || [];
       const children = await Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id)));
       
-      const requested = className.toLowerCase().trim().replace('basic', 'primary').replace(/\s/g, '');
+      const requested = className.toLowerCase().trim().replace(/\s/g, '');
       const allowedClasses = children.filter(Boolean).map(s => {
-        const gradeNorm = (s.grade || '').toLowerCase().trim().replace('basic', 'primary').replace(/\s/g, '');
+        const gradeNorm = (s.grade || '').toLowerCase().trim().replace(/\s/g, '');
         const sectionNorm = (s.section || 'A').toLowerCase();
         return [`${gradeNorm}${sectionNorm}`, gradeNorm];
       }).flat();
@@ -92,12 +92,6 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
 
   const gradesToSearch = [grade];
   const gradeLower = grade.toLowerCase();
-  
-  if (gradeLower.includes('primary')) {
-    gradesToSearch.push(grade.replace(/primary/i, 'Basic'));
-  } else if (gradeLower.includes('basic')) {
-    gradesToSearch.push(grade.replace(/basic/i, 'Primary'));
-  }
 
   if (gradeLower === 'jhs 1' || gradeLower === 'jhs1') gradesToSearch.push('Basic 7');
   if (gradeLower === 'jhs 2' || gradeLower === 'jhs2') gradesToSearch.push('Basic 8');
@@ -344,11 +338,7 @@ const updateTimetable = asyncHandler(async (req, res) => {
     const hasAssignedCourse = teacherCourses.some(c => 
       ((c.teacher_id || c.teacher) === teacherProfile.id) && c.grade === grade && (c.section || '').includes(section || '')
     );
-    const isGradeTeacher = teacherProfile.grades && (
-      teacherProfile.grades.includes(grade) || 
-      teacherProfile.grades.includes(grade.replace('Basic ', 'Primary ')) ||
-      teacherProfile.grades.includes(grade.replace('Primary ', 'Basic '))
-    );
+    const isGradeTeacher = teacherProfile.grades && teacherProfile.grades.includes(grade);
     if (!hasAssignedCourse && !isGradeTeacher) {
       return res.status(403).json({ message: 'Access denied. You can only adjust the timetable for your own classes.' });
     }

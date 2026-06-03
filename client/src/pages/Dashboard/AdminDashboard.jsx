@@ -107,7 +107,7 @@ const RecentItem = ({ initials, name, subtitle, status, time, onClick }) => (
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       marginBottom: '12px'
     }}
-    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.transform = 'translateX(8px)'; }}
+    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.transform = 'translateX(8px)'; }}
     onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.transform = 'none'; }}
   >
     <div style={{ width: '52px', height: '52px', borderRadius: '14px', backgroundColor: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '900', fontSize: '16px', boxShadow: '0 8px 16px rgba(0, 132, 62, 0.2)' }}>

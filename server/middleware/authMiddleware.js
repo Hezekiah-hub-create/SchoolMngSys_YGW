@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
+const auditMiddleware = require('./auditMiddleware');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'school-management-secret-key';
 
@@ -30,7 +31,11 @@ const auth = async (req, res, next) => {
     req.user = user;
     req.user.id = decoded.id; // Supabase ID
     req.token = token;
-    next();
+    
+    // Call auditMiddleware to optionally log this request
+    auditMiddleware(req, res, () => {
+      next();
+    });
   } catch (error) {
     res.status(401).json({ message: 'Token is not valid' });
   }

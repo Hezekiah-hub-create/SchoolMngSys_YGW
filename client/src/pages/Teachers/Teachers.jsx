@@ -157,14 +157,14 @@ const Teachers = () => {
                         </span>
                       ))
                     ) : (
-                      <span style={{ fontSize: '10px', fontWeight: '800', padding: '4px 10px', backgroundColor: '#f8fafc', color: '#94a3b8', borderRadius: '6px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: '800', padding: '4px 10px', backgroundColor: '#ffffff', color: '#94a3b8', borderRadius: '6px' }}>
                         No Subjects Assigned
                       </span>
                     )}
                     {teacher.subjects?.length > 3 && <span style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8', alignSelf: 'center' }}>+{teacher.subjects.length - 3} more</span>}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', padding: '16px', backgroundColor: '#ffffff', borderRadius: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                       <span style={{ fontSize: '12px', color: '#475569', fontWeight: '500' }}>{teacher.email || 'Awaiting email'}</span>

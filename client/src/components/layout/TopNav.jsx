@@ -176,7 +176,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
         }}
         onBlur={(e) => {
           e.target.style.border = '1px solid transparent';
-          e.target.style.backgroundColor = '#f8fafc';
+          e.target.style.backgroundColor = '#ffffff';
         }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
@@ -318,7 +318,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
               animation: 'fadeIn 0.2s ease-out'
             }}>
               {/* User Details */}
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#ffffff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
                     width: '48px',

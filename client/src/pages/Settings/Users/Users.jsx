@@ -82,7 +82,7 @@ const SettingsUsers = () => {
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#f8fafc' }}>
+                  <tr style={{ backgroundColor: '#ffffff' }}>
                     <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Identity Node</th>
                     <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Security Role</th>
                     <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Status</th>
@@ -140,7 +140,7 @@ const SettingsUsers = () => {
             )}
           </div>
           
-          <div style={{ padding: '20px 32px', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '20px 32px', backgroundColor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Displaying {filteredIdentities.length} identity nodes</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="settings-tab active" style={{ padding: '6px 12px', fontSize: '12px' }}>1</button>

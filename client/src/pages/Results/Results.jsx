@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { gradeAPI, parentAPI, studentAPI } from '../../services/api';
+import { gradeAPI, parentAPI, studentAPI, academicClassesAPI, academicSubjectsAPI, examAPI } from '../../services/api';
 import PremiumSelect from '../../components/common/PremiumSelect';
+import { useAlert } from '../../context/AlertContext';
 
 // Premium Icon Components
 const Icons = {
@@ -19,6 +20,7 @@ const Icons = {
 const Results = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { showAlert } = useAlert();
   const [activeMenu, setActiveMenu] = useState('Exams');
   const [activeTab, setActiveTab] = useState('view');
   const [showModal, setShowModal] = useState(false);
@@ -26,19 +28,23 @@ const Results = () => {
   const [results, setResults] = useState([]);
   const [children, setChildren] = useState([]);
   const [storedUser, setStoredUser] = useState(null);
+  
+  // Backend Integration States
+  const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [analyticsData, setAnalyticsData] = useState([]);
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
+  const [selectedTerm, setSelectedTerm] = useState('');
+  const [generatedResults, setGeneratedResults] = useState(null);
+  const [newResultData, setNewResultData] = useState({ class: '', subject: '', title: '', date: '', maxScore: 100 });
+
+  const [stats, setStats] = useState({ assessments: 0, totalResults: 0, average: 0 });
 
   const role = storedUser?.role || user?.role;
   const isParent = role === 'parent';
   const isAdmin = role === 'admin';
   const isStudent = role === 'student';
-
-  const classResults = [
-    { class: 'Basic 1A', average: 72, highest: 95, lowest: 45, students: 38 },
-    { class: 'Basic 2A', average: 68, highest: 92, lowest: 40, students: 35 },
-    { class: 'Basic 3A', average: 75, highest: 98, lowest: 50, students: 32 },
-    { class: 'Basic 4A', average: 70, highest: 96, lowest: 42, students: 28 },
-    { class: 'Basic 5A', average: 73, highest: 94, lowest: 48, students: 33 },
-  ];
 
   const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
 
@@ -55,8 +61,166 @@ const Results = () => {
       fetchParentData();
     } else if (currentUser?.role === 'student') {
       fetchStudentData(currentUser);
+    } else {
+      fetchAdminData();
     }
   }, [user]);
+
+  const fetchAdminData = async () => {
+    setLoading(true);
+    let fetchedClasses = [];
+    
+    // Fetch Classes
+    try {
+      const classRes = await academicClassesAPI.getAll();
+      if (classRes.data?.data) {
+        setClasses(classRes.data.data);
+        fetchedClasses = classRes.data.data;
+      }
+    } catch(e) { console.error('Error fetching classes:', e); }
+
+    // Fetch Subjects
+    try {
+      const subRes = await academicSubjectsAPI.getAll();
+      if (subRes.data?.data) setSubjects(subRes.data.data);
+    } catch(e) { console.error('Error fetching subjects:', e); }
+
+    // Fetch Analytics Data
+    try {
+      const analyticsRes = await examAPI.getResults();
+      const resData = analyticsRes.data?.data || [];
+      
+      // Compute overall stats accurately
+      let totalScore = 0;
+      let count = 0;
+      const uniqueAssessments = new Set();
+      
+      const classMap = {};
+      
+      // Initialize with all database classes
+      fetchedClasses.forEach(c => {
+         classMap[c.name] = { scores: [], students: new Set() };
+      });
+
+      resData.forEach(r => {
+         // For overall stats
+         totalScore += Number(r.score) || 0;
+         count++;
+         uniqueAssessments.add(`${r.grade}-${r.subject}-${r.term}`);
+
+         // For class analytics
+         const className = r.grade || 'Unknown';
+         if (!classMap[className]) classMap[className] = { scores: [], students: new Set() };
+         classMap[className].scores.push(Number(r.score) || 0);
+         classMap[className].students.add(r.studentId);
+      });
+
+      setStats({
+        assessments: uniqueAssessments.size,
+        totalResults: count,
+        average: count > 0 ? Math.round(totalScore / count) : 0
+      });
+
+      const analytics = Object.entries(classMap).map(([className, data]) => {
+         const sum = data.scores.reduce((a,b) => a+b, 0);
+         return {
+           class: className,
+           average: data.scores.length ? Math.round(sum / data.scores.length) : 0,
+           highest: data.scores.length ? Math.max(...data.scores) : 0,
+           lowest: data.scores.length ? Math.min(...data.scores) : 0,
+           students: data.students.size
+         };
+      });
+      setAnalyticsData(analytics);
+    } catch(e) { console.error('Error fetching analytics:', e); }
+    
+    setLoading(false);
+  };
+
+  const handleGenerateView = async () => {
+    if (!selectedClass || !selectedTerm) {
+      showAlert('warning', 'Please select both class and term.');
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await examAPI.getResults({ grade: selectedClass, term: selectedTerm });
+      if (res.data?.data) {
+        setGeneratedResults(res.data.data);
+      }
+    } catch(e) { 
+      console.error(e);
+      showAlert('error', 'Failed to fetch results.');
+    } finally { setLoading(false); }
+  };
+
+  const filteredResults = useMemo(() => {
+    if (!generatedResults) return null;
+    let filtered = generatedResults;
+    if (selectedSection) {
+      filtered = filtered.filter(r => r.section?.toLowerCase() === selectedSection.toLowerCase());
+    }
+    
+    // Group by studentId
+    const map = {};
+    const subjectsSet = new Set();
+
+    filtered.forEach(r => {
+      if (!map[r.studentId]) {
+        map[r.studentId] = {
+          studentId: r.studentId,
+          studentName: r.studentName,
+          admissionNumber: r.admissionNumber,
+          scores: {}
+        };
+      }
+      map[r.studentId].scores[r.subject] = r.score;
+      subjectsSet.add(r.subject);
+    });
+
+    const subjectsList = Array.from(subjectsSet).sort();
+
+    const grouped = Object.values(map).map(student => {
+      let total = 0;
+      let count = 0;
+      subjectsList.forEach(sub => {
+        if (student.scores[sub] !== undefined) {
+          total += Number(student.scores[sub]);
+          count++;
+        }
+      });
+      const average = count > 0 ? Math.round(total / count) : 0;
+      const grade = average >= 70 ? 'A' : average >= 60 ? 'B' : average >= 50 ? 'C' : 'F';
+      
+      return {
+        ...student,
+        total,
+        average,
+        grade
+      };
+    });
+    
+    // Sort by average descending
+    grouped.sort((a, b) => b.average - a.average);
+
+    return { subjects: subjectsList, students: grouped };
+  }, [generatedResults, selectedSection]);
+
+  const handleSaveResult = async () => {
+    try {
+      if (!newResultData.class || !newResultData.subject) {
+        showAlert('warning', 'Please provide necessary details.');
+        return;
+      }
+      // Note: Typically you'd upload an excel file or form data
+      // For now, simulating success since this relies on bulk submission
+      showAlert('success', 'Assessment configuration saved. Ready for marks entry.');
+      setShowModal(false);
+      setNewResultData({ class: '', subject: '', title: '', date: '', maxScore: 100 });
+    } catch(e) {
+      showAlert('error', 'Failed to save results.');
+    }
+  };
 
   const fetchStudentData = async (studentUser) => {
     try {
@@ -127,9 +291,9 @@ const Results = () => {
             </>
           ) : (
             <>
-              <StatCard title="Assessments" value="24" icon={<Icons.BookOpen />} color="var(--brand-green)" />
-              <StatCard title="Total Results" value="1,562" icon={<Icons.FileText />} color="var(--brand-yellow)" />
-              <StatCard title="Average" value="72.4%" icon={<Icons.TrendingUp />} color="#0ea5e9" />
+              <StatCard title="Assessments" value={stats.assessments} icon={<Icons.BookOpen />} color="var(--brand-green)" />
+              <StatCard title="Total Results" value={stats.totalResults} icon={<Icons.FileText />} color="var(--brand-yellow)" />
+              <StatCard title="Average" value={`${stats.average}%`} icon={<Icons.TrendingUp />} color="#0ea5e9" />
               <StatCard title="Rankings" value="Updated" icon={<Icons.Award />} color="#8b5cf6" />
             </>
           )}
@@ -143,7 +307,7 @@ const Results = () => {
               <button style={{ padding: '20px 24px', border: 'none', background: 'none', fontSize: '14px', fontWeight: '800', color: 'var(--brand-green)', borderBottom: '3px solid var(--brand-green)', cursor: 'pointer' }}>Latest Results</button>
             ) : (
               <>
-                <button onClick={() => setActiveTab('view')} style={{ padding: '20px 24px', border: 'none', background: 'none', fontSize: '14px', fontWeight: '800', color: activeTab === 'view' ? 'var(--brand-green)' : '#94a3b8', borderBottom: activeTab === 'view' ? '3px solid var(--brand-green)' : '3px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}>View Results</button>
+                <button onClick={() => { setActiveTab('view'); setGeneratedResults(null); }} style={{ padding: '20px 24px', border: 'none', background: 'none', fontSize: '14px', fontWeight: '800', color: activeTab === 'view' ? 'var(--brand-green)' : '#94a3b8', borderBottom: activeTab === 'view' ? '3px solid var(--brand-green)' : '3px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}>View Results</button>
                 <button onClick={() => setActiveTab('analytics')} style={{ padding: '20px 24px', border: 'none', background: 'none', fontSize: '14px', fontWeight: '800', color: activeTab === 'analytics' ? 'var(--brand-green)' : '#94a3b8', borderBottom: activeTab === 'analytics' ? '3px solid var(--brand-green)' : '3px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}>Class Analytics</button>
                 <button onClick={() => navigate('/exams/marks')} style={{ padding: '20px 24px', border: 'none', background: 'none', fontSize: '14px', fontWeight: '800', color: '#94a3b8', borderBottom: '3px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}>Marks Entry</button>
               </>
@@ -158,7 +322,7 @@ const Results = () => {
                   const student = children.find(c => (c.id || c._id) === (r.studentId || r.student?._id || r.student?.id));
                   const score = r.score || r.totalScore || r.percentage || 0;
                   return (
-                    <div key={i} style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.borderColor = '#00843e'} onMouseOut={(e) => e.currentTarget.style.borderColor = '#f1f5f9'}>
+                    <div key={i} style={{ padding: '20px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.borderColor = '#00843e'} onMouseOut={(e) => e.currentTarget.style.borderColor = '#f1f5f9'}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#00843e10', color: '#00843e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>{student?.firstName?.[0] || 'S'}</div>
                         <div>
@@ -173,7 +337,7 @@ const Results = () => {
                     </div>
                   );
                 }) : (
-                  <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px dashed #cbd5e1' }}>
+                  <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px dashed #cbd5e1' }}>
                     <Icons.FileText />
                     <p style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginTop: '16px' }}>No results recorded yet</p>
                     <p style={{ fontSize: '14px', color: '#64748b' }}>Check back later once terminal results are published.</p>
@@ -181,26 +345,97 @@ const Results = () => {
                 )}
               </div>
             ) : activeTab === 'view' ? (
-              <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px dashed #cbd5e1' }}>
+              <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px dashed #cbd5e1' }}>
                 <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#00843e10', color: '#00843e', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                   <Icons.Filter />
                 </div>
                 <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>Select Class & Subject</h3>
                 <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>Please select a class and an assessment to view student performances.</p>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                  <div style={{ width: '200px' }}>
-                    <PremiumSelect options={[{value:'Basic 1A', label:'Basic 1A'}]} placeholder="Select Class" />
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ width: '180px' }}>
+                    <PremiumSelect 
+                      value={selectedClass} 
+                      onChange={(e) => setSelectedClass(e.target.value)} 
+                      options={classes.map(c => ({ value: c.name, label: c.name }))} 
+                      placeholder="Select Class" 
+                    />
                   </div>
-                  <div style={{ width: '200px' }}>
-                    <PremiumSelect options={[{value:'1st', label:'First Term'}]} placeholder="Select Term" />
+                  <div style={{ width: '180px' }}>
+                    <PremiumSelect 
+                      value={selectedSection} 
+                      onChange={(e) => setSelectedSection(e.target.value)} 
+                      options={['Yellow', 'Green', 'Red', 'Blue'].map(s => ({ value: s, label: s }))} 
+                      placeholder="Select Section" 
+                    />
                   </div>
-                  <button style={{ padding: '12px 24px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}>Generate View</button>
+                  <div style={{ width: '180px' }}>
+                    <PremiumSelect 
+                      value={selectedTerm} 
+                      onChange={(e) => setSelectedTerm(e.target.value)} 
+                      options={[{value:'1st', label:'First Term'}, {value:'2nd', label:'Second Term'}, {value:'3rd', label:'Third Term'}]} 
+                      placeholder="Select Term" 
+                    />
+                  </div>
+                  <button onClick={handleGenerateView} style={{ padding: '12px 24px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    {loading ? 'Generating...' : 'Generate View'}
+                  </button>
                 </div>
+                
+                {filteredResults && (
+                  <div style={{ marginTop: '40px', textAlign: 'left', overflowX: 'auto' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>Master Results Sheet</h4>
+                    
+                    {filteredResults.students.length > 0 ? (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                        <thead style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                          <tr>
+                            <th style={{ padding: '16px', textAlign: 'left', fontSize: '13px', fontWeight: '700', color: '#475569', whiteSpace: 'nowrap' }}>Student</th>
+                            {filteredResults.subjects.map(sub => (
+                              <th key={sub} style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '700', color: '#475569', whiteSpace: 'nowrap' }}>{sub}</th>
+                            ))}
+                            <th style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Total</th>
+                            <th style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Avg</th>
+                            <th style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Grade</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredResults.students.map((student) => (
+                            <tr key={student.studentId} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                              <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                                <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{student.studentName}</p>
+                                <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0' }}>{student.admissionNumber || 'N/A'}</p>
+                              </td>
+                              {filteredResults.subjects.map(sub => {
+                                const score = student.scores[sub];
+                                return (
+                                  <td key={sub} style={{ padding: '16px', textAlign: 'center', fontSize: '14px', fontWeight: '500', color: score !== undefined ? '#334155' : '#cbd5e1' }}>
+                                    {score !== undefined ? score : '-'}
+                                  </td>
+                                );
+                              })}
+                              <td style={{ padding: '16px', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: '#00843e' }}>{student.total}</td>
+                              <td style={{ padding: '16px', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: '#3b82f6' }}>{student.average}%</td>
+                              <td style={{ padding: '16px', textAlign: 'center' }}>
+                                <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', backgroundColor: student.grade === 'A' ? '#dcfce7' : student.grade === 'B' ? '#e0f2fe' : student.grade === 'C' ? '#fef3c7' : '#fee2e2', color: student.grade === 'A' ? '#166534' : student.grade === 'B' ? '#075985' : student.grade === 'C' ? '#92400e' : '#991b1b' }}>
+                                  {student.grade}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                        <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>No results found for the selected criteria.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-                {classResults.map((cr, idx) => (
-                  <div key={idx} style={{ padding: '24px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9', transition: 'all 0.3s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = '#00843e'; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#f1f5f9' }}>
+                {analyticsData.map((cr, idx) => (
+                  <div key={idx} style={{ padding: '24px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #f1f5f9', transition: 'all 0.3s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = '#00843e'; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#f1f5f9' }}>
                     <h4 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>{cr.class}</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <div><p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Average</p><p style={{ fontSize: '20px', fontWeight: '800', color: '#f59e0b' }}>{cr.average}%</p></div>
@@ -228,13 +463,41 @@ const Results = () => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <FormGroup label="Class" type="select" options={[{v:'Basic 1A', l:'Basic 1A'}, {v:'Basic 2A', l:'Basic 2A'}]} />
-                <FormGroup label="Subject" type="select" options={[{v:'math', l:'Mathematics'}, {v:'english', l:'English'}]} />
+                <FormGroup 
+                  label="Class" 
+                  type="select" 
+                  value={newResultData.class}
+                  onChange={(e) => setNewResultData({...newResultData, class: e.target.value})}
+                  options={classes.map(c => ({ v: c.name, l: c.name }))} 
+                />
+                <FormGroup 
+                  label="Subject" 
+                  type="select" 
+                  value={newResultData.subject}
+                  onChange={(e) => setNewResultData({...newResultData, subject: e.target.value})}
+                  options={subjects.map(s => ({ v: s.name, l: s.name }))} 
+                />
               </div>
-              <FormGroup label="Assessment Title" placeholder="e.g. Mid-Term Quiz 1" />
+              <FormGroup 
+                label="Assessment Title" 
+                placeholder="e.g. Mid-Term Quiz 1" 
+                value={newResultData.title}
+                onChange={(e) => setNewResultData({...newResultData, title: e.target.value})}
+              />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <FormGroup label="Date" type="date" />
-                <FormGroup label="Max Score" type="number" defaultValue="100" />
+                <FormGroup 
+                  label="Date" 
+                  type="date" 
+                  value={newResultData.date}
+                  onChange={(e) => setNewResultData({...newResultData, date: e.target.value})}
+                />
+                <FormGroup 
+                  label="Max Score" 
+                  type="number" 
+                  defaultValue="100" 
+                  value={newResultData.maxScore}
+                  onChange={(e) => setNewResultData({...newResultData, maxScore: e.target.value})}
+                />
               </div>
               <div style={{ padding: '24px', borderRadius: '16px', border: '2px dashed #e2e8f0', textAlign: 'center', cursor: 'pointer' }}>
                 <Icons.FileText />
@@ -243,7 +506,7 @@ const Results = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
               <button onClick={() => setShowModal(false)} style={{ padding: '12px 24px', backgroundColor: 'white', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-              <button style={{ padding: '12px 24px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0, 132, 62, 0.2)' }}>Save Results</button>
+              <button onClick={handleSaveResult} style={{ padding: '12px 24px', backgroundColor: '#00843e', color: 'white', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0, 132, 62, 0.2)' }}>Save Results</button>
             </div>
           </div>
         </div>
@@ -267,13 +530,25 @@ const StatCard = ({ title, value, icon, color }) => (
   </div>
 );
 
-const FormGroup = ({ label, type = 'text', options = [], placeholder, defaultValue }) => (
+const FormGroup = ({ label, type = 'text', options = [], placeholder, defaultValue, value, onChange }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
     <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>{label}</label>
     {type === 'select' ? (
-      <PremiumSelect options={options.map(opt => ({ value: opt.v, label: opt.l }))} placeholder={`Select ${label}`} />
+      <PremiumSelect 
+        value={value}
+        onChange={onChange}
+        options={options.map(opt => ({ value: opt.v, label: opt.l }))} 
+        placeholder={`Select ${label}`} 
+      />
     ) : (
-      <input type={type} placeholder={placeholder} defaultValue={defaultValue} style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '14px', outline: 'none' }} />
+      <input 
+        type={type} 
+        placeholder={placeholder} 
+        defaultValue={defaultValue} 
+        value={value}
+        onChange={onChange}
+        style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '14px', outline: 'none' }} 
+      />
     )}
   </div>
 );

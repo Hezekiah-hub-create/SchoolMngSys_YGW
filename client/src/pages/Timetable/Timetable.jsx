@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { timetableAPI, teacherAPI, courseAPI, parentAPI, academicSubjectsAPI } from '../../services/api';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { useAlert } from '../../context/AlertContext';
+import { mapSectionName } from '../../utils/sectionHelper';
 
 const displayGrade = (g) => {
   if (!g) return 'N/A';
@@ -178,7 +179,7 @@ const Timetable = () => {
           const teacherSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] };
           ttData.forEach(p => {
             if (teacherSchedule[p.day]) {
-              teacherSchedule[p.day].push({ ...p, subject: p.subject || p.course_name, room: `${p.grade}${p.section}${p.room ? ` (${p.room})` : ''}` });
+              teacherSchedule[p.day].push({ ...p, subject: p.subject || p.course_name, room: `${p.grade} - ${mapSectionName(p.section || 'A')}${p.room ? ` (${p.room})` : ''}` });
             }
           });
           setTimetable(teacherSchedule);
@@ -438,7 +439,7 @@ const Timetable = () => {
   };
 
   const handleResetTimetable = async () => {
-    const classLabel = viewMode === 'class' ? `${selectedGrade}${selectedSection}` : 'selected faculty';
+    const classLabel = viewMode === 'class' ? `${selectedGrade} Section ${mapSectionName(selectedSection)}` : 'selected faculty';
     
     showAlert({
       title: 'Confirm Temporal Purge',
@@ -604,7 +605,7 @@ const Timetable = () => {
                 ) : isStudent ? (
                   <>
                     <span style={{ display: 'block', fontSize: '14px', fontWeight: '800', color: 'var(--chronos-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Personal Learning Axis</span>
-                    {displayGrade(user?.grade)}{user?.section} <span>Chronos Node</span>
+                     {displayGrade(user?.grade)}{mapSectionName(user?.section)} <span>Chronos Node</span>
                   </>
                 ) : isTeacher ? (
                   <>
@@ -726,8 +727,8 @@ const Timetable = () => {
                     <PremiumSelect 
                       value={selectedSection || ''} 
                       onChange={(e) => setSelectedSection(e.target.value)}
-                      options={sections.map(s => ({ value: s, label: s }))}
-                      placeholder="A-D"
+                      options={sections.map(s => ({ value: s, label: mapSectionName(s) }))}
+                      placeholder="Select Node"
                     />
                   </div>
                 </>

@@ -147,6 +147,10 @@ const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: 'Account is deactivated' });
   }
 
+  if (user.role === 'student') {
+    return res.status(403).json({ message: 'Student access has been deprecated. Please use the Parent portal.' });
+  }
+
   const isMatch = await bcrypt.compare(password, user.password);
   console.log('Password match result:', isMatch);
   if (!isMatch) {
@@ -182,6 +186,18 @@ const login = asyncHandler(async (req, res) => {
         login_time: new Date().toISOString(),
         location: 'Ghana' // Default for now
       });
+      
+    // Create Audit Log for LOGIN
+    const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
+    await supabaseService.create(COLLECTIONS.ACTIVITY_LOGS, {
+      user_id: user.id,
+      user_name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown',
+      role: user.role || 'Unknown',
+      action: 'LOGIN',
+      entity: 'AUTH',
+      details: { device, browser, ip: req.headers['x-forwarded-for'] || req.ip },
+      ip_address: req.headers['x-forwarded-for'] || req.ip || '127.0.0.1'
+    });
   } catch (historyErr) {
     console.error('Login History Error:', historyErr.message);
   }

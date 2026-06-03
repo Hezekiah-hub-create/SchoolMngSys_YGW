@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PremiumSelect from './PremiumSelect';
 
 const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
   const [currentDate, setCurrentDate] = useState(value ? new Date(value) : new Date());
@@ -20,14 +21,6 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
   
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-  
-  const handleMonthChange = (e) => {
-    setCurrentDate(new Date(year, parseInt(e.target.value), 1));
-  };
-
-  const handleYearChange = (e) => {
-    setCurrentDate(new Date(parseInt(e.target.value), month, 1));
-  };
 
   const handleDateClick = (day) => {
     const selected = new Date(year, month, day);
@@ -49,7 +42,7 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
   const totalDays = daysInMonth(year, month);
   
   for (let i = 0; i < startOffset; i++) {
-    dayCells.push(<div key={`pad-${i}`} style={{ height: '40px' }} />);
+    dayCells.push(<div key={`pad-${i}`} style={{ height: '48px' }} />);
   }
   
   for (let d = 1; d <= totalDays; d++) {
@@ -61,7 +54,7 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
         key={d} 
         onClick={() => handleDateClick(d)}
         style={{
-          height: '40px',
+          height: '48px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -70,9 +63,11 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
           fontSize: '14px',
           fontWeight: '700',
           transition: 'all 0.2s',
-          backgroundColor: selected ? 'var(--brand-green)' : (todayFlag ? 'var(--brand-green-light)' : 'transparent'),
-          color: selected ? 'white' : (todayFlag ? 'var(--brand-green)' : '#1e293b'),
-          border: todayFlag && !selected ? '1.5px solid var(--brand-green)' : 'none'
+          background: selected ? 'var(--brand-yellow)' : 'transparent',
+          color: selected ? '#0f172a' : (todayFlag ? 'var(--brand-green)' : '#1e293b'),
+          border: todayFlag ? '2px solid var(--brand-green)' : 'none',
+          boxShadow: selected ? '0 8px 20px rgba(250, 204, 21, 0.3)' : 'none',
+          zIndex: selected ? 2 : 1
         }}
         onMouseEnter={(e) => {
           if (!selected) e.currentTarget.style.backgroundColor = '#f1f5f9';
@@ -88,7 +83,7 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
 
   return (
     <div style={{
-      width: '320px',
+      width: '380px',
       maxWidth: '100%',
       backgroundColor: 'white',
       borderRadius: '24px',
@@ -105,26 +100,22 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
         </button>
         
         <div style={{ display: 'flex', gap: '4px', flex: 1, justifyContent: 'center' }}>
-          <select 
-            value={month} 
-            onChange={handleMonthChange}
-            className="calendar-select"
-            style={{ padding: '4px 8px', border: 'none', background: '#f8fafc', borderRadius: '8px', fontSize: '14px', fontWeight: '800', color: '#0f172a', cursor: 'pointer' }}
-          >
-            {monthNames.map((name, i) => (
-              <option key={i} value={i}>{name}</option>
-            ))}
-          </select>
-          <select 
-            value={year} 
-            onChange={handleYearChange}
-            className="calendar-select"
-            style={{ padding: '4px 8px', border: 'none', background: '#f8fafc', borderRadius: '8px', fontSize: '14px', fontWeight: '800', color: '#0f172a', cursor: 'pointer' }}
-          >
-            {years.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <div style={{ width: '120px' }}>
+            <PremiumSelect 
+              value={month} 
+              onChange={(e) => setCurrentDate(new Date(year, parseInt(e.target.value), 1))}
+              options={monthNames.map((name, i) => ({ value: i, label: name }))}
+              placeholder="Month"
+            />
+          </div>
+          <div style={{ width: '100px' }}>
+            <PremiumSelect 
+              value={year} 
+              onChange={(e) => setCurrentDate(new Date(parseInt(e.target.value), month, 1))}
+              options={years.map(y => ({ value: y, label: y.toString() }))}
+              placeholder="Year"
+            />
+          </div>
         </div>
 
         <button onClick={nextMonth} className="calendar-nav-btn">

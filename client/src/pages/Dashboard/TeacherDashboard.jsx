@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { teacherAPI, gradeAPI, timetableAPI, courseAPI, settingsAPI, studentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { mapSectionName } from '../../utils/sectionHelper';
+import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
 
 // Icon components for premium feel
 const Icons = {
@@ -70,7 +72,7 @@ const ScheduleItem = ({ time, className, room, type, last }) => {
     Lecture: { bg: '#eff6ff', text: '#2563eb', dot: '#3b82f6' }, 
     Lab: { bg: '#fdf2f8', text: '#db2777', dot: '#ec4899' }, 
     Exam: { bg: '#fff7ed', text: '#ea580c', dot: '#f97316' } 
-  }[type] || { bg: '#f8fafc', text: '#475569', dot: '#94a3b8' };
+  }[type] || { bg: '#ffffff', text: '#475569', dot: '#94a3b8' };
 
   return (
     <div style={{ display: 'flex', gap: '24px', position: 'relative' }}>
@@ -267,7 +269,7 @@ const TeacherDashboard = () => {
               <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
                 Welcome, <span style={{ color: '#0f172a', fontWeight: '800' }}>{currentUser?.first_name || currentUser?.firstName || 'Teacher'}</span>. 
                 {masterClasses.length > 0 && (
-                  <> Master of <span style={{ color: 'var(--brand-green)', fontWeight: '700' }}>{masterClasses.map(c => `${c.name} ${c.section}`).join(', ')}</span>. </>
+                  <> Master of <span style={{ color: 'var(--brand-green)', fontWeight: '700' }}>{masterClasses.map(c => `${c.name} ${mapSectionName(c.section)}`).join(', ')}</span>. </>
                 )}
                 Overseeing <span style={{ color: 'var(--brand-green)', fontWeight: '700' }}>{stats.classes} institutional nodes</span> today.
               </p>
@@ -301,7 +303,7 @@ const TeacherDashboard = () => {
                   </div>
                   <h2 style={{ fontSize: '28px', fontWeight: '950', color: 'white', margin: '0 0 8px 0', letterSpacing: '-1px' }}>Class Master Designation</h2>
                   <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', fontWeight: '500', maxWidth: '600px' }}>
-                    You are currently serving as the Lead Faculty for <span style={{ fontWeight: '800', color: '#fff' }}>{masterClasses.map(c => `${c.name} ${c.section}`).join(' & ')}</span>.
+                    You are currently serving as the Lead Faculty for <span style={{ fontWeight: '800', color: '#fff' }}>{masterClasses.map(c => `${c.name} ${mapSectionName(c.section)}`).join(' & ')}</span>.
                   </p>
                   <button 
                     onClick={() => navigate('/reports/academic')}
@@ -399,7 +401,7 @@ const TeacherDashboard = () => {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   {loading ? [...Array(4)].map((_, i) => (
-                    <div key={i} style={{ height: '110px', backgroundColor: '#f8fafc', borderRadius: '24px', animation: 'pulse 1.5s infinite' }}></div>
+                    <div key={i} style={{ height: '110px', backgroundColor: '#ffffff', borderRadius: '24px', animation: 'pulse 1.5s infinite' }}></div>
                   )) : classes.length > 0 ? classes.map((cls, i) => (
                     <div key={i} className="glass-card" style={{ padding: '24px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', cursor: 'pointer', border: '1.5px solid transparent' }}
                       onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--brand-green)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 132, 62, 0.08)'; }}
@@ -408,7 +410,7 @@ const TeacherDashboard = () => {
                       <p style={{ fontSize: '12px', fontWeight: '900', color: 'var(--brand-green)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{cls.code || 'COURSE'}</p>
                       <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#0f172a', margin: '0 0 16px 0', letterSpacing: '-0.3px' }}>{cls.name}</h3>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: '900', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', padding: '6px 14px', borderRadius: '24px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cls.grade} {cls.section}</span>
+                        <span style={{ fontSize: '11px', fontWeight: '900', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', padding: '6px 14px', borderRadius: '24px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cls.grade} {mapSectionName(cls.section)}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b', fontWeight: '700' }}>
                           <Icons.Users /> {cls.studentCount || 0} Scholars
                         </div>
@@ -467,7 +469,7 @@ const TeacherDashboard = () => {
                   style={{ 
                     width: '100%', 
                     padding: '16px', 
-                    backgroundColor: '#f8fafc', 
+                    backgroundColor: '#ffffff', 
                     color: '#475569', 
                     border: '1px dashed #e2e8f0', 
                     borderRadius: '20px', 
@@ -478,7 +480,7 @@ const TeacherDashboard = () => {
                     transition: 'all 0.2s'
                   }}
                   onMouseOver={e => { e.currentTarget.style.backgroundColor = 'var(--brand-green-light)'; e.currentTarget.style.color = 'var(--brand-green)'; e.currentTarget.style.borderColor = 'var(--brand-green)'; }}
-                  onMouseOut={e => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                  onMouseOut={e => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
                 >
                   View Full Timetable
                 </button>
@@ -493,7 +495,7 @@ const TeacherDashboard = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {recentSubmissions.length > 0 ? recentSubmissions.map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '16px', transition: 'all 0.3s' }}
-                      onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseOver={e => e.currentTarget.style.backgroundColor = '#ffffff'}
                       onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--brand-green)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '14px', boxShadow: '0 8px 16px rgba(0, 132, 62, 0.15)' }}>
@@ -511,6 +513,15 @@ const TeacherDashboard = () => {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Academic Calendar */}
+              <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
+                <div style={{ padding: '24px 32px', borderBottom: '1.5px solid #f1f5f9' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Academic Calendar</h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', fontWeight: '600' }}>Upcoming institutional activities</p>
+                </div>
+                <AcademicCalendarWidget />
               </div>
 
             </div>

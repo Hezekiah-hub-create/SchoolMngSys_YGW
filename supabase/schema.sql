@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('admin', 'teacher', 'parent', 'student', 'finance', 'ITSupport', 'admission')),
+  role TEXT NOT NULL CHECK (role IN ('admin', 'teacher', 'parent', 'student', 'finance', 'ITSupport', 'admission', 'staff')),
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
   phone TEXT,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS students (
   nationality TEXT DEFAULT 'Ghanaian',
   religion TEXT,
   -- Grade level: KG1, KG2, Basic 1-6, JHS 1-3
-  grade TEXT NOT NULL CHECK (grade IN ('KG 1','KG 2','KG 3','Primary 1','Primary 2','Primary 3','Primary 4','Primary 5','Primary 6','Basic 7','Basic 8','Basic 9','SSS 1','SSS 2','SSS 3','JHS 1','JHS 2','JHS 3')),
+  grade TEXT NOT NULL CHECK (grade IN ('KG 1','KG 2','KG 3','Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6','Basic 7','Basic 8','Basic 9','SSS 1','SSS 2','SSS 3','JHS 1','JHS 2','JHS 3')),
   section TEXT DEFAULT 'A',
   academic_year TEXT NOT NULL,
   date_of_admission DATE DEFAULT CURRENT_DATE,
@@ -604,3 +604,113 @@ CREATE TABLE IF NOT EXISTS grade_masters (
 ALTER TABLE grade_masters ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON grade_masters;
 CREATE POLICY "Enable all for authenticated" ON grade_masters FOR ALL USING (true);
+
+-- ==================== LOGIN HISTORY TABLE ====================
+CREATE TABLE IF NOT EXISTS login_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  login_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  logout_time TIMESTAMP WITH TIME ZONE,
+  device TEXT,
+  ip_address TEXT,
+  location TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE login_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view their own login history" ON login_history FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admin can view all login history" ON login_history FOR SELECT USING (true);
+
+-- ==================== ACADEMIC CLASSES TABLE ====================
+CREATE TABLE IF NOT EXISTS academic_classes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  academic_year TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE academic_classes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for authenticated" ON academic_classes FOR ALL USING (true);
+
+-- ==================== SECTIONS TABLE ====================
+CREATE TABLE IF NOT EXISTS sections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  class_master_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
+  academic_year TEXT NOT NULL DEFAULT '2024/2025',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE sections ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for authenticated" ON sections FOR ALL USING (true);
+
+-- ==================== SUBJECTS TABLE ====================
+CREATE TABLE IF NOT EXISTS subjects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  code TEXT UNIQUE NOT NULL,
+  description TEXT,
+  category TEXT DEFAULT 'Core',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for authenticated" ON subjects FOR ALL USING (true);
+
+-- ==================== CLASS SUBJECTS (CURRICULUM) TABLE ====================
+CREATE TABLE IF NOT EXISTS class_subjects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
+  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+  teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
+  section TEXT NOT NULL DEFAULT 'A',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (class_id, subject_id, section)
+);
+
+ALTER TABLE class_subjects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for authenticated" ON class_subjects FOR ALL USING (true);
+
+-- ==================== EXAMS TABLE ====================
+CREATE TABLE IF NOT EXISTS exams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  class TEXT NOT NULL, -- Grade level identifier
+  subject TEXT,
+  term TEXT NOT NULL,
+  academic_year TEXT NOT NULL,
+  date DATE,
+  start_time TIME,
+  end_time TIME,
+  room TEXT,
+  max_score INTEGER DEFAULT 100,
+  weight INTEGER DEFAULT 1,
+  status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'ongoing', 'completed', 'cancelled')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE exams ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for authenticated" ON exams FOR ALL USING (true);
+
+-- ==================== ACADEMIC CALENDAR TABLE ====================
+CREATE TABLE IF NOT EXISTS academic_calendar (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  academic_year TEXT NOT NULL,
+  term TEXT NOT NULL,
+  week TEXT NOT NULL,
+  date_range TEXT NOT NULL,
+  activity TEXT NOT NULL,
+  status TEXT,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE academic_calendar ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable all for authenticated" ON academic_calendar FOR ALL USING (true);

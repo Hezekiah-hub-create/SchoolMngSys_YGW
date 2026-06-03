@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { staffAPI } from '../../services/api';
+import PremiumSelect from '../../components/common/PremiumSelect';
 
 const NonTeaching = () => {
   const navigate = useNavigate();
@@ -177,7 +178,7 @@ const NonTeaching = () => {
             <div style={{ textAlign: 'center', padding: '60px' }}><div className="premium-loader"></div></div>
           ) : staff.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '80px 40px', color: '#64748b' }}>
-              <div style={{ width: '80px', height: '80px', backgroundColor: '#f8fafc', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+              <div style={{ width: '80px', height: '80px', backgroundColor: '#ffffff', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><circle cx="19" cy="11" r="3"/></svg>
               </div>
               <h3 style={{ fontWeight: '900', fontSize: '22px', color: '#1e293b', marginBottom: '8px', letterSpacing: '-0.5px' }}>Empty Staff Registry</h3>
@@ -186,7 +187,7 @@ const NonTeaching = () => {
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ backgroundColor: '#f8fafc' }}>
+                <tr style={{ backgroundColor: '#ffffff' }}>
                   <th className="premium-th">Staff Member</th>
                   <th className="premium-th">Specialization</th>
                   <th className="premium-th">Connectivity</th>
@@ -272,24 +273,33 @@ const NonTeaching = () => {
               </div>
               <div style={{ gridColumn: 'span 1' }}>
                 <label className="premium-label">Personnel Role</label>
-                <select name="role" className="premium-input" value={formData.role} onChange={handleChange} required style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', backgroundSize: '16px' }}>
-                  <option value="">Select Role</option>
-                  {roleOptions.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-                </select>
+                <PremiumSelect 
+                  value={formData.role} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                  options={roleOptions}
+                  placeholder="Select Role"
+                />
               </div>
               <div style={{ gridColumn: 'span 1' }}>
                 <label className="premium-label">Department</label>
-                <select name="department" className="premium-input" value={formData.department} onChange={handleChange} required style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', backgroundSize: '16px' }}>
-                  <option value="">Select Dept</option>
-                  {departmentOptions.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-                </select>
+                <PremiumSelect 
+                  value={formData.department} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                  options={departmentOptions}
+                  placeholder="Select Dept"
+                />
               </div>
               <div style={{ gridColumn: 'span 1' }}>
                 <label className="premium-label">Account Status</label>
-                <select name="status" className="premium-input" value={formData.status} onChange={handleChange} style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', backgroundSize: '16px' }}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+                <PremiumSelect 
+                  value={formData.status} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' }
+                  ]}
+                  placeholder="Status"
+                />
               </div>
               
               <div style={{ gridColumn: 'span 2', display: 'flex', gap: '16px', marginTop: '16px' }}>
