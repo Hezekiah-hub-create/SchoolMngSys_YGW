@@ -113,8 +113,8 @@ export const reportAPI = {
 
 // ==================== EXAMS API ====================
 export const examAPI = {
-  getAll: (params) => client.get('/exams', { params }),
-  getById: (id) => client.get(`/exams/${id}`),
+  getAll: (params) => client.get('/exams/schedule', { params }),
+  getById: (id) => client.get(`/exams/schedule/${id}`),
 };
 
 // ==================== FEES API ====================
