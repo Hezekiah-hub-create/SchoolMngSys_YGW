@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { authAPI } from '../../services/api';
 import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 
@@ -40,6 +41,44 @@ const Configuration = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswords(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdatePassword = async () => {
+    setPasswordStatus({ type: '', message: '' });
+    if (!passwords.currentPassword || !passwords.newPassword || !passwords.confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'All fields are required.' });
+      return;
+    }
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'New passwords do not match.' });
+      return;
+    }
+    try {
+      setIsUpdatingPassword(true);
+      const response = await authAPI.updatePassword({
+        currentPassword: passwords.currentPassword,
+        newPassword: passwords.newPassword
+      });
+      if (response.data.success) {
+        setPasswordStatus({ type: 'success', message: 'Password updated successfully!' });
+        setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        setPasswordStatus({ type: 'error', message: response.data.message || 'Failed to update password.' });
+      }
+    } catch (err) {
+      setPasswordStatus({ type: 'error', message: err.response?.data?.message || 'An error occurred while updating the password.' });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   };
 
   return (
@@ -148,13 +187,39 @@ const Configuration = () => {
           {activeTab === 'security' && (
             <div style={{ animation: 'slideUp 0.4s ease-out' }}>
               <h2 style={{ fontSize: '22px', fontWeight: '850', color: '#0f172a', marginBottom: '32px', letterSpacing: '-0.5px' }}>Credential Management</h2>
+              
+              {passwordStatus.message && (
+                <div style={{ 
+                  padding: '16px 20px', 
+                  borderRadius: '16px', 
+                  marginBottom: '24px', 
+                  backgroundColor: passwordStatus.type === 'error' ? '#fef2f2' : '#ecfdf5',
+                  color: passwordStatus.type === 'error' ? '#ef4444' : '#10b981',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  border: `1px solid ${passwordStatus.type === 'error' ? '#fca5a5' : '#a7f3d0'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  {passwordStatus.type === 'success' ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  )}
+                  {passwordStatus.message}
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '480px' }}>
-                <InputField label="Current Protocol Password" type="password" placeholder="Enter current password" />
-                <InputField label="New Protocol Password" type="password" placeholder="Define new password" />
-                <InputField label="Verify New Protocol" type="password" placeholder="Confirm new password" />
+                <InputField label="Current Protocol Password" name="currentPassword" type="password" placeholder="Enter current password" value={passwords.currentPassword} onChange={handlePasswordChange} />
+                <InputField label="New Protocol Password" name="newPassword" type="password" placeholder="Define new password" value={passwords.newPassword} onChange={handlePasswordChange} />
+                <InputField label="Verify New Protocol" name="confirmPassword" type="password" placeholder="Confirm new password" value={passwords.confirmPassword} onChange={handlePasswordChange} />
               </div>
               <div style={{ marginTop: '56px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '32px' }}>
                 <button 
+                  onClick={handleUpdatePassword}
+                  disabled={isUpdatingPassword}
                   className="premium-btn-primary"
                   style={{ 
                     padding: '16px 48px', 
@@ -163,7 +228,7 @@ const Configuration = () => {
                     fontSize: '15px'
                   }}
                 >
-                  Update Credentials
+                  {isUpdatingPassword ? 'Updating...' : 'Update Credentials'}
                 </button>
               </div>
             </div>

@@ -51,7 +51,8 @@ export const authAPI = {
   logout: () => api.post('/api/auth/logout'),
   resetPassword: (email) => api.post('/api/auth/reset-password', { email }),
   getProfile: () => api.get('/api/auth/profile'),
-  updateProfile: (data) => api.put('/api/auth/profile', data)
+  updateProfile: (data) => api.put('/api/auth/profile', data),
+  updatePassword: (data) => api.put('/api/auth/password', data)
 };
 
 // ==================== STUDENTS API ====================

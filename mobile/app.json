@@ -13,13 +13,15 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.uhasbasicschool.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/UBS.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.uhasbasicschool.app",
       "edgeToEdgeEnabled": true
     },
     "web": {
