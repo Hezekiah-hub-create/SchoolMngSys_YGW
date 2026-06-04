@@ -8,6 +8,8 @@ import { COLORS } from '../../theme';
 import { ArrowLeft, Settings as SettingsIcon, Bell, Moon, Shield, Save } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { settingsAPI } from '../../api';
+import * as SecureStore from 'expo-secure-store';
+import { Alert } from 'react-native';
 
 const SettingsScreen = ({ navigation }) => {
   const [settings, setSettings] = useState(null);
@@ -23,6 +25,14 @@ const SettingsScreen = ({ navigation }) => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
+      // Load local preferences
+      const notifs = await SecureStore.getItemAsync('app_notifications');
+      if (notifs !== null) setNotificationsEnabled(notifs === 'true');
+      
+      const theme = await SecureStore.getItemAsync('app_dark_mode');
+      if (theme !== null) setDarkMode(theme === 'true');
+
+      // Load school config
       const res = await settingsAPI.getSettings();
       if (res.data?.success) {
         setSettings(res.data.data);
@@ -31,6 +41,16 @@ const SettingsScreen = ({ navigation }) => {
       console.log('Settings fetch error:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const savePreferences = async () => {
+    try {
+      await SecureStore.setItemAsync('app_notifications', notificationsEnabled.toString());
+      await SecureStore.setItemAsync('app_dark_mode', darkMode.toString());
+      Alert.alert("Success", "App preferences saved successfully!");
+    } catch (error) {
+      Alert.alert("Error", "Failed to save preferences.");
     }
   };
 
@@ -64,7 +84,7 @@ const SettingsScreen = ({ navigation }) => {
           <ArrowLeft size={20} color={COLORS.slate[800]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>System Settings</Text>
-        <TouchableOpacity style={styles.saveBtn}>
+        <TouchableOpacity style={styles.saveBtn} onPress={savePreferences}>
           <Save size={18} color={COLORS.primary} />
         </TouchableOpacity>
       </View>

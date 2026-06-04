@@ -54,6 +54,7 @@ import LoginHistory from './pages/Account/LoginHistory';
 import Configuration from './pages/Account/Configuration';
 import ActivityLogs from './pages/Admin/ActivityLogs/ActivityLogs';
 import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
+import Unauthorized from './pages/Unauthorized/Unauthorized';
 import './index.css';
 
 // PublicRoute - Redirects to dashboard if already authenticated
@@ -200,15 +201,15 @@ const RoleBasedRoute = ({ children }) => {
   
   if (user.role === 'teacher') {
     const isAllowed = teacherAllowedPaths.has(location.pathname) || location.pathname.startsWith('/assignments/');
-    if (!isAllowed) return <Navigate to="/teacher-dashboard" replace />;
+    if (!isAllowed) return <Navigate to="/unauthorized" replace />;
   }
 
   if (user.role === 'parent') {
     const isAllowed = parentAllowedPaths.has(location.pathname) || location.pathname.startsWith('/assignments/');
-    if (!isAllowed) return <Navigate to="/parent-dashboard" replace />;
+    if (!isAllowed) return <Navigate to="/unauthorized" replace />;
   }
   if (user.role === 'admission' && !admissionAllowedPaths.has(location.pathname)) {
-    return <Navigate to="/admission-dashboard" replace />;
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return children;
@@ -226,6 +227,8 @@ function App() {
               <Login />
             </PublicRoute>
           } />
+          
+          <Route path="/unauthorized" element={<Unauthorized />} />
           
           {/* Handle /5173/login route - redirect to /login */}
           <Route path="/5173/login" element={<Navigate to="/login" replace />} />

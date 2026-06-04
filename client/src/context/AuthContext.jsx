@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -35,6 +35,63 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const logoutTimerRef = useRef(null);
+  
+  // 15 minutes timeout
+  const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
+
+  const logout = async (isAutoLogout = false) => {
+    try {
+      await authAPI.logout();
+    } catch (err) {
+      // Continue with local logout even if API fails
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
+      sessionStorage.removeItem('authToken');
+      setUser(null);
+      if (isAutoLogout) {
+        // We could also redirect with a message by setting state or using alert, 
+        // but removing the user will trigger ProtectedRoute to bounce them to login automatically.
+        alert("Your session has expired due to inactivity. Please log in again.");
+      }
+    }
+  };
+
+  const resetTimer = useCallback(() => {
+    if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+    if (user) {
+      logoutTimerRef.current = setTimeout(() => {
+        logout(true); // pass true to indicate it's an auto-logout
+      }, SESSION_TIMEOUT_MS);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    // Only set up activity listeners if the user is authenticated
+    if (!user) {
+      if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+      return;
+    }
+
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Initial timer setup
+    resetTimer();
+
+    // Attach listeners
+    events.forEach(event => window.addEventListener(event, handleActivity));
+
+    // Cleanup
+    return () => {
+      if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+      events.forEach(event => window.removeEventListener(event, handleActivity));
+    };
+  }, [user, resetTimer]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -159,18 +216,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
-    try {
-      await authAPI.logout();
-    } catch (err) {
-      // Continue with local logout even if API fails
-    } finally {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken');
-      setUser(null);
-    }
-  };
+  // Moved logout to the top to allow usage inside the hook
 
   const resetPassword = async (email) => {
     setError(null);
