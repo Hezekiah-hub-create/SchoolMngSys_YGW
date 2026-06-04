@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { settingsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import SettingsTabs from '../../../components/layout/SettingsTabs';
+import PremiumSelect from '../../../components/common/PremiumSelect';
 import '../Settings.css';
 
 const General = () => {
@@ -161,26 +162,25 @@ const General = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
               <div className="settings-input-group">
                 <label className="settings-label">Active Operational Term</label>
-                <select 
-                  className="settings-input"
+                <PremiumSelect 
                   value={settings.current_term || settings.currentTerm || ''}
-                  onChange={(e) => handleChange('current_term', e.target.value)}
-                >
-                  <option value="1st">1st Term</option>
-                  <option value="2nd">2nd Term</option>
-                  <option value="3rd">3rd Term</option>
-                </select>
+                  onChange={(val) => handleChange('current_term', val)}
+                  options={[
+                    { value: '1st', label: '1st Term' },
+                    { value: '2nd', label: '2nd Term' },
+                    { value: '3rd', label: '3rd Term' }
+                  ]}
+                />
               </div>
               <div className="settings-input-group">
                 <label className="settings-label">Academic Session</label>
-                <select 
+                <input 
+                  type="text"
                   className="settings-input"
                   value={settings.current_session || settings.currentSession || ''}
                   onChange={(e) => handleChange('current_session', e.target.value)}
-                >
-                  <option value="2023/2024">2023/2024</option>
-                  <option value="2024/2025">2024/2025</option>
-                </select>
+                  placeholder="e.g. 2024/2025"
+                />
               </div>
             </div>
           </div>

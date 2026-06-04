@@ -220,16 +220,15 @@ const SettingsAcademic = () => {
           <div className="settings-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="settings-input-group">
               <label className="settings-label">Active Operational Term</label>
-              <select 
-                name="current_term"
+              <PremiumSelect 
                 value={settings.current_term}
-                onChange={handleInputChange}
-                className="settings-input"
-              >
-                <option value="1st">First Academic Term</option>
-                <option value="2nd">Second Academic Term</option>
-                <option value="3rd">Third Academic Term</option>
-              </select>
+                onChange={(val) => handleInputChange({ target: { name: 'current_term', value: val } })}
+                options={[
+                  { value: '1st', label: 'First Academic Term' },
+                  { value: '2nd', label: 'Second Academic Term' },
+                  { value: '3rd', label: 'Third Academic Term' }
+                ]}
+              />
             </div>
             <div className="settings-input-group">
               <label className="settings-label">Active Academic Session</label>
