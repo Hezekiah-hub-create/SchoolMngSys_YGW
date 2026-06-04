@@ -7,8 +7,6 @@ const { asyncHandler } = require('../middleware/errorMiddleware');
 const getActivityLogs = asyncHandler(async (req, res) => {
   const { limit = 100, role, action } = req.query;
 
-  let query = supabaseService.query(COLLECTIONS.ACTIVITY_LOGS);
-
   // Since supabaseService.query doesn't easily support multiple dynamic filters in this basic wrapper,
   // we'll fetch all or use standard Supabase client for advanced querying.
   const supabase = require('../config/supabase');
@@ -24,6 +22,9 @@ const getActivityLogs = asyncHandler(async (req, res) => {
   const { data, error } = await sbQuery;
 
   if (error) {
+    if (error.code === 'PGRST205' || error.message.includes('Could not find the table')) {
+      return res.json({ success: true, count: 0, data: [] });
+    }
     return res.status(500).json({ success: false, message: error.message });
   }
 
