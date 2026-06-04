@@ -43,6 +43,63 @@ const Configuration = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const [profileStatus, setProfileStatus] = useState({ type: '', message: '' });
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  const handleUpdateProfile = async () => {
+    setProfileStatus({ type: '', message: '' });
+    try {
+      setIsUpdatingProfile(true);
+      const response = await authAPI.updateProfile(formData);
+      if (response.data.success) {
+        setProfileStatus({ type: 'success', message: 'Profile synchronized successfully!' });
+        const updatedUser = { ...currentUser, ...response.data.user };
+        localStorage.setItem('authUser', JSON.stringify(updatedUser));
+        setStoredUser(updatedUser);
+      } else {
+        setProfileStatus({ type: 'error', message: response.data.message || 'Failed to update profile.' });
+      }
+    } catch (err) {
+      setProfileStatus({ type: 'error', message: err.response?.data?.message || 'An error occurred while synchronizing profile.' });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  // Notifications State
+  const [notifications, setNotifications] = useState({
+    systemAlerts: currentUser?.notification_preferences?.systemAlerts ?? true,
+    academicUpdates: currentUser?.notification_preferences?.academicUpdates ?? true,
+    financialNotices: currentUser?.notification_preferences?.financialNotices ?? false,
+    directMessages: currentUser?.notification_preferences?.directMessages ?? true,
+  });
+  const [notifStatus, setNotifStatus] = useState({ type: '', message: '' });
+  const [isUpdatingNotif, setIsUpdatingNotif] = useState(false);
+
+  const handleToggleNotif = (key) => {
+    setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleUpdateNotifications = async () => {
+    setNotifStatus({ type: '', message: '' });
+    try {
+      setIsUpdatingNotif(true);
+      const response = await authAPI.updateNotifications({ notifications });
+      if (response.data.success) {
+        setNotifStatus({ type: 'success', message: 'Notification matrix updated successfully!' });
+        const updatedUser = { ...currentUser, notification_preferences: notifications };
+        localStorage.setItem('authUser', JSON.stringify(updatedUser));
+        setStoredUser(updatedUser);
+      } else {
+        setNotifStatus({ type: 'error', message: response.data.message || 'Failed to update preferences.' });
+      }
+    } catch (err) {
+      setNotifStatus({ type: 'error', message: err.response?.data?.message || 'An error occurred while saving preferences.' });
+    } finally {
+      setIsUpdatingNotif(false);
+    }
+  };
+
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
@@ -161,6 +218,29 @@ const Configuration = () => {
                 </div>
               </div>
 
+              {profileStatus.message && (
+                <div style={{ 
+                  padding: '16px 20px', 
+                  borderRadius: '16px', 
+                  marginBottom: '32px', 
+                  backgroundColor: profileStatus.type === 'error' ? '#fef2f2' : '#ecfdf5',
+                  color: profileStatus.type === 'error' ? '#ef4444' : '#10b981',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  border: `1px solid ${profileStatus.type === 'error' ? '#fca5a5' : '#a7f3d0'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  {profileStatus.type === 'success' ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  )}
+                  {profileStatus.message}
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                 <InputField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
                 <InputField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
@@ -170,6 +250,8 @@ const Configuration = () => {
 
               <div style={{ marginTop: '56px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '32px' }}>
                 <button 
+                  onClick={handleUpdateProfile}
+                  disabled={isUpdatingProfile}
                   className="premium-btn-primary"
                   style={{ 
                     padding: '16px 48px', 
@@ -178,7 +260,7 @@ const Configuration = () => {
                     fontSize: '15px'
                   }}
                 >
-                  Synchronize Profile
+                  {isUpdatingProfile ? 'Synchronizing...' : 'Synchronize Profile'}
                 </button>
               </div>
             </div>
@@ -233,6 +315,79 @@ const Configuration = () => {
               </div>
             </div>
           )}
+
+          {activeTab === 'notifications' && (
+            <div style={{ animation: 'slideUp 0.4s ease-out' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '850', color: '#0f172a', marginBottom: '8px', letterSpacing: '-0.5px' }}>Notification Matrix</h2>
+              <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '32px', fontWeight: '500' }}>Control which automated system events trigger an alert to your device.</p>
+              
+              {notifStatus.message && (
+                <div style={{ 
+                  padding: '16px 20px', 
+                  borderRadius: '16px', 
+                  marginBottom: '24px', 
+                  backgroundColor: notifStatus.type === 'error' ? '#fef2f2' : '#ecfdf5',
+                  color: notifStatus.type === 'error' ? '#ef4444' : '#10b981',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  border: `1px solid ${notifStatus.type === 'error' ? '#fca5a5' : '#a7f3d0'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  {notifStatus.type === 'success' ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  )}
+                  {notifStatus.message}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '500px' }}>
+                <ToggleRow 
+                  title="Critical System Alerts" 
+                  description="Security warnings, deployment status, and system maintenance." 
+                  enabled={notifications.systemAlerts} 
+                  onToggle={() => handleToggleNotif('systemAlerts')} 
+                />
+                <ToggleRow 
+                  title="Academic Updates" 
+                  description="Grades published, exams scheduled, and new term starts." 
+                  enabled={notifications.academicUpdates} 
+                  onToggle={() => handleToggleNotif('academicUpdates')} 
+                />
+                <ToggleRow 
+                  title="Financial Notices" 
+                  description="Fee collection reports and payroll disbursements." 
+                  enabled={notifications.financialNotices} 
+                  onToggle={() => handleToggleNotif('financialNotices')} 
+                />
+                <ToggleRow 
+                  title="Direct Messages" 
+                  description="Internal communications from other staff members." 
+                  enabled={notifications.directMessages} 
+                  onToggle={() => handleToggleNotif('directMessages')} 
+                />
+              </div>
+
+              <div style={{ marginTop: '56px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '32px' }}>
+                <button 
+                  onClick={handleUpdateNotifications}
+                  disabled={isUpdatingNotif}
+                  className="premium-btn-primary"
+                  style={{ 
+                    padding: '16px 48px', 
+                    borderRadius: '16px', 
+                    fontWeight: '800', 
+                    fontSize: '15px'
+                  }}
+                >
+                  {isUpdatingNotif ? 'Saving...' : 'Save Preferences'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -281,6 +436,50 @@ const InputField = ({ label, ...props }) => (
       onFocus={(e) => e.target.style.borderColor = '#00843e'}
       onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
     />
+  </div>
+);
+
+const ToggleRow = ({ title, description, enabled, onToggle }) => (
+  <div style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    padding: '20px',
+    borderRadius: '20px',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #f1f5f9',
+    transition: 'all 0.2s',
+    cursor: 'pointer'
+  }}
+  onClick={onToggle}
+  onMouseOver={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+  onMouseOut={(e) => { e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+  >
+    <div>
+      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>{title}</h4>
+      <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>{description}</p>
+    </div>
+    <div style={{ 
+      width: '44px', 
+      height: '24px', 
+      borderRadius: '24px', 
+      backgroundColor: enabled ? '#00843e' : '#cbd5e1',
+      position: 'relative',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: enabled ? 'inset 0 2px 4px rgba(0,0,0,0.1)' : 'inset 0 2px 4px rgba(0,0,0,0.05)'
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: '2px',
+        left: enabled ? '22px' : '2px',
+        width: '20px',
+        height: '20px',
+        borderRadius: '50%',
+        backgroundColor: 'white',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+      }} />
+    </div>
   </div>
 );
 

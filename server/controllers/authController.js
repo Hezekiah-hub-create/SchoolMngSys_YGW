@@ -340,8 +340,86 @@ const updatePassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Password updated successfully' });
 });
 
+const updateProfile = asyncHandler(async (req, res) => {
+  const { firstName, lastName, phone } = req.body;
+  
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', req.user.id)
+    .single();
+
+  if (error || !user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  const updates = {};
+  if (firstName) updates.first_name = firstName;
+  if (lastName) updates.last_name = lastName;
+  if (phone !== undefined) updates.phone = phone;
+
+  const { data: updatedUser, error: updateError } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', user.id)
+    .select()
+    .single();
+
+  if (updateError) {
+    return res.status(400).json({ message: 'Failed to update profile: ' + updateError.message });
+  }
+
+  // Also update specific profile tables if needed (teachers, students, etc.)
+  if (user.role === 'admin' || user.role === 'staff' || user.role === 'ITSupport' || user.role === 'finance') {
+    await supabase.from('staff').update({ first_name: firstName, last_name: lastName, phone }).eq('user_id', user.id);
+  } else if (user.role === 'teacher') {
+    await supabase.from('teachers').update({ first_name: firstName, last_name: lastName, phone }).eq('user_id', user.id);
+  } else if (user.role === 'parent') {
+    await supabase.from('parents').update({ first_name: firstName, last_name: lastName, phone }).eq('user_id', user.id);
+  } else if (user.role === 'student') {
+    await supabase.from('students').update({ first_name: firstName, last_name: lastName, phone }).eq('user_id', user.id);
+  }
+
+  res.json({ 
+    success: true, 
+    message: 'Profile updated successfully',
+    user: {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      firstName: updatedUser.first_name,
+      lastName: updatedUser.last_name
+    }
+  });
+});
+
+const updateNotifications = asyncHandler(async (req, res) => {
+  const { notifications } = req.body;
+  
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', req.user.id)
+    .single();
+
+  if (error || !user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ notification_preferences: notifications })
+    .eq('id', user.id);
+
+  if (updateError) {
+    return res.status(400).json({ message: 'Failed to update notification preferences: ' + updateError.message });
+  }
+
+  res.json({ success: true, message: 'Notification preferences updated successfully', notifications });
+});
+
 const logout = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
-module.exports = { register, login, getMe, updatePassword, logout };
+module.exports = { register, login, getMe, updatePassword, updateProfile, updateNotifications, logout };

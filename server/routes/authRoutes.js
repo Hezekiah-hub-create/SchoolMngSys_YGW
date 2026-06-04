@@ -15,6 +15,12 @@ router.post('/logout', authController.logout);
 // Get current user profile - Protected
 router.get('/profile', auth, authController.getMe);
 
+// Update user profile - Protected
+router.put('/profile', auth, authController.updateProfile);
+
+// Update user notifications - Protected
+router.put('/notifications', auth, authController.updateNotifications);
+
 // Update password - Protected
 router.put('/password', auth, authController.updatePassword);
 
