@@ -93,7 +93,7 @@ const Assignments = () => {
         <div style={{ position: 'fixed', top: '10%', right: '5%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(0, 132, 62, 0.05) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(60px)', zIndex: 0, animation: 'blobFloat 20s infinite alternate' }}></div>
         <div style={{ position: 'fixed', bottom: '10%', left: '5%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(255, 184, 28, 0.05) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(50px)', zIndex: 0, animation: 'blobFloat 15s infinite alternate-reverse' }}></div>
 
-        <main style={{ padding: 'calc(var(--top-nav-height) + 24px) 30px 30px', animation: 'fadeIn 0.5s ease-out' }}>
+        <main style={{ padding: '0', animation: 'fadeIn 0.5s ease-out' }}>
           <header style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>

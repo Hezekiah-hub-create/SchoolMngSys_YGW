@@ -296,7 +296,7 @@ const Courses = () => {
   const handleLogout = async () => { try { await logout(); } finally { navigate('/login'); } };
 
   return (
-    <div className="courses-container" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: "'Outfit', sans-serif" }}>
+    <div className="courses-container" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#ffffff', fontFamily: "'Outfit', sans-serif" }}>
       <div style={{ flex: 1, padding: '24px' }}>
         
         <main>

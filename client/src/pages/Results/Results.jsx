@@ -38,6 +38,7 @@ const Results = () => {
   const [selectedTerm, setSelectedTerm] = useState('');
   const [generatedResults, setGeneratedResults] = useState(null);
   const [newResultData, setNewResultData] = useState({ class: '', subject: '', title: '', date: '', maxScore: 100 });
+  const [selectedChildId, setSelectedChildId] = useState('all');
 
   const [stats, setStats] = useState({ assessments: 0, totalResults: 0, average: 0 });
 
@@ -318,10 +319,25 @@ const Results = () => {
           <div style={{ padding: '40px' }}>
             {isParent || isStudent ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {results.length > 0 ? results.map((r, i) => {
-                  const student = children.find(c => (c.id || c._id) === (r.studentId || r.student?._id || r.student?.id));
-                  const score = r.score || r.totalScore || r.percentage || 0;
-                  return (
+                {isParent && children.length > 0 && (
+                  <div style={{ marginBottom: '8px', width: '250px' }}>
+                    <PremiumSelect
+                      value={selectedChildId}
+                      onChange={(e) => setSelectedChildId(e.target.value)}
+                      options={[
+                        { value: 'all', label: 'All Children' },
+                        ...children.map(c => ({ value: c.id || c._id, label: `${c.firstName} ${c.lastName}` }))
+                      ]}
+                      placeholder="Select Child"
+                    />
+                  </div>
+                )}
+                {(() => {
+                  const displayResults = results.filter(r => !isParent || selectedChildId === 'all' || (r.studentId || r.student?._id || r.student?.id) === selectedChildId);
+                  return displayResults.length > 0 ? displayResults.map((r, i) => {
+                    const student = children.find(c => (c.id || c._id) === (r.studentId || r.student?._id || r.student?.id));
+                    const score = r.score || r.totalScore || r.percentage || 0;
+                    return (
                     <div key={i} style={{ padding: '20px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.borderColor = '#00843e'} onMouseOut={(e) => e.currentTarget.style.borderColor = '#f1f5f9'}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#00843e10', color: '#00843e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>{student?.firstName?.[0] || 'S'}</div>
@@ -342,7 +358,7 @@ const Results = () => {
                     <p style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginTop: '16px' }}>No results recorded yet</p>
                     <p style={{ fontSize: '14px', color: '#64748b' }}>Check back later once terminal results are published.</p>
                   </div>
-                )}
+                ); })()}
               </div>
             ) : activeTab === 'view' ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px dashed #cbd5e1' }}>
