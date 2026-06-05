@@ -2,9 +2,8 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
-// For local development, use your computer's IP address
-// Update this IP if your network changes
-const BASE_URL = 'http://10.255.6.19:5001/api';
+// Use your production Vercel backend URL for the deployed app
+const BASE_URL = 'https://school-mng-sys-ygw-server.vercel.app/api';
 
 const client = axios.create({
   baseURL: BASE_URL,
