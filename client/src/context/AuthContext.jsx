@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { authAPI } from '../services/api';
+import { useAlert } from './AlertContext';
 
 const AuthContext = createContext(null);
 
@@ -36,6 +37,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const logoutTimerRef = useRef(null);
+  const { showAlert } = useAlert();
   
   // 15 minutes timeout
   const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
@@ -53,7 +55,11 @@ export const AuthProvider = ({ children }) => {
       if (isAutoLogout) {
         // We could also redirect with a message by setting state or using alert, 
         // but removing the user will trigger ProtectedRoute to bounce them to login automatically.
-        alert("Your session has expired due to inactivity. Please log in again.");
+        showAlert({
+          title: 'Session Expired',
+          message: 'Your session has expired due to inactivity. Please log in again.',
+          type: 'warning'
+        });
       }
     }
   };
