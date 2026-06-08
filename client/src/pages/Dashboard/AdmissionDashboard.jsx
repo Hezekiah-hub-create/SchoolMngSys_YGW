@@ -125,13 +125,13 @@ const AdmissionDashboard = () => {
             <p style={{ fontSize: '15px', color: '#64748b', marginTop: '4px' }}>Welcome, {user.firstName}. Manage student enrollments and records.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+          <div className="responsive-grid-3" style={{ marginBottom: '32px' }}>
             <MetricCard title="Total Students" value={stats.totalStudents} icon={<Icons.Users />} color="var(--brand-green)" onClick={() => navigate('/students')} />
             <MetricCard title="New Admissions" value={stats.newThisMonth} icon={<Icons.TrendingUp />} color="#8b5cf6" subtitle="This Month" />
             <MetricCard title="Linked Parents" value={stats.totalParents} icon={<Icons.Users />} color="#f59e0b" onClick={() => navigate('/parents')} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div className="responsive-grid-2" style={{ gap: '32px' }}>
             {/* Quick Admissions Actions */}
             <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '24px' }}>Admission Actions</h2>

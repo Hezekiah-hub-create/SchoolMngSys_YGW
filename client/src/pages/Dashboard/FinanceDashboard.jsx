@@ -295,7 +295,7 @@ const FinanceDashboard = () => {
             <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Welcome back, {currentUser?.firstName}!</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
+          <div className="responsive-grid-4" style={{ marginBottom: '24px' }}>
             <StatCard 
               icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>} 
               title="Total Collected" 
@@ -330,7 +330,7 @@ const FinanceDashboard = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+          <div className="responsive-grid-2" style={{ gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
                 <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}><h2 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>Fee Collection Overview</h2></div>

@@ -177,7 +177,7 @@ const SettingsAcademic = () => {
         <SettingsTabs />
 
         {/* Architecture Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
+        <div className="responsive-grid-3" style={{ marginBottom: '32px' }}>
           <div className="settings-stat-nexus animate-fade-in">
             <div className="settings-stat-icon" style={{ backgroundColor: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -217,7 +217,7 @@ const SettingsAcademic = () => {
             <h3 className="settings-card-title">Temporal Control</h3>
           </div>
           
-          <div className="settings-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="responsive-grid-2">
             <div className="settings-input-group">
               <label className="settings-label">Active Operational Term</label>
               <PremiumSelect 
@@ -438,7 +438,7 @@ const SettingsAcademic = () => {
                 {currentCalEvent.id ? 'Edit Activity' : 'Add Activity'}
               </h2>
               <form onSubmit={handleSaveCalEvent}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div className="responsive-grid-2" style={{ marginBottom: '16px' }}>
                   <div className="settings-input-group">
                     <label className="settings-label">Term</label>
                     <input required type="text" className="settings-input" value={currentCalEvent.term} onChange={e => setCurrentCalEvent(p => ({...p, term: e.target.value}))} placeholder="e.g. 1st" />
@@ -448,7 +448,7 @@ const SettingsAcademic = () => {
                     <input type="text" className="settings-input" value={currentCalEvent.week} onChange={e => setCurrentCalEvent(p => ({...p, week: e.target.value}))} placeholder="e.g. 1" />
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div className="responsive-grid-2" style={{ marginBottom: '16px' }}>
                   <div className="settings-input-group">
                     <label className="settings-label">Start Date</label>
                     <PremiumDatePicker 

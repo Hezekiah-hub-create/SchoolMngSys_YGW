@@ -121,7 +121,7 @@ const Assignments = () => {
           </header>
 
           {/* Stats Dashboard */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '40px' }}>
+          <div className="responsive-grid-3" style={{ marginBottom: '40px' }}>
             {[
               { label: 'Total Dispatched', value: stats.total, icon: <FileText size={24} />, color: '#0f172a', bg: 'white' },
               { label: 'Pending Nodes', value: stats.pending, icon: <Clock size={24} />, color: '#ea580c', bg: '#fff7ed' },
@@ -139,7 +139,7 @@ const Assignments = () => {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '32px' }}>
+          <div className="responsive-layout-wrapper" style={{ gap: '32px' }}>
             <aside>
               <div className="glass-card" style={{ padding: '24px', position: 'sticky', top: '100px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>

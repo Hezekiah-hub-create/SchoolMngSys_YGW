@@ -162,7 +162,7 @@ const StaffReports = () => {
 
 
           {/* Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '40px' }}>
+          <div className="responsive-grid-4" style={{ marginBottom: '40px' }}>
             <ReportStatCard title="Total Staff" value={reportData.stats.total.value} change={reportData.stats.total.change} color={reportData.stats.total.color} icon={reportData.stats.total.icon} />
             <ReportStatCard title="Present Today" value={reportData.stats.present.value} change={reportData.stats.present.change} color={reportData.stats.present.color} icon={reportData.stats.present.icon} />
             <ReportStatCard title="On Leave" value={reportData.stats.onLeave.value} change={reportData.stats.onLeave.change} color={reportData.stats.onLeave.color} icon={reportData.stats.onLeave.icon} />

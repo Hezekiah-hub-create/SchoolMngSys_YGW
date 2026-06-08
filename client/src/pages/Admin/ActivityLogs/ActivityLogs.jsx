@@ -71,8 +71,8 @@ const ActivityLogs = () => {
         </div>
 
         {/* Filter Section */}
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', backgroundColor: '#f8fafc', padding: '24px', borderRadius: '24px', border: '1px solid #f1f5f9' }}>
-          <div style={{ flex: 1 }}>
+        <div className="responsive-grid-2" style={{ marginBottom: '32px', backgroundColor: '#f8fafc', padding: '24px', borderRadius: '24px', border: '1px solid #f1f5f9' }}>
+          <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Role</label>
             <PremiumSelect 
               value={filterRole}
@@ -86,7 +86,7 @@ const ActivityLogs = () => {
               ]}
             />
           </div>
-          <div style={{ flex: 1 }}>
+          <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Action</label>
             <PremiumSelect 
               value={filterAction}

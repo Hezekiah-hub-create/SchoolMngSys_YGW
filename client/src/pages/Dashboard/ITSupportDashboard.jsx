@@ -118,7 +118,7 @@ const ITSupportDashboard = () => {
       <div style={{ padding: '0 0 40px 0', animation: 'fadeIn 0.5s ease-out' }}>
 
           {/* Header */}
-          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div className="page-header" style={{ marginBottom: '24px' }}>
             <div>
               <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1e293b', letterSpacing: '-0.5px' }}>IT Support Dashboard</h1>
               <p style={{ fontSize: '15px', color: '#64748b', marginTop: '6px' }}>Monitor system health, manage users, and resolve tickets.</p>
@@ -142,7 +142,7 @@ const ITSupportDashboard = () => {
           </div>
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '30px' }}>
+          <div className="responsive-grid-4" style={{ marginBottom: '30px' }}>
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand-green)" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>} title="System Uptime" value="99.9%" subtitle="Last 30 days" color="#dcfce7" loading={loading} />
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand-green)" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} title="Active Sessions" value="342" subtitle="+12% from last hour" color="#dcfce7" loading={loading}
               onClick={() => navigate('/settings/users')} />
@@ -153,7 +153,7 @@ const ITSupportDashboard = () => {
           </div>
 
           {/* System Health + Error Logs */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', marginBottom: '24px' }}>
+          <div className="responsive-grid-2" style={{ marginBottom: '24px' }}>
             <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
               <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b' }}>System Health</h2>
@@ -175,7 +175,7 @@ const ITSupportDashboard = () => {
           </div>
 
           {/* Bottom row: User Mgmt + Security Banner */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+          <div className="responsive-grid-3">
             <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', padding: '24px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>User Management</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

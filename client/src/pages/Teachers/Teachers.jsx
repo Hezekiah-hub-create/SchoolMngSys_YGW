@@ -51,7 +51,7 @@ const Teachers = () => {
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <main style={{ padding: '0 0 60px 0' }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '48px' }}>
+          <div className="page-header" style={{ marginBottom: '48px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Faculty Directory</span>
@@ -93,7 +93,7 @@ const Teachers = () => {
 
           {/* Teachers Grid */}
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+            <div className="responsive-grid-3">
               {[1,2,3,4,5,6].map(i => (
                 <div key={i} style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
@@ -118,7 +118,7 @@ const Teachers = () => {
               )}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+            <div className="responsive-grid-3">
               {teachers.map((teacher, idx) => (
                 <div 
                   key={teacher.id || idx}

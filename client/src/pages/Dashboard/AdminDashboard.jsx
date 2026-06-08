@@ -219,7 +219,7 @@ const AdminDashboard = () => {
     <div className="admin-dashboard-content">
       <main style={{ padding: '0 0 60px 0', animation: 'fadeIn 0.5s ease-out' }}>
           {/* Header */}
-          <div style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div className="page-header" style={{ marginBottom: '48px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Institutional Nexus</span>
@@ -239,7 +239,7 @@ const AdminDashboard = () => {
 
 
           {/* Metrics Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px', marginBottom: '40px' }}>
+          <div className="responsive-grid-3" style={{ marginBottom: '40px' }}>
             <MetricCard 
               title="Total Students" 
               value={stats.students} 
@@ -289,7 +289,7 @@ const AdminDashboard = () => {
           {/* Quick Actions */}
           <div style={{ marginBottom: '48px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '950', color: '#0f172a', marginBottom: '24px', letterSpacing: '-0.5px' }}>Strategic Operations</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+            <div className="responsive-grid-4">
               <ActionCard 
                 icon={<Icons.UserPlus />} 
                 title="Scholar Registry" 
@@ -322,7 +322,7 @@ const AdminDashboard = () => {
           </div>
 
           {/* Recent Lists */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
+          <div className="responsive-grid-2" style={{ gap: '32px' }}>
             {/* Recent Students */}
             <div className="glass-card" style={{ padding: '32px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>

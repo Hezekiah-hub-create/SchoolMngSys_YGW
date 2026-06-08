@@ -59,7 +59,7 @@ const SettingsRoles = () => {
             <div className="animate-pulse" style={{ color: 'var(--brand-green)', fontWeight: '800', fontSize: '18px' }}>Synchronizing Security Nodes...</div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '24px' }} className="animate-fade-in">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '24px' }} className="animate-fade-in">
           {roles.map((role) => {
             const getIcon = (roleName) => {
               switch(roleName) {

@@ -1119,7 +1119,7 @@ const ReportTemplate = ({ data }) => {
 
           {/* Premium Metadata Grid */}
           <div style={{ marginBottom: getDensityStyle('sectionGap') }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: useUltraCompactMode ? '6px' : '10px' }}>
+            <div className="responsive-grid-3" style={{ gap: useUltraCompactMode ? '6px' : '10px' }}>
               <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-green)', background: 'var(--slate-50)', borderRadius: '6px' }}>
                 <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>SCHOLAR NAME</div>
                 <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.studentName?.toUpperCase()}</div>
@@ -1146,7 +1146,7 @@ const ReportTemplate = ({ data }) => {
               </div>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px', padding: '0 5px' }}>
+            <div className="responsive-grid-3" style={{ gap: '10px', marginTop: '6px', padding: '0 5px' }}>
               <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-600)' }}>ROLL STRENGTH: <span style={{ color: 'var(--brand-green)' }}>{data.numberOnRoll || '--'}</span></div>
               <div style={{ fontSize: '9px', fontWeight: '900', color: 'var(--slate-600)' }}>GENERATION DATE: <span style={{ color: 'var(--brand-green)' }}>{new Date().toLocaleDateString('en-GB')}</span></div>
               {!isMidTerm && (

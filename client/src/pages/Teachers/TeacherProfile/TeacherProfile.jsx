@@ -462,7 +462,7 @@ const TeacherProfile = () => {
               <div style={{ padding: '40px' }}>
                 {editing ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                    <div className="responsive-grid-3">
                       <div style={{ gridColumn: 'span 3' }}><SectionTitle title="Identity & Personal" /></div>
                       <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
                       <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
@@ -479,7 +479,7 @@ const TeacherProfile = () => {
                       <FormGroup label="SSNIT Number" name="socialSecurity" value={formData.socialSecurity} onChange={handleChange} />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                    <div className="responsive-grid-3">
                       <div style={{ gridColumn: 'span 3' }}><SectionTitle title="Contact & Residence" /></div>
                       <FormGroup label="Email" name="email" value={formData.email} onChange={handleChange} />
                       <FormGroup label="Phone" name="phone" value={formData.phone} onChange={handleChange} />
@@ -491,7 +491,7 @@ const TeacherProfile = () => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                       <SectionTitle title="Professional Details" />
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                      <div className="responsive-grid-3">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                           <label className="premium-label">Primary Subject</label>
                           <select name="subject" value={formData.subject || ''} onChange={handleChange} className="premium-input">
@@ -513,7 +513,7 @@ const TeacherProfile = () => {
                 ) : (
                   <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                     {activeTab === 'personal' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+                      <div className="responsive-grid-2" style={{ gap: '48px' }}>
                         <DetailBlock label="Gender" value={teacher?.gender} icon={<Icons.User />} />
                         <DetailBlock label="Date of Birth" value={teacher?.dateOfBirth ? new Date(teacher.dateOfBirth).toLocaleDateString() : 'N/A'} icon={<Icons.Calendar />} />
                         <DetailBlock label="Nationality" value={teacher?.nationality} icon={<Icons.Shield />} />
@@ -523,7 +523,7 @@ const TeacherProfile = () => {
                       </div>
                     )}
                     {activeTab === 'professional' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+                      <div className="responsive-grid-2" style={{ gap: '48px' }}>
                         <DetailBlock label="Employment Date" value={teacher?.dateOfEmployment ? new Date(teacher.dateOfEmployment).toLocaleDateString() : 'N/A'} icon={<Icons.Calendar />} />
                         <DetailBlock label="Contract Type" value={teacher?.contractType} icon={<Icons.Briefcase />} />
                         <DetailBlock label="Highest Qualification" value={teacher?.qualifications} icon={<Icons.Award />} />

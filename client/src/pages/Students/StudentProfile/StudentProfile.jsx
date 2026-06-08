@@ -363,7 +363,7 @@ const StudentProfile = () => {
               <div style={{ padding: '40px' }}>
                 {isEditing ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
+                    <div className="responsive-grid-2" style={{ gap: '32px' }}>
                       <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Basic Information" /></div>
                       <FormGroup label="First Name" name="firstName" value={editFormData.firstName} onChange={handleEditChange} />
                       <FormGroup label="Last Name" name="lastName" value={editFormData.lastName} onChange={handleEditChange} />
@@ -407,7 +407,7 @@ const StudentProfile = () => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
+                    <div className="responsive-grid-2" style={{ gap: '32px' }}>
                       <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Guardian & Contact" /></div>
                       <div style={{ gridColumn: 'span 2', marginBottom: '-10px' }}>
                         <h4 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase' }}>Father / Mother Information</h4>
@@ -433,7 +433,7 @@ const StudentProfile = () => {
                       <FormGroup label="Emergency Contact Phone" name="emergencyContact.phone" value={editFormData.emergencyContact?.phone} onChange={handleEditChange} />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
+                    <div className="responsive-grid-2" style={{ gap: '32px' }}>
                       <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Medical Information" /></div>
                       <FormGroup label="Blood Group" name="medicalInfo.bloodType" value={editFormData.medicalInfo?.bloodType} onChange={handleEditChange} />
                       <FormGroup label="Allergies" name="medicalInfo.allergies" value={editFormData.medicalInfo?.allergies} onChange={handleEditChange} />
@@ -445,7 +445,7 @@ const StudentProfile = () => {
                 ) : (
                   <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                     {activeTab === 'personal' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+                      <div className="responsive-grid-2" style={{ gap: '48px' }}>
                         <DetailBlock label="Gender" value={student?.gender} icon={<Icons.User />} />
                         <DetailBlock label="Date of Birth" value={student?.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : 'N/A'} icon={<Icons.Calendar />} />
                         <DetailBlock label="Home Address" value={student?.address?.street} icon={<Icons.MapPin />} fullWidth />
@@ -458,7 +458,7 @@ const StudentProfile = () => {
 
                     {activeTab === 'academic' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                        <div className="responsive-grid-3">
                           <StatCard title="Grade Level" value={displayGrade(student?.grade)} icon={<Icons.Award />} color="var(--brand-green)" />
                           <StatCard title="Enrolled Subjects" value={curriculumCount} icon={<Icons.Book />} color="#6366f1" />
                           <StatCard 
@@ -493,7 +493,7 @@ const StudentProfile = () => {
                     )}
 
                     {activeTab === 'medical' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+                      <div className="responsive-grid-2" style={{ gap: '48px' }}>
                         <DetailBlock label="Blood Group" value={student?.medicalInfo?.bloodType} icon={<Icons.Heart />} />
                         <DetailBlock label="Known Allergies" value={student?.medicalInfo?.allergies} icon={<Icons.Activity />} />
                         <DetailBlock label="Medical History" value={student?.medicalInfo?.medicalConditions || 'No recorded conditions'} icon={<Icons.Activity />} fullWidth />

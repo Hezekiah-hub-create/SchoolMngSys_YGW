@@ -155,7 +155,7 @@ const Fees = () => {
           )}
 
           {/* Stats Overview */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '24px' }}>
+          <div className="responsive-grid-3" style={{ marginBottom: '24px' }}>
             <StatCard 
               title={isParent ? 'Amount Paid' : isStudent ? 'Total Paid' : 'Total Collected'}
               value={`₵ ${stats.totalPaid.toLocaleString()}`}
@@ -181,7 +181,7 @@ const Fees = () => {
 
 
           {/* Quick Access Cards - Unified Financial Matrix */}
-          <div style={{ display: 'grid', gridTemplateColumns: (isParent || isStudent) ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '24px', marginBottom: '24px' }}>
+          <div className="responsive-grid-3" style={{ gap: '24px', marginBottom: '24px' }}>
             <QuickActionCard 
               title="Fee Structure"
               desc="Configure institutional fee tiers, scholarships, and academic terms."

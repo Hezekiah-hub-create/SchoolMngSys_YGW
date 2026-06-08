@@ -115,7 +115,7 @@ const Students = () => {
     <>
       <main>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+        <div className="page-header">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Student Registry</span>
@@ -141,7 +141,7 @@ const Students = () => {
         </div>
 
         {/* Search & Filter */}
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '24px' }}>
+        <div className="filter-bar">
           <div style={{ position: 'relative', flex: 1, maxWidth: '450px' }}>
             <svg style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5">
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
@@ -167,7 +167,7 @@ const Students = () => {
 
         {/* Students Grid */}
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+          <div className="responsive-grid-3">
             {[1,2,3,4,5,6].map(i => (
               <div key={i} style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
@@ -192,7 +192,7 @@ const Students = () => {
             )}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+          <div className="responsive-grid-3">
             {students.map((student, idx) => (
               <div 
                 key={student.id || idx}

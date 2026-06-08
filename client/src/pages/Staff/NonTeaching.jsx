@@ -254,7 +254,7 @@ const NonTeaching = () => {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+            <form onSubmit={handleSubmit} className="form-grid">
               <div style={{ gridColumn: 'span 1' }}>
                 <label className="premium-label">First Name</label>
                 <input name="firstName" className="premium-input" value={formData.firstName} onChange={handleChange} required placeholder="e.g. John" />

@@ -89,7 +89,7 @@ const Parents = () => {
 
 
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+            <div className="responsive-grid-3">
               {[1,2,3,4,5,6].map(i => (
                 <div key={i} className="glass-card" style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div className="premium-loader"></div>
@@ -103,7 +103,7 @@ const Parents = () => {
               <p style={{ fontSize: '15px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>{search ? 'Try adjusting your search parameters.' : 'There are no parent records currently indexed.'}</p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+            <div className="responsive-grid-3">
               {parents.map((parent, idx) => (
                 <div 
                   key={idx}

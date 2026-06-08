@@ -482,8 +482,8 @@ const MarksEntry = () => {
                 />
               </div>
             ) : (
-              <>
-                <div style={{ flex: '1 1 200px' }}>
+              <div className="responsive-grid-2" style={{ flex: '1 1 350px' }}>
+                <div>
                   <label className="premium-label">Academic Grade</label>
                   <PremiumSelect
                     name="grade"
@@ -493,7 +493,7 @@ const MarksEntry = () => {
                     placeholder="Select Grade Level"
                   />
                 </div>
-                <div style={{ flex: '1 1 150px' }}>
+                <div>
                   <label className="premium-label">Section / Color</label>
                   <PremiumSelect
                     name="section"
@@ -506,7 +506,7 @@ const MarksEntry = () => {
                     placeholder="Select Section"
                   />
                 </div>
-              </>
+              </div>
             )}
 
             {/* Subject — filtered to courses in the selected class (Entry Mode Only) */}

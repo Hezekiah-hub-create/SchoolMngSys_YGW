@@ -156,7 +156,7 @@ const ParentDashboard = () => {
   return (
     <div className="parent-dashboard-content">
       <div style={{ padding: '0 0 40px 0', animation: 'fadeIn 0.5s ease-out' }}>
-          <div style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div className="page-header" style={{ marginBottom: '48px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Family Governance</span>
@@ -175,7 +175,7 @@ const ParentDashboard = () => {
           </div>
 
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '32px', marginBottom: '48px' }}>
+          <div className="responsive-grid-4" style={{ marginBottom: '48px' }}>
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand-green)" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>} title="Scholar Count" value={stats.children} color="var(--brand-green)" loading={loading} subtitle="Registered Scholars" onClick={() => navigate('/students')} />
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2.5"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2"/></svg>} title="Fiscal Ledger" value={stats.fees} color="var(--brand-yellow)" loading={loading} subtitle="Total Records" onClick={() => navigate('/fees')} />
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>} title="Outstanding" value={stats.pendingFees} color="#ef4444" loading={loading} subtitle="Protocols Pending" onClick={() => navigate('/fees')} />
@@ -183,7 +183,7 @@ const ParentDashboard = () => {
           </div>
 
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+          <div className="responsive-grid-2" style={{ gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div className="glass-card" style={{ overflow: 'hidden' }}>
                 <div style={{ padding: '24px 28px', borderBottom: '1.5px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -389,7 +389,7 @@ const ExamSchedule = () => {
                 />
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+              <div className="responsive-grid-2" style={{ marginBottom: '24px' }}>
                 <div>
                   <label className="premium-label">Academic Level</label>
                   <PremiumSelect 
@@ -409,7 +409,7 @@ const ExamSchedule = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+              <div className="responsive-grid-2" style={{ marginBottom: '24px' }}>
                 <div>
                   <label className="premium-label">Deployment Time</label>
                   <input type="time" name="time" className="premium-input" value={formData.time} onChange={handleInputChange} required />

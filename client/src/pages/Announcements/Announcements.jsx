@@ -151,7 +151,7 @@ const Announcements = () => {
           </div>
 
           {/* Announcements Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))', gap: '24px' }}>
+          <div className="responsive-grid-2">
             {loading ? (
               [1, 2, 3, 4].map(i => (
                 <div key={i} style={{ height: '220px', backgroundColor: '#f8fafc', borderRadius: '24px', border: '1px solid #f1f5f9', animation: 'pulse 1.5s infinite' }}></div>

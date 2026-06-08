@@ -139,7 +139,7 @@ const AddTeacher = () => {
       <form onSubmit={handleSubmit}>
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <SectionHeader title="Personal Information" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+          <div className="form-grid-3">
             <FormInput label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} required />
             <FormInput label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} required />
             <FormInput label="Gender" name="gender" value={formData.gender} onChange={handleChange} required options={[{value:'male',label:'Male'},{value:'female',label:'Female'}]} />
@@ -151,7 +151,7 @@ const AddTeacher = () => {
 
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <SectionHeader title="Professional Information" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+          <div className="form-grid-3">
             <FormInput label="Subject" name="subject" value={formData.subject} onChange={handleChange} required options={subjectOptions} />
             <FormInput label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} required options={qualificationOptions} />
             <FormInput label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} options={coordinatorOptions} />

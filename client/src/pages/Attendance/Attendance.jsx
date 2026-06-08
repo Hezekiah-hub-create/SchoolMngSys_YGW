@@ -565,7 +565,7 @@ const Attendance = () => {
           )}
 
           {/* Quick Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '16px' }}>
+          <div className="responsive-grid-4" style={{ marginBottom: '16px' }}>
             {(isStudent || isParent) && summary ? (
               <>
                 {[
@@ -604,7 +604,7 @@ const Attendance = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {isStudent || isParent ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px' }}>
+              <div className="responsive-grid-2-1-3" style={{ gap: '20px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* Temporal Fidelity Matrix */}
                   <div className="glass-card" style={{ padding: '32px' }}>

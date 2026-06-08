@@ -256,7 +256,7 @@ const TeacherDashboard = () => {
       <div style={{ padding: '0 0 60px 0', animation: 'fadeIn 0.5s ease-out' }}>
           
           {/* Header Section */}
-          <div style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div className="page-header" style={{ marginBottom: '48px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Staff Ledger</span>
@@ -336,7 +336,7 @@ const TeacherDashboard = () => {
           )}
 
           {/* Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', marginBottom: '48px' }}>
+          <div className="responsive-grid-3" style={{ marginBottom: '48px' }}>
             <StatCard
               icon={<Icons.BookOpen />}
               title="My Courses" 
@@ -385,7 +385,7 @@ const TeacherDashboard = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '40px' }}>
+          <div className="responsive-grid-2" style={{ gap: '40px' }}>
             
             {/* Left Column: Assigned Classes */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
@@ -399,7 +399,7 @@ const TeacherDashboard = () => {
                 </div>
 
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div className="responsive-grid-2" style={{ gap: '20px' }}>
                   {loading ? [...Array(4)].map((_, i) => (
                     <div key={i} style={{ height: '110px', backgroundColor: '#ffffff', borderRadius: '24px', animation: 'pulse 1.5s infinite' }}></div>
                   )) : classes.length > 0 ? classes.map((cls, i) => (
@@ -426,7 +426,7 @@ const TeacherDashboard = () => {
               {/* Quick Actions Grid */}
               <div>
                 <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', marginBottom: '24px' }}>Fast Access</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                <div className="responsive-grid-4" style={{ gap: '20px' }}>
                   <QuickAction icon={<Icons.Calendar />} label="Attendance" color="#10b981" onClick={() => navigate('/attendance')} />
                   <QuickAction icon={<Icons.Clipboard />} label="Marks Entry" color="#f59e0b" onClick={() => navigate('/exams/marks')} />
                   <QuickAction icon={<Icons.TrendingUp />} label="Exam Results" color="#3b82f6" onClick={() => navigate('/exams/results')} />

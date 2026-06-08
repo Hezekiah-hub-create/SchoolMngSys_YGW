@@ -158,7 +158,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
       `}</style>
 
       {/* Left Side - Search */}
-      <div style={{ flex: 1, maxWidth: '450px' }}>
+      <div className="topnav-search" style={{ flex: 1, maxWidth: '450px' }}>
         <form onSubmit={handleSearchSubmit} style={{
           display: 'flex',
           alignItems: 'center',
@@ -203,7 +203,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
       {/* Right Side - User Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         {/* Session Indicator */}
-        <div style={{
+        <div className="topnav-session" style={{
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
@@ -287,7 +287,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
             </div>
             
             {/* User Info */}
-            <div>
+            <div className="topnav-user-info">
               <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
                 {getUserDisplayName()}
               </p>

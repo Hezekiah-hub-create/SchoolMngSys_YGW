@@ -522,7 +522,7 @@ const Courses = () => {
                   ))
                 ) : <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>{formData.grade ? 'No divisions found for this grade' : 'Select a grade to see sections'}</p>}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+              <div className="responsive-grid-2" style={{ marginBottom: '24px' }}>
                 <div>
                   <label className="premium-label">Credits / Units</label>
                   <input name="credits" type="number" className="premium-input" value={formData.credits} onChange={handleInputChange} required />

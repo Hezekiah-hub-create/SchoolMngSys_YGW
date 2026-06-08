@@ -245,7 +245,7 @@ const ParentProfile = () => {
               <div style={{ padding: '40px' }}>
                 {editing ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+                    <div className="responsive-grid-2">
                       <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Identity & Personal" /></div>
                       <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
                       <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
@@ -255,7 +255,7 @@ const ParentProfile = () => {
                       <FormGroup label="Relationship" name="relationship" value={formData.relationship} onChange={handleChange} />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
+                    <div className="responsive-grid-2">
                       <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Residence Details" /></div>
                       <FormGroup label="Street" name="address.street" value={formData.address?.street} onChange={handleChange} />
                       <FormGroup label="City" name="address.city" value={formData.address?.city} onChange={handleChange} />
@@ -264,7 +264,7 @@ const ParentProfile = () => {
                 ) : (
                   <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                     {activeTab === 'personal' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+                      <div className="responsive-grid-2" style={{ gap: '48px' }}>
                         <DetailBlock label="Full Legal Name" value={`${parent?.firstName} ${parent?.lastName}`} icon={<Icons.User />} />
                         <DetailBlock label="Email Access" value={parent?.email} icon={<Icons.Mail />} />
                         <DetailBlock label="Institutional Role" value={parent?.relationship} icon={<Icons.Shield />} />
@@ -275,7 +275,7 @@ const ParentProfile = () => {
                     {activeTab === 'scholars' && (
                       <div>
                         <SectionTitle title="Registered Dependent Scholars" />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+                        <div className="responsive-grid-2" style={{ gap: '20px' }}>
                           {linkedStudents.map(student => (
                             <div 
                               key={student._id} 

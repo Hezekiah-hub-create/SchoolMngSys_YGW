@@ -132,7 +132,7 @@ const Sections = () => {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
+        <div className="responsive-grid-3" style={{ marginBottom: '32px' }}>
           <div className="glass-card" style={{ padding: '24px' }}>
             <p className="premium-label" style={{ marginBottom: '12px' }}>Academic Tiers</p>
             <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{stats.totalClasses}</p>

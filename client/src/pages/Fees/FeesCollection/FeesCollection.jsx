@@ -216,7 +216,7 @@ const FeesCollection = () => {
           </div>
 
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px', alignItems: 'start' }}>
+          <div className="responsive-layout-wrapper" style={{ gap: '24px', alignItems: 'start' }}>
             
             {/* Left Column: Search & Profile */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -275,7 +275,7 @@ const FeesCollection = () => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginTop: '40px' }}>
+                    <div className="responsive-grid-3" style={{ marginTop: '40px' }}>
                       <div style={{ padding: '20px', borderRadius: '20px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(5px)' }}>
                         <p style={{ margin: 0, opacity: 0.6, fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Billed Nodes</p>
                         <p style={{ margin: '8px 0 0', fontSize: '20px', fontWeight: '900' }}>₵ {totalBilled.toLocaleString()}</p>
@@ -407,7 +407,7 @@ const FeesCollection = () => {
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <form onSubmit={handleSubmit} className="responsive-grid-2" style={{ gap: '24px' }}>
                   <div style={{ gridColumn: 'span 2' }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student *</label>
                     <select 

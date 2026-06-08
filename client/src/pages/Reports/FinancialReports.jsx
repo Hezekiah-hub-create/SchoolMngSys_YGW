@@ -110,7 +110,7 @@ const FinancialReports = () => {
           </div>
 
           {/* Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '24px' }}>
+          <div className="responsive-grid-4" style={{ marginBottom: '24px' }}>
             <PremiumStatCard title="Total Revenue" value={`GH₵ ${reportData.stats.revenue.value}`} change={reportData.stats.revenue.change} color="#00843e" icon={reportData.stats.revenue.icon} />
             <PremiumStatCard title="Total Expenses" value={`GH₵ ${reportData.stats.expenses.value}`} change={reportData.stats.expenses.change} color="#ef4444" icon={reportData.stats.expenses.icon} />
             <PremiumStatCard title="Outstanding Fees" value={`GH₵ ${reportData.stats.outstanding.value}`} change={reportData.stats.outstanding.change} color="#f59e0b" icon={reportData.stats.outstanding.icon} />
@@ -186,7 +186,7 @@ const FinancialReports = () => {
               <img src={UbsLogo} alt="Logo" style={{ width: '100px', height: '100px' }} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '40px' }}>
+            <div className="responsive-grid-3" style={{ marginBottom: '40px' }}>
               <div style={{ padding: '20px', border: '2px solid #000', textAlign: 'center' }}>
                 <p style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 8px 0', textTransform: 'uppercase' }}>Total Revenue</p>
                 <p style={{ fontSize: '24px', fontWeight: '900', margin: 0 }}>GH₵ {reportData.stats.revenue.value}</p>

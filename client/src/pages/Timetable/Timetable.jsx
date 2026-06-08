@@ -655,7 +655,7 @@ const Timetable = () => {
             )}
           </div>
 
-          <div className="stats-row">
+          <div className="responsive-grid-3" style={{ marginBottom: '40px' }}>
             <div className="stat-box">
               <span className="stat-label">Active Temporal State</span>
               <h3 className="stat-value">{currentPeriod ? currentPeriod.name : 'Off-Cycle'}</h3>

@@ -359,7 +359,7 @@ const StaffProfile = () => {
               {editing ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
                   <FormSection title="Identity & Personal" icon={<Icons.User />}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                    <div className="responsive-grid-3">
                       <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
                       <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
                       <FormGroup label="Gender" name="gender" value={formData.gender} onChange={handleChange} type="select" options={[{v:'male', l:'Male'}, {v:'female', l:'Female'}]} />
@@ -370,7 +370,7 @@ const StaffProfile = () => {
                   </FormSection>
 
                   <FormSection title="Contact & Residence" icon={<Icons.MapPin />}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                    <div className="responsive-grid-3">
                       <FormGroup label="Personal Email" name="email" value={formData.email} onChange={handleChange} />
                       <FormGroup label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
                       <FormGroup label="Street Address" name="address.street" value={formData.address?.street} onChange={handleChange} />
@@ -381,7 +381,7 @@ const StaffProfile = () => {
                   </FormSection>
 
                   <FormSection title="Professional Career" icon={<Icons.Briefcase />}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                    <div className="responsive-grid-3">
                       <FormGroup label="Department" name="department" value={formData.department} onChange={handleChange} type="select" options={departmentOptions.map(d => ({v:d.value, l:d.label}))} />
                       <FormGroup label="Position/Role" name="role" value={formData.role} onChange={handleChange} type="select" options={roleOptions.map(r => ({v:r.value, l:r.label}))} />
                       <FormGroup label="Contract" name="contractType" value={formData.contractType} onChange={handleChange} type="select" options={[{v:'permanent', l:'Permanent'}, {v:'contract', l:'Contract'}]} />
@@ -395,7 +395,7 @@ const StaffProfile = () => {
               ) : (
                 <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                   {activeTab === 'personal' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
+                    <div className="responsive-grid-2" style={{ gap: '32px' }}>
                       <DataBlock label="Biological Gender" value={staff?.gender} />
                       <DataBlock label="Date of Birth" value={staff?.dateOfBirth} />
                       <DataBlock label="National Identity" value={staff?.nationality} />
@@ -405,7 +405,7 @@ const StaffProfile = () => {
                     </div>
                   )}
                   {activeTab === 'professional' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px' }}>
+                    <div className="responsive-grid-2" style={{ gap: '32px' }}>
                       <DataBlock label="Commission Date" value={staff?.dateOfEmployment} />
                       <DataBlock label="Contract Status" value={staff?.contractType} badge />
                       <DataBlock label="Highest Qualification" value={staff?.qualifications} />

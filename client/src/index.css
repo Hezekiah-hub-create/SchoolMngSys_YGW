@@ -347,6 +347,264 @@ body, button, input, select, textarea {
 
 
 
+/* ============================================= */
+/* RESPONSIVE UTILITY SYSTEM                     */
+/* ============================================= */
+
+/* --- Responsive Grid Classes --- */
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.responsive-grid-2-1-3 {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+}
+.responsive-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .responsive-grid-4, .responsive-grid-3, .responsive-grid-2-1-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .responsive-grid-4,
+  .responsive-grid-3,
+  .responsive-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Page Header --- */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .page-header h1 {
+    font-size: 28px !important;
+  }
+  .page-header p {
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-header h1 {
+    font-size: 24px !important;
+  }
+}
+
+/* --- Filter / Search Bar --- */
+.filter-bar {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .filter-bar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .filter-bar > * {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* --- Responsive Table Wrapper --- */
+.responsive-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+}
+
+.responsive-table-wrapper table {
+  min-width: 600px;
+}
+
+/* --- Modal Responsiveness --- */
+@media (max-width: 768px) {
+  .premium-modal-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 24px !important;
+    border-radius: 20px !important;
+    margin: 10px;
+  }
+  .premium-modal-content form {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.responsive-layout-wrapper {
+  margin-left: var(--sidebar-width);
+}
+
+@media (max-width: 1024px) {
+  .responsive-layout-wrapper {
+    margin-left: 0;
+  }
+}
+
+/* --- Sidebar Mobile --- */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  display: block;
+  opacity: 1;
+}
+
+.role-sidebar {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 1024px) {
+  .role-sidebar {
+    transform: translateX(-100%);
+  }
+  .role-sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* --- TopNav Mobile --- */
+@media (max-width: 768px) {
+  .topnav-session { display: none !important; }
+  .topnav-user-info { display: none !important; }
+  .topnav-search { max-width: 100% !important; }
+}
+
+@media (max-width: 640px) {
+  .topnav-search form {
+    padding: 8px 14px !important;
+  }
+}
+
+/* --- Responsive Form Grid --- */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .form-grid,
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Responsive Flex Helpers --- */
+.flex-responsive {
+  display: flex;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .flex-responsive {
+    flex-direction: column;
+  }
+}
+
+/* --- Profile Layout (Sidebar + Content) --- */
+.profile-layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 1024px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Glass Card Mobile --- */
+@media (max-width: 640px) {
+  .glass-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+}
+
+/* --- General Responsive Helpers --- */
+@media (max-width: 640px) {
+  .premium-btn-primary,
+  .premium-btn-secondary {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+/* --- Responsive Stats Row --- */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .stats-row {
+    flex-direction: column;
+  }
+  .stats-row > * {
+    width: 100% !important;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
 
 /* Hyper-Premium Timetable Styles - Moved to component CSS */
 .timetable-container {

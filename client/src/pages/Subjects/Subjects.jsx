@@ -142,7 +142,7 @@ const Subjects = () => {
             <div className="counter-badge">{filteredSubjects.length} Active Nodes</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '32px' }}>
+          <div className="responsive-grid-4" style={{ marginBottom: '32px' }}>
             <div className="glass-card mini-stats">
               <div className="mini-icon" style={{ background: '#ecfdf5', color: '#10b981' }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>

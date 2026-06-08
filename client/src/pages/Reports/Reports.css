@@ -48,6 +48,19 @@
   margin-bottom: 40px;
 }
 
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
 .stat-item-nexus {
   background: white;
   padding: 24px;
@@ -122,6 +135,24 @@
   grid-template-columns: 420px 1fr;
   gap: 32px;
   align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .reports-grid {
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .reports-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .intelligence-matrix {
+    position: static;
+    top: auto;
+  }
 }
 
 /* Intelligence Matrix (Sidebar) */

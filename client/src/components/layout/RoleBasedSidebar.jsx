@@ -226,6 +226,8 @@ const RoleBasedSidebar = ({ user, onLogout, activeMenu, setActiveMenu }) => {
       if (typeof setActiveMenu === 'function') setActiveMenu(item.name);
       const path = resolvePath(item);
       if (path) navigate(path);
+      // Close sidebar on mobile after navigation
+      if (window.innerWidth <= 1024) setIsOpen(false);
     }
   };
 
@@ -251,8 +253,14 @@ const RoleBasedSidebar = ({ user, onLogout, activeMenu, setActiveMenu }) => {
 
   const roleInfo = getRoleInfo();
 
+const closeSidebar = () => setIsOpen(false);
+
 return (
-    <div style={{
+    <>
+    {/* Mobile Overlay */}
+    <div className={`sidebar-overlay ${isOpen ? 'active' : ''}`} onClick={closeSidebar} />
+    
+    <div className={`role-sidebar ${isOpen ? 'open' : ''}`} style={{
       width: '260px',
       minHeight: '100vh',
       backgroundColor: '#00843e',
@@ -503,6 +511,7 @@ return (
         </button>
       </div>
     </div>
+    </>
   );
 };
 

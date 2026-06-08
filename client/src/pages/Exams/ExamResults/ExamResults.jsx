@@ -140,7 +140,7 @@ const ExamResults = () => {
           </div>
 
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '40px' }}>
+          <div className="responsive-grid-3" style={{ marginBottom: '40px' }}>
             <div className="glass-card" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#f5f3ff', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icons.TrendingUp /></div>

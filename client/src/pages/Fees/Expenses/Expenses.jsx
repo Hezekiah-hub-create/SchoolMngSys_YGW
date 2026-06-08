@@ -130,7 +130,7 @@ const Expenses = () => {
           )}
 
           {/* Stats Overview */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '24px' }}>
+          <div className="responsive-grid-3" style={{ marginBottom: '24px' }}>
             <StatCard 
               title="Total Expenses" 
               value={`₵ ${(stats.totalExpenses || 0).toLocaleString()}`} 

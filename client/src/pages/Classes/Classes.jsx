@@ -241,7 +241,7 @@ const Classes = () => {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '24px' }}>
+        <div className="responsive-grid-3" style={{ marginBottom: '24px' }}>
           <div className="glass-card" style={{ padding: '24px' }}>
             <p className="premium-label" style={{ marginBottom: '12px' }}>Active Grade Levels</p>
             <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{classes.length}</p>
@@ -264,7 +264,7 @@ const Classes = () => {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '100px' }}><div className="premium-loader"></div></div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '32px' }}>
+          <div className="responsive-grid-2" style={{ gap: '32px' }}>
             {classes.map((cls) => (
               <div key={cls.id} className="class-node">
                 {isAdmin && (
