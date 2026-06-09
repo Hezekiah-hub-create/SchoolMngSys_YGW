@@ -133,14 +133,16 @@ const getAllStudents = asyncHandler(async (req, res) => {
     students = students.filter(s => s.academic_year === academicYear);
   }
   if (search) {
-    const searchLower = search.toLowerCase();
-    students = students.filter(s => 
-      s.first_name?.toLowerCase().includes(searchLower) ||
-      s.last_name?.toLowerCase().includes(searchLower) ||
-      s.admission_number?.toLowerCase().includes(searchLower) ||
-      s.email?.toLowerCase().includes(searchLower) ||
-      isGradeMatch(s.grade || '', searchLower)
-    );
+    const searchWords = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    students = students.filter(s => {
+      const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+      return searchWords.every(word =>
+        fullName.includes(word) ||
+        s.admission_number?.toLowerCase().includes(word) ||
+        s.email?.toLowerCase().includes(word) ||
+        isGradeMatch(s.grade || '', word)
+      );
+    });
   }
 
   // Pagination

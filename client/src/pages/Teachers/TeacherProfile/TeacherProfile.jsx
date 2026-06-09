@@ -56,9 +56,6 @@ const gradeOptions = [
   { value: 'Basic 7', label: 'Basic 7' },
   { value: 'Basic 8', label: 'Basic 8' },
   { value: 'Basic 9', label: 'Basic 9' },
-  { value: 'JHS 1', label: 'JHS 1' },
-  { value: 'JHS 2', label: 'JHS 2' },
-  { value: 'JHS 3', label: 'JHS 3' },
 ];
 
 const coordinatorOptions = [
@@ -66,7 +63,7 @@ const coordinatorOptions = [
   { value: 'KG', label: 'Kindergarten (KG 1-3)' },
   { value: 'Basic 1-3', label: 'Lower Basic (Basic 1-3)' },
   { value: 'Basic 4-6', label: 'Upper Basic (Basic 4-6)' },
-  { value: 'JHS', label: 'Junior High School (JHS 1-3)' },
+  { value: 'JHS', label: 'Basic 7-9 (JHS)' },
 ];
 
 const qualificationOptions = [

@@ -15,9 +15,9 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  // Generate years (from 1940 to 10 years ahead)
+  // Generate years (from 2010 to 10 years ahead)
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 1940 + 11 }, (_, i) => 1940 + i);
+  const years = Array.from({ length: currentYear - 2010 + 11 }, (_, i) => 2010 + i);
   
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));

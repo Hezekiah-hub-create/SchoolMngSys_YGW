@@ -12,6 +12,25 @@ const getAllCourses = asyncHandler(async (req, res) => {
     .from(COLLECTIONS.CLASS_SUBJECTS)
     .select('*, subject:subject_id(*), class:class_id(*), teacher:teacher_id(*)');
 
+  // Optimize grade filtering at the DB level
+  if (grade) {
+    const gradesToSearch = [grade.trim()];
+    const gradeLower = grade.toLowerCase().trim();
+    if (gradeLower === 'jhs 1' || gradeLower === 'jhs1') gradesToSearch.push('Basic 7');
+    if (gradeLower === 'jhs 2' || gradeLower === 'jhs2') gradesToSearch.push('Basic 8');
+    if (gradeLower === 'jhs 3' || gradeLower === 'jhs3') gradesToSearch.push('Basic 9');
+    if (gradeLower === 'basic 7') gradesToSearch.push('JHS 1');
+    if (gradeLower === 'basic 8') gradesToSearch.push('JHS 2');
+    if (gradeLower === 'basic 9') gradesToSearch.push('JHS 3');
+
+    const { data: matchedClasses } = await supabase.from(COLLECTIONS.ACADEMIC_CLASSES).select('id').in('name', gradesToSearch);
+    if (matchedClasses && matchedClasses.length > 0) {
+      query = query.in('class_id', matchedClasses.map(c => c.id));
+    } else {
+      return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
+    }
+  }
+
   // Data Isolation for teachers
   if (req.user.role === 'teacher' || req.user.role === 'staff') {
     const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', req.user.id);
@@ -123,11 +142,13 @@ const getAllCourses = asyncHandler(async (req, res) => {
     }
 
     if (search) {
-      const s = search.toLowerCase();
+      const searchWords = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
       transformedData = transformedData.filter(c => 
-        c.name.toLowerCase().includes(s) || 
-        c.code.toLowerCase().includes(s) ||
-        (c.grade || '').toLowerCase().includes(s)
+        searchWords.every(word =>
+          c.name.toLowerCase().includes(word) || 
+          c.code.toLowerCase().includes(word) ||
+          (c.grade || '').toLowerCase().includes(word)
+        )
       );
     }
 

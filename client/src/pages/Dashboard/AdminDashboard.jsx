@@ -292,28 +292,28 @@ const AdminDashboard = () => {
             <div className="responsive-grid-4">
               <ActionCard 
                 icon={<Icons.UserPlus />} 
-                title="Scholar Registry" 
+                title="Student Admission" 
                 desc="Enroll new students" 
                 color="var(--brand-green)"
                 onClick={() => navigate('/students/add')}
               />
               <ActionCard 
                 icon={<Icons.Graduation />} 
-                title="Faculty Entry" 
+                title="Staff Onboarding" 
                 desc="Onboard new staff" 
                 color="#8b5cf6" 
                 onClick={() => navigate('/teachers/add')}
               />
               <ActionCard 
                 icon={<Icons.Academic />} 
-                title="Curriculum Map" 
+                title="Academic Classes" 
                 desc="Manage course logic" 
                 color="var(--brand-yellow)"
                 onClick={() => navigate('/classes')}
               />
               <ActionCard 
                 icon={<Icons.Dollar />} 
-                title="Fiscal Protocol" 
+                title="Fee Collection" 
                 desc="Process institutional fees" 
                 color="#00843e"
                 onClick={() => navigate('/fees/collection')}

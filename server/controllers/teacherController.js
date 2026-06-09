@@ -170,14 +170,16 @@ const getAllTeachers = asyncHandler(async (req, res) => {
   });
 
   if (search) {
-    const searchLower = search.toLowerCase();
-    teachers = teachers.filter(t => 
-      t.first_name?.toLowerCase().includes(searchLower) ||
-      t.last_name?.toLowerCase().includes(searchLower) ||
-      t.employee_id?.toLowerCase().includes(searchLower) ||
-      t.email?.toLowerCase().includes(searchLower) ||
-      (t.subjects && t.subjects.some(s => s.toLowerCase().includes(searchLower)))
-    );
+    const searchWords = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    teachers = teachers.filter(t => {
+      const fullName = `${t.first_name || ''} ${t.last_name || ''}`.toLowerCase();
+      return searchWords.every(word =>
+        fullName.includes(word) ||
+        t.employee_id?.toLowerCase().includes(word) ||
+        t.email?.toLowerCase().includes(word) ||
+        (t.subjects && t.subjects.some(s => s.toLowerCase().includes(word)))
+      );
+    });
   }
 
   // Pagination

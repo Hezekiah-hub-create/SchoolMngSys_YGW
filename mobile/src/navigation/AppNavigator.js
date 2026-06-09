@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
@@ -43,20 +44,24 @@ const MainTabs = () => {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.slate[400],
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: COLORS.slate[100],
-          borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
+          backgroundColor: '#ffffff',
+          borderTopWidth: 0,
+          height: Platform.OS === 'ios' ? 88 : 85,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 25,
+          paddingTop: 10,
+          shadowColor: COLORS.slate[900],
+          shadowOffset: { width: 0, height: -10 },
           shadowOpacity: 0.05,
-          shadowRadius: 10,
+          shadowRadius: 20,
+          elevation: 10,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '800',
+          marginTop: 4,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 8,
         }
       }}
     >

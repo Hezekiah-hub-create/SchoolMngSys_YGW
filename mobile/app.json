@@ -14,7 +14,26 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.uhasbasicschool.app"
+      "bundleIdentifier": "com.uhasbasicschool.app",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "UHAS Basic School needs camera access to take profile photos.",
+        "NSPhotoLibraryUsageDescription": "UHAS Basic School needs photo library access to select profile photos.",
+        "CFBundleDisplayName": "UHAS Basic"
+      },
+      "splash": {
+        "image": "./assets/UBS.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff",
+        "dark": {
+          "image": "./assets/UBS.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0f172a"
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {

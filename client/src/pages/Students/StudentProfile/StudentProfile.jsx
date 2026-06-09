@@ -25,9 +25,10 @@ const Icons = {
 const displayGrade = (g) => {
   if (!g) return 'No Grade';
   let str = g.toString().trim();
-  // Transform Primary 1-6 to Basic 1-6 for UI display
   const primaryMatch = str.match(/^Primary\s*([1-6])$/i);
   if (primaryMatch) return `Basic ${primaryMatch[1]}`;
+  const jhsMatch = str.match(/^JHS\s*([1-3])$/i);
+  if (jhsMatch) return `Basic ${parseInt(jhsMatch[1]) + 6}`;
   return str;
 };
 
@@ -81,12 +82,30 @@ const StudentProfile = () => {
         const rawStudent = studentRes.value.data.data;
         
         let parentName = rawStudent.parentName || rawStudent.parent_name;
-        if (!parentName && rawStudent.parentIds?.length > 0) {
+        let parentDetails = {};
+        if (rawStudent.parentIds?.length > 0) {
           try {
             const parentRes = await parentAPI.getById(rawStudent.parentIds[0]);
             if (parentRes.data?.success) {
               const p = parentRes.data.data;
-              parentName = `${p.firstName || p.first_name} ${p.lastName || p.last_name}`;
+              const pName = `${p.firstName || p.first_name || ''} ${p.lastName || p.last_name || ''}`.trim();
+              if (!parentName) parentName = pName;
+              
+              const rel = (p.relationship || '').toLowerCase();
+              if (rel === 'father') {
+                parentDetails.fatherName = pName;
+                parentDetails.fatherPhone = p.phone;
+                parentDetails.parentEmail = p.email;
+              } else if (rel === 'mother') {
+                parentDetails.motherName = pName;
+                parentDetails.motherPhone = p.phone;
+                parentDetails.parentEmail = p.email;
+              } else {
+                parentDetails.motherName = pName; // Use mother fields for general guardian
+                parentDetails.motherPhone = p.phone;
+                parentDetails.guardianEmail = p.email;
+                parentDetails.guardianStreet = p.address?.street || '';
+              }
             }
           } catch (e) {
             console.warn('Failed to fetch parent details', e);
@@ -95,12 +114,13 @@ const StudentProfile = () => {
 
         const normalizedStudent = {
           ...rawStudent,
+          ...parentDetails,
           firstName: rawStudent.firstName || rawStudent.first_name,
           lastName: rawStudent.lastName || rawStudent.last_name,
           admissionNumber: rawStudent.admissionNumber || rawStudent.admission_number,
           dateOfBirth: rawStudent.dateOfBirth || rawStudent.date_of_birth,
           parentName: parentName,
-          parentPhone: rawStudent.parentPhone || rawStudent.parent_phone
+          parentPhone: parentDetails.fatherPhone || parentDetails.motherPhone || rawStudent.parentPhone || rawStudent.parent_phone
         };
         setStudent(normalizedStudent);
 
@@ -147,8 +167,9 @@ const StudentProfile = () => {
       fatherPhone: student?.fatherPhone || student?.father_phone || '',
       motherName: student?.motherName || student?.mother_name || '',
       motherPhone: student?.motherPhone || student?.mother_phone || '',
-      guardianEmail: student?.guardianEmail || '',
-      guardianStreet: student?.guardianStreet || '',
+      parentEmail: student?.parentEmail || student?.parent_email || student?.email || '',
+      guardianEmail: student?.guardianEmail || student?.guardian_email || '',
+      guardianStreet: student?.guardianStreet || student?.guardian_street || '',
       address: student?.address || { street: '', city: '', region: '', country: 'Ghana' },
       emergencyContact: student?.emergencyContact || { name: '', relationship: '', phone: '', email: '' },
       medicalInfo: student?.medicalInfo || { bloodType: '', allergies: '', medicalConditions: '' }
@@ -191,6 +212,55 @@ const StudentProfile = () => {
     setError('');
     try {
       await studentAPI.update(id, editFormData);
+      
+      // Update or Create parent info
+      let parentFirstName = '';
+      let parentLastName = '';
+      let parentEmail = editFormData.parentEmail || editFormData.guardianEmail;
+      let parentPhone = '';
+      let relationship = 'guardian';
+
+      if (editFormData.fatherName) {
+         const names = editFormData.fatherName.trim().split(' ');
+         parentFirstName = names[0];
+         parentLastName = names.slice(1).join(' ');
+         parentPhone = editFormData.fatherPhone;
+         relationship = 'father';
+      } else if (editFormData.motherName) {
+         const names = editFormData.motherName.trim().split(' ');
+         parentFirstName = names[0];
+         parentLastName = names.slice(1).join(' ');
+         parentPhone = editFormData.motherPhone;
+         relationship = editFormData.guardianEmail ? 'guardian' : 'mother';
+      }
+
+      if (parentFirstName) {
+        const parentData = {
+          first_name: parentFirstName,
+          last_name: parentLastName,
+          email: parentEmail,
+          phone: parentPhone,
+          relationship: relationship,
+          address: { street: editFormData.guardianStreet || editFormData.address?.street }
+        };
+
+        if (student?.parentIds?.length > 0) {
+          await parentAPI.update(student.parentIds[0], parentData).catch(err => console.warn('Failed to update parent:', err));
+        } else {
+          // No parent linked, so create one and link it to this student
+          parentData.students = [id];
+          try {
+            const newParentRes = await parentAPI.create(parentData);
+            if (newParentRes.data?.success) {
+              const newParentId = newParentRes.data.data.id;
+              await studentAPI.update(id, { parentIds: [newParentId] });
+            }
+          } catch (err) {
+            console.warn('Failed to create and link new parent:', err);
+          }
+        }
+      }
+
       setSuccess('Student profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
       setIsEditing(false);

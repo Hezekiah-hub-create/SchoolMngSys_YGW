@@ -130,7 +130,17 @@ const AddStudent = () => {
     status: 'active'
   });
 
-  const gradeOptions = dbGrades.map(g => ({ value: g.name, label: g.name }));
+  const displayGrade = (g) => {
+    if (!g) return 'N/A';
+    let str = g.toString().trim();
+    const primaryMatch = str.match(/^Primary\s*([1-6])$/i);
+    if (primaryMatch) return `Basic ${primaryMatch[1]}`;
+    const jhsMatch = str.match(/^JHS\s*([1-3])$/i);
+    if (jhsMatch) return `Basic ${parseInt(jhsMatch[1]) + 6}`;
+    return str;
+  };
+
+  const gradeOptions = dbGrades.map(g => ({ value: g.name, label: displayGrade(g.name) }));
 
   const genderOptions = [
     { value: 'male', label: 'Male' },
@@ -146,7 +156,7 @@ const AddStudent = () => {
         { value: 'D', label: `Section ${mapSectionName('D')}` }
       ];
 
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
@@ -159,6 +169,15 @@ const AddStudent = () => {
         setAvailableSections(filtered);
       } else {
         setAvailableSections([]);
+      }
+      
+      // Auto-generate roll number based on number of students in the class
+      try {
+        const response = await studentAPI.getAll({ limit: 1000, grade: value });
+        const students = response?.data?.data || response?.data || [];
+        setFormData(prev => ({ ...prev, rollNumber: String(students.length + 1).padStart(2, '0') }));
+      } catch (err) {
+        console.error('Failed to auto-generate roll number:', err);
       }
     }
 

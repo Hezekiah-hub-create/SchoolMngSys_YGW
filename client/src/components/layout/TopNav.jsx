@@ -157,48 +157,8 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
         }
       `}</style>
 
-      {/* Left Side - Search */}
-      <div className="topnav-search" style={{ flex: 1, maxWidth: '450px' }}>
-        <form onSubmit={handleSearchSubmit} style={{
-          display: 'flex',
-          alignItems: 'center',
-          backgroundColor: '#f1f5f9',
-          borderRadius: '16px',
-          padding: '10px 20px',
-          gap: '12px',
-          border: '1.5px solid transparent',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-
-        }}
-        onFocus={(e) => {
-          e.target.style.border = '1px solid var(--brand-green)';
-          e.target.style.backgroundColor = 'white';
-        }}
-        onBlur={(e) => {
-          e.target.style.border = '1px solid transparent';
-          e.target.style.backgroundColor = '#ffffff';
-        }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35"/>
-          </svg>
-          <input 
-            type="text" 
-            placeholder="Search students, teachers, events..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              border: 'none',
-              backgroundColor: 'transparent',
-              outline: 'none',
-              fontSize: '14px',
-              width: '100%',
-              color: '#1e293b'
-            }}
-          />
-        </form>
-      </div>
+      {/* Left Side - Spacer */}
+      <div style={{ flex: 1 }}></div>
 
       {/* Right Side - User Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>

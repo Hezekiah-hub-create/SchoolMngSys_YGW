@@ -43,13 +43,15 @@ const getAllParents = asyncHandler(async (req, res) => {
 
   // Apply search filter
   if (search) {
-    const searchLower = search.toLowerCase();
-    parents = parents.filter(p => 
-      p.first_name?.toLowerCase().includes(searchLower) ||
-      p.last_name?.toLowerCase().includes(searchLower) ||
-      p.phone?.includes(search) ||
-      p.email?.toLowerCase().includes(searchLower)
-    );
+    const searchWords = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    parents = parents.filter(p => {
+      const fullName = `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+      return searchWords.every(word =>
+        fullName.includes(word) ||
+        p.email?.toLowerCase().includes(word) ||
+        p.phone?.includes(word)
+      );
+    });
   }
 
   // Pagination

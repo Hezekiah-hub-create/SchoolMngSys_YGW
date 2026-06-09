@@ -294,7 +294,7 @@ const FeesStructure = () => {
                         onChange={(e) => setFormData({...formData, grade: e.target.value})}
                         style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '14px', backgroundColor: 'white' }}
                       >
-                        {['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'JHS 1', 'JHS 2', 'JHS 3'].map(g => <option key={g} value={g}>{g}</option>)}
+                        {['Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'].map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </div>
                   </div>

@@ -262,7 +262,7 @@ return (
     
     <div className={`role-sidebar ${isOpen ? 'open' : ''}`} style={{
       width: '260px',
-      minHeight: '100vh',
+      height: '100vh',
       backgroundColor: '#00843e',
       color: 'white',
       display: 'flex',
@@ -271,7 +271,8 @@ return (
       left: 0,
       top: 0,
       zIndex: 100,
-      boxShadow: '4px 0 20px rgba(0, 132, 62, 0.2)'
+      boxShadow: '4px 0 20px rgba(0, 132, 62, 0.2)',
+      overflow: 'hidden'
     }}>
       {/* Logo Section */}
       <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>

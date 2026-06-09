@@ -33,9 +33,11 @@ const PremiumDatePicker = ({ value, onChange, placeholder = "Select Date" }) => 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        // If it's a portal, we need to check if the click was inside the portal content too
-        const portalContent = document.getElementById('premium-datepicker-portal');
-        if (portalContent && portalContent.contains(event.target)) return;
+        // Check if the click was inside the datepicker portal or any select portal
+        const datepickerPortal = document.getElementById('premium-datepicker-portal');
+        if (datepickerPortal && datepickerPortal.contains(event.target)) return;
+        const selectPortal = document.getElementById('premium-select-portal');
+        if (selectPortal && selectPortal.contains(event.target)) return;
         setIsOpen(false);
       }
     };

@@ -115,16 +115,20 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
     return rYear === sYear;
   });
 
-  // Fetch class subjects to resolve course_id to subject name
-  const { data: classSubjects } = await supabase
-    .from(COLLECTIONS.CLASS_SUBJECTS)
-    .select('*, subject:subject_id(name)');
-  
+  const courseIds = [...new Set(classRows.map(r => r.course_id).filter(Boolean))];
   const classSubjectMap = {};
-  if (classSubjects) {
-    classSubjects.forEach(cs => {
-      classSubjectMap[cs.id] = cs.subject?.name || cs.subject_id;
-    });
+  
+  if (courseIds.length > 0) {
+    const { data: classSubjects } = await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('id, subject:subject_id(name)')
+      .in('id', courseIds);
+    
+    if (classSubjects) {
+      classSubjects.forEach(cs => {
+        classSubjectMap[cs.id] = cs.subject?.name || cs.subject_id;
+      });
+    }
   }
   
   const schedule = {
@@ -232,16 +236,20 @@ const getTimetableByTeacher = asyncHandler(async (req, res) => {
 
   if (error) throw error;
   
-  // Fetch class subjects to resolve course_id to subject name
-  const { data: classSubjects } = await supabase
-    .from(COLLECTIONS.CLASS_SUBJECTS)
-    .select('*, subject:subject_id(name)');
-  
+  const courseIds = [...new Set((allPeriods || []).map(p => p.course_id).filter(Boolean))];
   const classSubjectMap = {};
-  if (classSubjects) {
-    classSubjects.forEach(cs => {
-      classSubjectMap[cs.id] = cs.subject?.name || cs.subject_id;
-    });
+  
+  if (courseIds.length > 0) {
+    const { data: classSubjects } = await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('id, subject:subject_id(name)')
+      .in('id', courseIds);
+    
+    if (classSubjects) {
+      classSubjects.forEach(cs => {
+        classSubjectMap[cs.id] = cs.subject?.name || cs.subject_id;
+      });
+    }
   }
 
   const teacherTimetables = (allPeriods || []).map(p => {

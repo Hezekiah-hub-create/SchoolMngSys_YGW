@@ -41,12 +41,13 @@ const Students = () => {
         
         // Apply local search if needed
         if (searchTerm || gradeFilter) {
-          const lowerSearch = searchTerm.toLowerCase();
+          const searchWords = searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
           myChildren = myChildren.filter(s => {
-            const matchesSearch = !searchTerm || (
-              s.firstName?.toLowerCase().includes(lowerSearch) || 
-              s.lastName?.toLowerCase().includes(lowerSearch) || 
-              s.admissionNumber?.toLowerCase().includes(lowerSearch)
+            const matchesSearch = searchWords.length === 0 || searchWords.every(word =>
+              s.firstName?.toLowerCase().includes(word) || 
+              s.lastName?.toLowerCase().includes(word) || 
+              s.admissionNumber?.toLowerCase().includes(word) ||
+              `${s.firstName} ${s.lastName}`.toLowerCase().includes(word)
             );
             const matchesGrade = !gradeFilter || s.grade === gradeFilter;
             return matchesSearch && matchesGrade;
@@ -105,9 +106,10 @@ const Students = () => {
   const displayGrade = (g) => {
     if (!g) return 'No Grade';
     let str = g.toString().trim();
-    // Transform Primary 1-6 to Basic 1-6 for UI display
     const primaryMatch = str.match(/^Primary\s*([1-6])$/i);
     if (primaryMatch) return `Basic ${primaryMatch[1]}`;
+    const jhsMatch = str.match(/^JHS\s*([1-3])$/i);
+    if (jhsMatch) return `Basic ${parseInt(jhsMatch[1]) + 6}`;
     return str;
   };
 

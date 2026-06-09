@@ -47,13 +47,15 @@ const getAllStaff = asyncHandler(async (req, res) => {
     staff = staff.filter(s => s.department === department);
   }
   if (search) {
-    const searchLower = search.toLowerCase();
-    staff = staff.filter(s => 
-      s.first_name?.toLowerCase().includes(searchLower) ||
-      s.last_name?.toLowerCase().includes(searchLower) ||
-      s.employee_id?.toLowerCase().includes(searchLower) ||
-      s.email?.toLowerCase().includes(searchLower)
-    );
+    const searchWords = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    staff = staff.filter(s => {
+      const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+      return searchWords.every(word =>
+        fullName.includes(word) ||
+        s.employee_id?.toLowerCase().includes(word) ||
+        s.email?.toLowerCase().includes(word)
+      );
+    });
   }
 
   // Pagination

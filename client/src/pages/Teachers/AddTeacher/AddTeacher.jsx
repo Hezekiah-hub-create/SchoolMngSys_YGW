@@ -88,7 +88,7 @@ const AddTeacher = () => {
     { value: 'KG', label: 'Kindergarten (KG 1-3)' },
     { value: 'Basic 1-3', label: 'Lower Basic (Basic 1-3)' },
     { value: 'Basic 4-6', label: 'Upper Basic (Basic 4-6)' },
-    { value: 'JHS', label: 'Junior High School (JHS 1-3)' },
+    { value: 'JHS', label: 'Basic 7-9 (JHS)' },
   ];
 
   const handleChange = (e) => {

@@ -10,6 +10,8 @@ const displayGrade = (g) => {
   let str = g.toString().trim();
   const primaryMatch = str.match(/^Primary\s*([1-6])$/i);
   if (primaryMatch) return `Basic ${primaryMatch[1]}`;
+  const jhsMatch = str.match(/^JHS\s*([1-3])$/i);
+  if (jhsMatch) return `Basic ${parseInt(jhsMatch[1]) + 6}`;
   return str;
 };
 
@@ -233,13 +235,7 @@ const Classes = () => {
             <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>Academic <span style={{ color: 'var(--brand-green)' }}>Classes</span></h1>
             <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>Manage grade levels, assign Class Masters, and configure subjects.</p>
           </div>
-          {isAdmin && (
-            <button onClick={() => setShowClassModal(true)} className="premium-btn-primary">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-              Enroll New Class
-            </button>
-          )}
-        </div>
+          </div>
 
         <div className="responsive-grid-3" style={{ marginBottom: '24px' }}>
           <div className="glass-card" style={{ padding: '24px' }}>
