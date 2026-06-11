@@ -212,7 +212,9 @@ const Reports = () => {
       ]);
       
       const secData = secRes.data?.data || secRes.data || [];
-      const classData = classRes.data?.data || classRes.data || [];
+      const allowedGrades = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+      let classData = classRes.data?.data || classRes.data || [];
+      classData = classData.filter(g => allowedGrades.includes(g.name));
       const settingsData = settingsRes.data?.settings || settingsRes.data?.data || settingsRes.data;
 
       if (settingsData) {
@@ -509,10 +511,13 @@ const Reports = () => {
     allowedSections = filteredSections.filter(s => masteredSectionIds.includes(String(s.id)));
   }
 
-  const gradeOptions = allowedGrades.map(g => ({ 
-    value: g.name, 
-    label: g.name.replace(/Primary|Basic/i, 'Basic') 
-  }));
+  const gradeOptions = allowedGrades.map(g => {
+    let label = g.name.replace(/Primary|Basic/i, 'Basic');
+    if (g.name.toUpperCase().includes('JHS 1') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS1') label = 'Basic 7';
+    if (g.name.toUpperCase().includes('JHS 2') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS2') label = 'Basic 8';
+    if (g.name.toUpperCase().includes('JHS 3') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS3') label = 'Basic 9';
+    return { value: g.name, label };
+  });
 
 
 

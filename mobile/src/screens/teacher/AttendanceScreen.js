@@ -12,6 +12,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { studentAPI, attendanceAPI } from '../../api';
 import PremiumAlert from '../../components/PremiumAlert';
 
+const displayGrade = (g) => {
+  if (!g) return '';
+  const str = g.toString().trim();
+  if (str.toUpperCase() === 'JHS 1') return 'Basic 7';
+  if (str.toUpperCase() === 'JHS 2') return 'Basic 8';
+  if (str.toUpperCase() === 'JHS 3') return 'Basic 9';
+  return str.replace(/Primary|Basic/i, 'Basic');
+};
+
 const TeacherAttendanceScreen = ({ navigation }) => {
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
@@ -196,7 +205,7 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.studentName} numberOfLines={1}>{name}</Text>
                   <Text style={styles.studentMeta}>
-                    {student.admissionNumber || student.admission_number || 'N/A'} • {student.grade || 'No Grade'}
+                    {student.admissionNumber || student.admission_number || 'N/A'} • {displayGrade(student.grade) || 'No Grade'}
                   </Text>
                 </View>
               </View>

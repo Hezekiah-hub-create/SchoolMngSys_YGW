@@ -10,6 +10,15 @@ import { ArrowLeft, Mail, Phone, MapPin, Calendar, BookOpen, Award, CheckCircle 
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
 
+const displayGrade = (g) => {
+  if (!g) return '';
+  const str = g.toString().trim();
+  if (str.toUpperCase() === 'JHS 1') return 'Basic 7';
+  if (str.toUpperCase() === 'JHS 2') return 'Basic 8';
+  if (str.toUpperCase() === 'JHS 3') return 'Basic 9';
+  return str.replace(/Primary|Basic/i, 'Basic');
+};
+
 const StudentProfileScreen = ({ route, navigation }) => {
   const { studentId, studentName } = route.params || {};
   const [student, setStudent] = useState(null);
@@ -112,7 +121,7 @@ const StudentProfileScreen = ({ route, navigation }) => {
             </View>
 
             <Text style={styles.profileName}>{name}</Text>
-            <Text style={styles.profileSub}>{data.admission_number || data.student_id} • {data.class_name || data.grade}</Text>
+            <Text style={styles.profileSub}>{data.admission_number || data.student_id} • {displayGrade(data.class_name || data.grade)}</Text>
           </SafeAreaView>
         </LinearGradient>
 

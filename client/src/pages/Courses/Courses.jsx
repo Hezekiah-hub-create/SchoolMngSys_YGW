@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { courseAPI, teacherAPI, studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI, aiAPI } from '../../services/api';
+import { courseAPI, teacherAPI, studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI, aiAPI, settingsAPI } from '../../services/api';
 import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
@@ -43,9 +43,10 @@ const Courses = () => {
   const [editingCourse, setEditingCourse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState('');
+  const [currentSession, setCurrentSession] = useState('2024-2025');
   const [formData, setFormData] = useState({
     name: '', code: '', description: '', grade: '', section: 'A',
-    academicYear: '2024-2025', teacher: '', credits: 3, hoursPerWeek: 3, room: ''
+    academicYear: currentSession, teacher: '', credits: 3, hoursPerWeek: 3, room: ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -94,6 +95,13 @@ const Courses = () => {
     try {
       const gradesRes = await academicClassesAPI.getAll();
       if (gradesRes.data?.success) setDbGrades(gradesRes.data.data);
+      
+      const settingsRes = await settingsAPI.getSettings().catch(() => null);
+      const settingsData = settingsRes?.data?.settings || settingsRes?.data?.data || settingsRes?.data;
+      if (settingsData && settingsData.current_session) {
+        setCurrentSession(settingsData.current_session);
+        setFormData(prev => ({ ...prev, academicYear: settingsData.current_session }));
+      }
     } catch (e) {}
   };
 
@@ -400,7 +408,7 @@ const Courses = () => {
                     <div className="node-tag">{groupedCourse.code} • {displayGrade(groupedCourse.grade)}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                    <div className="session-badge">{groupedCourse.academic_year || '2024-2025'}</div>
+                    <div className="session-badge">{groupedCourse.academic_year || currentSession}</div>
                     <div className="credit-badge">{groupedCourse.credits || 3} Units</div>
                   </div>
                 </div>

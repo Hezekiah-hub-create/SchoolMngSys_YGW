@@ -10,6 +10,15 @@ import { ArrowLeft, Search, Banknote, CreditCard } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { feeAPI } from '../../api';
 
+const displayGrade = (g) => {
+  if (!g) return '';
+  const str = g.toString().trim();
+  if (str.toUpperCase() === 'JHS 1') return 'Basic 7';
+  if (str.toUpperCase() === 'JHS 2') return 'Basic 8';
+  if (str.toUpperCase() === 'JHS 3') return 'Basic 9';
+  return str.replace(/Primary|Basic/i, 'Basic');
+};
+
 const FeesScreen = ({ navigation }) => {
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +51,7 @@ const FeesScreen = ({ navigation }) => {
 
   const filteredFees = fees.filter(f => 
     (f.title || f.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (f.class || f.grade || '').toLowerCase().includes(searchQuery.toLowerCase())
+    (displayGrade(f.class || f.grade) || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -101,7 +110,7 @@ const FeesScreen = ({ navigation }) => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle}>{fee.title || fee.name || 'General Tuition'}</Text>
-                  <Text style={styles.cardSub}>Class: {fee.class || fee.grade || 'All Levels'}</Text>
+                  <Text style={styles.cardSub}>Class: {displayGrade(fee.class || fee.grade) || 'All Levels'}</Text>
                 </View>
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>GH₵{fee.amount || fee.total_amount || 0}</Text>

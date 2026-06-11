@@ -10,6 +10,15 @@ import { ArrowLeft, Search, Users, BookOpen } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { courseAPI } from '../../api';
 
+const displayGrade = (g) => {
+  if (!g) return '';
+  const str = g.toString().trim();
+  if (str.toUpperCase() === 'JHS 1') return 'Basic 7';
+  if (str.toUpperCase() === 'JHS 2') return 'Basic 8';
+  if (str.toUpperCase() === 'JHS 3') return 'Basic 9';
+  return str.replace(/Primary|Basic/i, 'Basic');
+};
+
 const SubjectAllocationScreen = ({ navigation }) => {
   const [allocations, setAllocations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +134,7 @@ const SubjectAllocationScreen = ({ navigation }) => {
                   <Text style={styles.footerText}>{getSubjectName(alloc.subject || alloc.name || alloc.title)}</Text>
                 </View>
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{alloc.level || alloc.grade || 'All Levels'}</Text>
+                  <Text style={styles.badgeText}>{displayGrade(alloc.level || alloc.grade) || 'All Levels'}</Text>
                 </View>
               </View>
             </View>

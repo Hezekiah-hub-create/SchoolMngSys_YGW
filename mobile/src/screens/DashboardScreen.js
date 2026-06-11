@@ -14,6 +14,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import PremiumAlert from '../components/PremiumAlert';
 import { studentAPI, teacherAPI, staffAPI, subjectAPI, attendanceAPI, academicCalendarAPI, parentAPI } from '../api';
 
+const displayGrade = (g) => {
+  if (!g) return '';
+  const str = g.toString().trim();
+  if (str.toUpperCase() === 'JHS 1') return 'Basic 7';
+  if (str.toUpperCase() === 'JHS 2') return 'Basic 8';
+  if (str.toUpperCase() === 'JHS 3') return 'Basic 9';
+  return str.replace(/Primary|Basic/i, 'Basic');
+};
+
 const DashboardScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
@@ -266,7 +275,7 @@ const DashboardScreen = ({ navigation }) => {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.recentName} numberOfLines={1}>{name}</Text>
-                      <Text style={styles.recentSub}>{student.grade || 'No grade'}</Text>
+                      <Text style={styles.recentSub}>{displayGrade(student.grade) || 'No grade'}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: student.status === 'active' ? '#ecfdf5' : '#fef2f2' }]}>
                       <Text style={[styles.statusText, { color: student.status === 'active' ? '#10b981' : '#ef4444' }]}>
@@ -305,7 +314,7 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.childName}>{name}</Text>
-                    <Text style={styles.childMeta}>{child.grade || 'No grade'} {child.section ? `• Section ${child.section}` : ''}</Text>
+                    <Text style={styles.childMeta}>{displayGrade(child.grade) || 'No grade'} {child.section ? `• Section ${child.section}` : ''}</Text>
                     <View style={[styles.childStatusBadge, { backgroundColor: child.status === 'active' ? '#ecfdf5' : '#fef2f2' }]}>
                       <Text style={[styles.childStatusText, { color: child.status === 'active' ? '#10b981' : '#ef4444' }]}>
                         {child.status || 'active'}

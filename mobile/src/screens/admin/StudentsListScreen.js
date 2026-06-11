@@ -10,6 +10,15 @@ import { Search, ChevronRight, ArrowLeft, Users, X } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import PremiumSelect from '../../components/PremiumSelect';
 
+const displayGrade = (g) => {
+  if (!g) return '';
+  const str = g.toString().trim();
+  if (str.toUpperCase() === 'JHS 1') return 'Basic 7';
+  if (str.toUpperCase() === 'JHS 2') return 'Basic 8';
+  if (str.toUpperCase() === 'JHS 3') return 'Basic 9';
+  return str.replace(/Primary|Basic/i, 'Basic');
+};
+
 const StudentsListScreen = ({ navigation }) => {
   const [students, setStudents]   = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -39,7 +48,7 @@ const StudentsListScreen = ({ navigation }) => {
         .filter(Boolean)
     )]
     .sort()
-    .map(cls => ({ value: cls, label: cls }))
+    .map(cls => ({ value: cls, label: displayGrade(cls) }))
   ];
 
   const filteredStudents = students.filter(s => {
@@ -77,7 +86,7 @@ const StudentsListScreen = ({ navigation }) => {
           <View style={styles.info}>
             <Text style={styles.name} numberOfLines={1}>{name}</Text>
             <Text style={styles.subText}>
-              ID: {item.admissionNumber || item.admission_number || item.student_id || 'N/A'} • {item.class_name || item.grade || 'No Class'}
+              ID: {item.admissionNumber || item.admission_number || item.student_id || 'N/A'} • {displayGrade(item.class_name || item.grade) || 'No Class'}
             </Text>
           </View>
           <View style={[

@@ -38,7 +38,7 @@ const PromoteStudents = () => {
     return str;
   };
 
-  const gradeOptions = ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+  const gradeOptions = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
 
   const getNextGrade = (currentGrade) => {
     const currentIndex = gradeOptions.indexOf(currentGrade);

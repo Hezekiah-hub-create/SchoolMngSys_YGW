@@ -439,7 +439,7 @@ const Attendance = () => {
                           <PremiumSelect
                             value={selectedClass}
                             onChange={(e) => setSelectedClass(e.target.value)}
-                            options={['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'].map(g => ({ value: g, label: g }))}
+                            options={['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'].map(g => ({ value: g, label: g }))}
                             placeholder="Select Tier"
                           />
                         </div>

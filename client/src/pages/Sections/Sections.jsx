@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { academicClassesAPI, academicSectionsAPI, studentAPI, teacherAPI } from '../../services/api';
+import { academicClassesAPI, academicSectionsAPI, studentAPI, teacherAPI, settingsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { mapSectionName } from '../../utils/sectionHelper';
@@ -41,6 +41,7 @@ const Sections = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [masterFormData, setMasterFormData] = useState({ class_master_id: '' });
   const [saving, setSaving] = useState(false);
+  const [currentSession, setCurrentSession] = useState('2024-2025 Session');
 
   useEffect(() => {
     fetchData();
@@ -49,16 +50,21 @@ const Sections = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [classesRes, sectionsRes, studentsRes, teachersRes] = await Promise.all([
+      const [classesRes, sectionsRes, studentsRes, teachersRes, settingsRes] = await Promise.all([
         academicClassesAPI.getAll(),
         academicSectionsAPI.getAll(),
         studentAPI.getAll({ limit: 2000 }),
-        teacherAPI.getAll({ limit: 500 })
+        teacherAPI.getAll({ limit: 500 }),
+        settingsAPI.getSettings().catch(() => null)
       ]);
       setClasses(classesRes.data?.data || []);
       setSections(sectionsRes.data?.data || []);
       setAllStudents(studentsRes.data?.data || []);
       setTeachers(teachersRes.data?.data || []);
+      const settingsData = settingsRes?.data?.settings || settingsRes?.data?.data || settingsRes?.data;
+      if (settingsData && settingsData.current_session) {
+        setCurrentSession(`${settingsData.current_session} Session`);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -168,7 +174,7 @@ const Sections = () => {
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                      <div className="session-badge">2024-2025 Session</div>
+                      <div className="session-badge">{currentSession}</div>
                     </div>
                   </div>
 

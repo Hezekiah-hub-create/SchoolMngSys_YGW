@@ -13,6 +13,21 @@ const toOrdinal = (num) => {
   return `${n}th`;
 };
 
+const getNextGrade = (currentGrade) => {
+  const gradeOptions = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+  if (!currentGrade) return '--';
+  
+  // Normalize currentGrade (e.g., Primary 1 -> Basic 1)
+  let str = String(currentGrade).trim();
+  const primaryMatch = str.match(/^Primary\s*([1-6])$/i);
+  if (primaryMatch) str = `Basic ${primaryMatch[1]}`;
+  
+  // Find index in standard options
+  const currentIndex = gradeOptions.findIndex(g => g.toLowerCase() === str.toLowerCase());
+  if (currentIndex === -1 || currentIndex === gradeOptions.length - 1) return str; // Unrecognized or already highest
+  return gradeOptions[currentIndex + 1];
+};
+
 const getInterpretation = (score, settings) => {
   const s = Number(score);
   const gradingSystem = settings?.grading_system || [];
@@ -138,15 +153,36 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
   };
   const term = normalizeTerm(rawTerm);
   
+  const termVariants = [term, rawTerm];
+  if (term === '1st') termVariants.push('First Term', 'Term 1');
+  if (term === '2nd') termVariants.push('Second Term', 'Term 2');
+  if (term === '3rd') termVariants.push('Third Term', 'Term 3');
+
+  // 0. Fetch Metadata first to handle promotions correctly (if published report exists)
+  let reportMetadata = options.allReportCards ? options.allReportCards.find(rc => rc.student_id === student.id) : null;
+  if (!reportMetadata) {
+    try {
+      let query = supabase.from('report_cards').select('*').eq('student_id', student.id).in('term', termVariants);
+      if (academicYear) query = query.eq('academic_year', academicYear);
+      const { data: meta } = await query.maybeSingle();
+      if (meta) reportMetadata = meta;
+    } catch (e) {}
+  }
+
+  // Override grade and section for historical accuracy
+  const effectiveGrade = reportMetadata?.grade || student.grade;
+  const storedConduct = typeof reportMetadata?.conduct === 'object' ? reportMetadata.conduct : {};
+  const effectiveSection = storedConduct?.section || student.section; // fallback to student.section
+
   // 1. Use pre-fetched Settings or fetch if missing
   const settings = options.settings || (await supabaseService.getAll('settings'))?.[0] || {};
   const schoolName = settings.school_name || 'UHAS BASIC SCHOOL';
 
   // 2. Fetch Class ID with normalization
   let classId = student.class_id;
-  if (student.grade) {
+  if (effectiveGrade) {
     const allClasses = options.allClasses || (await supabase.from(COLLECTIONS.ACADEMIC_CLASSES).select('id, name')).data;
-    const targetGrade = String(student.grade).toLowerCase().trim();
+    const targetGrade = String(effectiveGrade).toLowerCase().trim();
     
     const clean = (s) => s.toLowerCase().replace(/basic|primary|kindergarten|kg/g, '').trim();
     const targetClean = clean(targetGrade);
@@ -172,7 +208,7 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       .select('*, subject:subject_id(id, name, category), class:class_id(name)')).data;
     
     if (allDefinitions && allDefinitions.length > 0) {
-      const targetGrade = String(student.grade || '').toLowerCase().trim();
+      const targetGrade = String(effectiveGrade || '').toLowerCase().trim();
       const clean = (s) => s.toLowerCase().replace(/basic|primary|kindergarten|kg/g, '').trim();
       const targetClean = clean(targetGrade);
 
@@ -192,10 +228,10 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     }
 
     // Fallbacks preserved for resilience...
-    if (classSubjects.length === 0 && student.grade) {
+    if (classSubjects.length === 0 && effectiveGrade) {
       const { data: courseData } = await supabase.from(COLLECTIONS.COURSES)
         .select('*')
-        .ilike('grade', `%${student.grade}%`);
+        .ilike('grade', `%${effectiveGrade}%`);
       
       if (courseData && courseData.length > 0) {
         classSubjects = courseData.map(c => ({
@@ -218,10 +254,6 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
   }
 
   // 4. Fetch Student Grades for this term...
-  const termVariants = [term, rawTerm];
-  if (term === '1st') termVariants.push('First Term', 'Term 1');
-  if (term === '2nd') termVariants.push('Second Term', 'Term 2');
-  if (term === '3rd') termVariants.push('Third Term', 'Term 3');
 
   let gradesQuery = supabase.from(COLLECTIONS.GRADES)
     .select('*')
@@ -357,32 +389,21 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
   }
   const attendancePresent = attendanceData ? attendanceData.filter(r => ['present', 'late'].includes(String(r.status || '').toLowerCase())).length : 0;
 
-  // 7. Remarks and Metadata
-  let reportMetadata = options.allReportCards ? options.allReportCards.find(rc => rc.student_id === student.id) : null;
-  if (!reportMetadata) {
-    try {
-      const { data: meta } = await supabase.from('report_cards')
-        .select('*')
-        .eq('student_id', student.id)
-        .in('term', termVariants)
-        .maybeSingle();
-      if (meta) reportMetadata = meta;
-    } catch (e) {}
-  }
+  // 7. Remarks and Metadata (already fetched at the top)
 
   // 8. Class Master & Position
   let teacherName = 'CLASS TEACHER';
   try {
     const { data: sectionInfo } = await supabase.from(COLLECTIONS.SECTIONS)
       .select('teacher:class_master_id(first_name, last_name), class_id')
-      .eq('name', student.section);
+      .eq('name', effectiveSection);
     let bestSection = sectionInfo?.find(s => s.class_id === classId) || sectionInfo?.[0];
     if (bestSection?.teacher) teacherName = `${bestSection.teacher.first_name} ${bestSection.teacher.last_name}`;
   } catch (e) {}
 
   let classPosition = '--';
   try {
-    const { data: sectionStudents } = await supabase.from(COLLECTIONS.STUDENTS).select('id').eq('grade', student.grade).eq('section', student.section);
+    const { data: sectionStudents } = await supabase.from(COLLECTIONS.STUDENTS).select('id').eq('grade', effectiveGrade).eq('section', effectiveSection);
     if (sectionStudents?.length > 0) {
       const studentIds = sectionStudents.map(s => s.id);
       const { data: allGrades } = await supabase.from(COLLECTIONS.GRADES).select('student_id, total_score').in('student_id', studentIds).in('term', termVariants).eq('academic_year', academicYear);
@@ -402,8 +423,8 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     studentName: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
     admissionNumber: student.admission_number || 'N/A',
     gender: student.gender || 'N/A',
-    class: student.grade || 'N/A',
-    section: student.section || 'N/A',
+    class: effectiveGrade || 'N/A',
+    section: effectiveSection || 'N/A',
     year: academicYear || '2024-2025',
     term: rawTerm.toUpperCase(),
     month: month?.toUpperCase() || 'N/A',
@@ -430,7 +451,16 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       return String(val).toUpperCase();
     })(),
     teacherRemarks: reportMetadata?.class_teacher_remarks || reportMetadata?.teacher_remarks || 'A very good performance. Keep it up.',
-    promotedTo: String(reportMetadata?.promoted_to || student?.promoted_to || '--').toUpperCase(),
+    promotedTo: (() => {
+      if (reportMetadata?.promoted_to) return String(reportMetadata.promoted_to).toUpperCase();
+      if (student?.promoted_to) return String(student.promoted_to).toUpperCase();
+      // Auto-calculate for Third Term
+      if (term === '3rd') {
+        const nextGrade = getNextGrade(effectiveGrade);
+        return String(nextGrade).toUpperCase();
+      }
+      return '--';
+    })(),
     teacherName: teacherName.toUpperCase()
   };
 };
@@ -733,7 +763,8 @@ const sendReportToParents = asyncHandler(async (req, res) => {
         conduct: String(r.conduct || 'VERY GOOD'),
         attitude: String(r.attitude || 'CONSISTENT'),
         interest: String(r.interest || 'ACADEMIC EXCELLENCE'),
-        report_type: r.type || r.reportType || 'Terminal Report'
+        report_type: r.type || r.reportType || 'Terminal Report',
+        section: String(r.section || 'A')
       },
       class_teacher_remarks: r.teacherRemarks || r.teacher_remarks || 'A very good performance. Keep it up.',
       attendance_days: Number(r.attendance || 0),

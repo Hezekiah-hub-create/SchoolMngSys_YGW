@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { timetableAPI, teacherAPI, courseAPI, parentAPI, academicSubjectsAPI } from '../../services/api';
+import { timetableAPI, teacherAPI, courseAPI, parentAPI, academicSubjectsAPI, settingsAPI } from '../../services/api';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { useAlert } from '../../context/AlertContext';
 import { mapSectionName } from '../../utils/sectionHelper';
@@ -57,11 +57,12 @@ const Timetable = () => {
   const isParent = user?.role === 'parent';
   const canEdit = isAdmin || isTeacher;
 
-  const grades = ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+  const grades = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
   const sections = ['A', 'B', 'C', 'D'];
   
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
+  const [currentSession, setCurrentSession] = useState('2024-2025');
   
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const [periods, setPeriods] = useState(DEFAULT_PERIODS);
@@ -104,6 +105,11 @@ const Timetable = () => {
         setStoredUser(parsed);
       } catch (e) {}
     }
+
+    settingsAPI.getSettings().then(res => {
+      const data = res?.data?.settings || res?.data?.data || res?.data;
+      if (data && data.current_session) setCurrentSession(data.current_session);
+    }).catch(() => {});
   }, [user, isParent]);
 
   useEffect(() => {
@@ -165,7 +171,7 @@ const Timetable = () => {
       const fetchConfig = true; // Always fetch or check config to stay in sync
 
       if (fetchTeachers) promises.push(teacherAPI.getAll());
-      if (fetchCoursesList) promises.push(courseAPI.getAll({ grade: selectedGrade, academicYear: '2024-2025' }));
+      if (fetchCoursesList) promises.push(courseAPI.getAll({ grade: selectedGrade, academicYear: currentSession }));
       if (fetchSubjects) promises.push(academicSubjectsAPI.getAll());
       if (fetchConfig) promises.push(timetableAPI.getByClass('CONFIGURATION'));
 

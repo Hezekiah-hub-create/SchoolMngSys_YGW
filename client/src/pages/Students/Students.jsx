@@ -26,7 +26,11 @@ const Students = () => {
   async function fetchGrades() {
     try {
       const res = await academicClassesAPI.getAll();
-      if (res.data?.success) setDbGrades(res.data.data);
+      if (res.data?.success) {
+        const allowedGrades = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+        const filtered = res.data.data.filter(g => allowedGrades.includes(g.name));
+        setDbGrades(filtered);
+      }
     } catch (e) {}
   }
 
