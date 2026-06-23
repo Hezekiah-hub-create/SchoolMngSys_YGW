@@ -30,6 +30,13 @@ export const AuthProvider = ({ children }) => {
       const response = await client.post('/auth/login', { email, password });
       const { token, user: userData } = response.data;
       
+      if (['admin', 'staff', 'teacher', 'ITSupport', 'superadmin'].includes(userData.role)) {
+        return { 
+          success: false, 
+          error: 'The mobile app is exclusively for students and parents. Please use the web portal.' 
+        };
+      }
+      
       await SecureStore.setItemAsync('token', token);
       await SecureStore.setItemAsync('user', JSON.stringify(userData));
       
@@ -43,6 +50,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = async (updatedData) => {
+    const newUser = { ...user, ...updatedData };
+    await SecureStore.setItemAsync('user', JSON.stringify(newUser));
+    setUser(newUser);
+  };
+
   const logout = async () => {
     await SecureStore.deleteItemAsync('token');
     await SecureStore.deleteItemAsync('user');
@@ -50,7 +63,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

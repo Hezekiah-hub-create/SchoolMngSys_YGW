@@ -3,12 +3,13 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, RefreshControl, ActivityIndicator, Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { ChevronLeft, Clock, BookOpen, User, MapPin, Calendar } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { timetableAPI, studentAPI, teacherAPI } from '../api';
+import Header from '../components/Header';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const FULL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -25,6 +26,7 @@ const ScheduleScreen = ({ navigation }) => {
     const idx = today >= 1 && today <= 5 ? today - 1 : 0;
     return idx;
   });
+  const insets = useSafeAreaInsets();
 
   const role = user?.role || 'student';
 
@@ -109,29 +111,17 @@ const ScheduleScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ChevronLeft color={COLORS.slate[900]} size={24} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Schedule</Text>
-          <Text style={styles.headerSubtitle}>{FULL_DAYS[selectedDay]}</Text>
-        </View>
-        <View style={styles.calendarIcon}>
-          <Calendar size={22} color={COLORS.primary} />
-        </View>
-      </View>
+    <View style={styles.container}>
+      <Header showBack={true} title="Schedule" subtitle="Daily classes & events" />
 
       {/* Day Selector */}
       <View style={styles.daySelector}>
@@ -237,7 +227,7 @@ const ScheduleScreen = ({ navigation }) => {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

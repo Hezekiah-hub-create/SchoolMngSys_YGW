@@ -1,12 +1,12 @@
 export const COLORS = {
-  primary: '#00843e', // brand-green
-  primaryDark: '#006831',
-  primaryLight: '#dcfce7',
-  secondary: '#facc15', // brand-yellow
-  secondaryDark: '#eab308',
-  secondaryLight: '#fef9c3',
+  primary: '#059669', // A deeper, richer green
+  primaryDark: '#047857',
+  primaryLight: '#d1fae5',
+  secondary: '#f59e0b', // A warmer, more premium amber/yellow
+  secondaryDark: '#d97706',
+  secondaryLight: '#fef3c7',
   white: '#ffffff',
-  background: '#f4f7fe',
+  background: '#f8fafc', // Softer, premium background
   surface: '#ffffff',
   glass: 'rgba(255, 255, 255, 0.85)',
   glassDark: 'rgba(255, 255, 255, 0.5)',

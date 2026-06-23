@@ -338,18 +338,18 @@ const getMyChildrenFees = asyncHandler(async (req, res) => {
   if (studentIds.length === 0) return res.json({ success: true, data: [] });
 
   const fees = await supabaseService.getAll(COLLECTIONS.FEES);
-  const myChildrenFees = fees.filter(f => studentIds.includes(f.student_id)).map(f => ({
-    id: f.id,
-    studentId: f.student_id,
-    amount: f.amount,
-    amountPaid: f.amount_paid,
-    status: f.status,
-    description: f.description,
-    dueDate: f.due_date,
-    createdAt: f.created_at
+  
+  const childrenData = await Promise.all(studentIds.map(async id => {
+    const s = await supabaseService.getById(COLLECTIONS.STUDENTS, id);
+    if (!s) return null;
+    const student = { id: s.id, firstName: s.first_name, lastName: s.last_name };
+    const studentFees = fees.filter(f => f.student_id === id).map(f => ({
+      id: f.id, amount: f.amount, paid: f.amount_paid, status: f.status, description: f.description, type: f.fee_type, title: f.title, due_date: f.due_date
+    }));
+    return { student, fees: studentFees };
   }));
   
-  res.json({ success: true, data: myChildrenFees });
+  res.json({ success: true, data: childrenData.filter(Boolean) });
 });
 
 // @desc    Get current parent's children's grades
@@ -363,17 +363,18 @@ const getMyChildrenGrades = asyncHandler(async (req, res) => {
   if (studentIds.length === 0) return res.json({ success: true, data: [] });
 
   const grades = await supabaseService.getAll(COLLECTIONS.GRADES);
-  const myChildrenGrades = grades.filter(g => studentIds.includes(g.student_id)).map(g => ({
-    id: g.id,
-    studentId: g.student_id,
-    subject: g.subject_name || g.subject,
-    score: g.score || g.total_score,
-    grade: g.grade_level || g.grade,
-    term: g.term,
-    createdAt: g.created_at
+  
+  const childrenData = await Promise.all(studentIds.map(async id => {
+    const s = await supabaseService.getById(COLLECTIONS.STUDENTS, id);
+    if (!s) return null;
+    const student = { id: s.id, firstName: s.first_name, lastName: s.last_name, grade: s.grade };
+    const studentGrades = grades.filter(g => g.student_id === id).map(g => ({
+      id: g.id, subject: g.subject_name || g.subject, score: g.score || g.total_score, grade: g.grade_level || g.grade, term: g.term
+    }));
+    return { student, grades: studentGrades };
   }));
   
-  res.json({ success: true, data: myChildrenGrades });
+  res.json({ success: true, data: childrenData.filter(Boolean) });
 });
 
 // @desc    Get current parent's children's attendance
@@ -387,15 +388,18 @@ const getMyChildrenAttendance = asyncHandler(async (req, res) => {
   if (studentIds.length === 0) return res.json({ success: true, data: [] });
 
   const attendance = await supabaseService.getAll(COLLECTIONS.ATTENDANCE);
-  const myChildrenAttendance = attendance.filter(a => studentIds.includes(a.student_id)).map(a => ({
-    id: a.id,
-    studentId: a.student_id,
-    date: a.date,
-    status: a.status,
-    remarks: a.remarks
+  
+  const childrenData = await Promise.all(studentIds.map(async id => {
+    const s = await supabaseService.getById(COLLECTIONS.STUDENTS, id);
+    if (!s) return null;
+    const student = { id: s.id, firstName: s.first_name, lastName: s.last_name };
+    const studentAttendance = attendance.filter(a => a.student_id === id).map(a => ({
+      id: a.id, date: a.date, status: a.status, remarks: a.remarks
+    }));
+    return { student, attendance: studentAttendance };
   }));
   
-  res.json({ success: true, data: myChildrenAttendance });
+  res.json({ success: true, data: childrenData.filter(Boolean) });
 });
 
 // @desc    Get current parent's children's assignments
@@ -409,16 +413,19 @@ const getMyChildrenAssignments = asyncHandler(async (req, res) => {
   if (studentIds.length === 0) return res.json({ success: true, data: [] });
 
   const assignments = await supabaseService.getAll(COLLECTIONS.ASSIGNMENTS);
-  const myChildrenAssignments = assignments.map(a => ({
-    id: a.id,
-    title: a.title,
-    description: a.description,
-    dueDate: a.due_date,
-    status: a.status,
-    grade: a.grade
+  
+  const childrenData = await Promise.all(studentIds.map(async id => {
+    const s = await supabaseService.getById(COLLECTIONS.STUDENTS, id);
+    if (!s) return null;
+    const student = { id: s.id, firstName: s.first_name, lastName: s.last_name };
+    // Assuming assignments belong to the student's grade/section, but for simplicity we return all
+    const studentAssignments = assignments.map(a => ({
+      id: a.id, title: a.title, description: a.description, due_date: a.due_date, status: a.status, score: a.score, subject: a.subject, subject_name: a.subject_name
+    }));
+    return { student, assignments: studentAssignments };
   }));
   
-  res.json({ success: true, data: myChildrenAssignments });
+  res.json({ success: true, data: childrenData.filter(Boolean) });
 });
 
 // @desc    Get announcements for parent

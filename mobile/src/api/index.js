@@ -3,8 +3,10 @@ import client from './client';
 // ==================== AUTH API ====================
 export const authAPI = {
   login: (credentials) => client.post('/auth/login', credentials),
-  getProfile: () => client.get('/auth/profile'),
-  updateProfile: (data) => client.put('/auth/profile', data)
+  getProfile: () => client.get('/auth/me'),
+  updateProfile: (data) => client.put('/auth/profile', data),
+  updatePassword: (data) => client.put('/auth/password', data),
+  updateNotifications: (data) => client.put('/auth/notifications', data)
 };
 
 // ==================== DASHBOARD API ====================
@@ -43,6 +45,7 @@ export const parentAPI = {
   getMyChildrenAttendance: () => client.get('/parents/me/children/attendance'),
   getMyChildrenFees: () => client.get('/parents/me/children/fees'),
   getChildrenTimetable: () => client.get('/parents/me/children/timetable'),
+  getMyChildrenAssignments: () => client.get('/parents/me/children/assignments'),
 };
 
 // ==================== COURSES API ====================

@@ -3,12 +3,13 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, RefreshControl, ActivityIndicator, Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalIcon, Trash2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { eventAPI, academicCalendarAPI } from '../api';
+import Header from '../components/Header';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -23,6 +24,7 @@ const CalendarScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const insets = useSafeAreaInsets();
 
   const role = user?.role || 'student';
   const isAdmin = role === 'admin' || role === 'staff' || role === 'ITSupport' || role === 'teacher';
@@ -99,28 +101,22 @@ const CalendarScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <Header showBack={true} title="School Calendar" subtitle="View events & academic schedule" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.pageTitle}>School Calendar</Text>
-            <Text style={styles.pageSubtitle}>View events & academic schedule</Text>
-          </View>
-        </View>
 
         {/* Calendar Card */}
         <MotiView
@@ -284,7 +280,7 @@ const CalendarScreen = () => {
           </MotiView>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Platform
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -12,17 +12,20 @@ import {
 } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import PremiumAlert from '../components/PremiumAlert';
 
 const ProfileScreen = () => {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [showLogout, setShowLogout] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const navigation = useNavigation();
 
   const role = user?.role || 'student';
-  const name = user?.first_name
-    ? `${user.first_name} ${user.last_name || ''}`.trim()
-    : user?.name || user?.email?.split('@')[0] || 'User';
+  const name = user?.firstName || user?.first_name
+    ? `${user.firstName || user.first_name} ${user.lastName || user.last_name || ''}`.trim()
+    : user?.name || user?.username || user?.email?.split('@')[0] || 'User';
   const email = user?.email || 'N/A';
 
   const getInitials = (n) => {
@@ -46,7 +49,7 @@ const ProfileScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+    <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <MotiView
@@ -111,11 +114,11 @@ const ProfileScreen = () => {
         >
           <Text style={styles.sectionLabel}>ACCOUNT</Text>
           <View style={styles.menuCard}>
-            <MenuItem icon={User} title="Edit Profile" subtitle="Update your personal info" color={COLORS.primary} />
+            <MenuItem icon={User} title="Edit Profile" subtitle="Update your personal info" color={COLORS.primary} onPress={() => navigation.navigate('EditProfile')} />
             <View style={styles.menuDivider} />
-            <MenuItem icon={Lock} title="Change Password" subtitle="Update your security" color="#8b5cf6" />
+            <MenuItem icon={Lock} title="Change Password" subtitle="Update your security" color="#8b5cf6" onPress={() => navigation.navigate('ChangePassword')} />
             <View style={styles.menuDivider} />
-            <MenuItem icon={Bell} title="Notifications" subtitle="Manage alert preferences" color="#f59e0b" />
+            <MenuItem icon={Bell} title="Notifications" subtitle="Manage alert preferences" color="#f59e0b" onPress={() => navigation.navigate('Notifications')} />
           </View>
         </MotiView>
 
@@ -126,9 +129,9 @@ const ProfileScreen = () => {
         >
           <Text style={styles.sectionLabel}>SUPPORT</Text>
           <View style={styles.menuCard}>
-            <MenuItem icon={HelpCircle} title="Help & Support" subtitle="FAQs and contact info" color="#06b6d4" />
+            <MenuItem icon={HelpCircle} title="Help & Support" subtitle="FAQs and contact info" color="#06b6d4" onPress={() => navigation.navigate('HelpSupport')} />
             <View style={styles.menuDivider} />
-            <MenuItem icon={Info} title="About" subtitle="App version & info" color={COLORS.slate[600]} />
+            <MenuItem icon={Info} title="About" subtitle="App version & info" color={COLORS.slate[600]} onPress={() => setShowAbout(true)} />
           </View>
         </MotiView>
 
@@ -159,7 +162,17 @@ const ProfileScreen = () => {
         onConfirm={() => { setShowLogout(false); logout(); }}
         onCancel={() => setShowLogout(false)}
       />
-    </SafeAreaView>
+
+      <PremiumAlert
+        isOpen={showAbout}
+        type="info"
+        title="About School App"
+        message="Version 1.0.0\n\nBuilt to connect students, parents, and teachers securely. All rights reserved."
+        confirmText="Got it"
+        onConfirm={() => setShowAbout(false)}
+        onCancel={() => setShowAbout(false)}
+      />
+    </View>
   );
 };
 

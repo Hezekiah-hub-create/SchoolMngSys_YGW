@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 import {
   Grid, Layers, BookOpen, Users, Clock, ArrowLeft, Bell
@@ -10,6 +9,7 @@ import {
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 import PremiumAlert from '../components/PremiumAlert';
+import Header from '../components/Header';
 
 const ACADEMIC_MODULES = [
   { id: 'classes', name: 'Classes', icon: Grid, color: '#06b6d4', route: 'AdminClasses' },
@@ -33,14 +33,8 @@ const AcademicsScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <ArrowLeft size={20} color={COLORS.slate[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Academic Hub</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <Header showBack={true} title="Academic Hub" Icon={BookOpen} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Banner */}
@@ -90,7 +84,7 @@ const AcademicsScreen = ({ navigation }) => {
         confirmText="Got it"
         onConfirm={() => setComingSoon(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
