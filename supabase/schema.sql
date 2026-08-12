@@ -167,43 +167,70 @@ ALTER TABLE parents ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON parents;
 CREATE POLICY "Enable all for authenticated" ON parents FOR ALL USING (true);
 
--- ==================== COURSES TABLE ====================
-CREATE TABLE IF NOT EXISTS courses (
+-- ==================== ACADEMIC CLASSES TABLE ====================
+CREATE TABLE IF NOT EXISTS academic_classes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  code TEXT UNIQUE NOT NULL,
-  description TEXT,
-  grade TEXT NOT NULL,
-  section TEXT DEFAULT 'All',
   academic_year TEXT NOT NULL,
-  teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  credits NUMERIC DEFAULT 0,
-  hours_per_week NUMERIC DEFAULT 0,
-  room TEXT,
-  -- schedule: [{day, startTime, endTime}]
-  schedule JSONB DEFAULT '[]',
-  -- syllabus: [{week, topic, objectives, activities, resources, assessment}]
-  syllabus JSONB DEFAULT '[]',
-  -- materials: [{title, type, url, description, uploadedAt}]
-  materials JSONB DEFAULT '[]',
-  student_ids UUID[],
-  -- gradingScheme: {classwork, homework, midterm, final, project}
-  grading_scheme JSONB DEFAULT '{"classwork":20,"homework":10,"midterm":20,"final":40,"project":10}',
-  is_active BOOLEAN DEFAULT true,
-  tags TEXT[],
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Enable all for authenticated" ON courses;
-CREATE POLICY "Enable all for authenticated" ON courses FOR ALL USING (true);
+ALTER TABLE academic_classes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all for authenticated" ON academic_classes;
+CREATE POLICY "Enable all for authenticated" ON academic_classes FOR ALL USING (true);
+
+-- ==================== SECTIONS TABLE ====================
+CREATE TABLE IF NOT EXISTS sections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  class_master_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
+  academic_year TEXT NOT NULL DEFAULT '2024/2025',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE sections ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all for authenticated" ON sections;
+CREATE POLICY "Enable all for authenticated" ON sections FOR ALL USING (true);
+
+-- ==================== SUBJECTS TABLE ====================
+CREATE TABLE IF NOT EXISTS subjects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  code TEXT UNIQUE NOT NULL,
+  description TEXT,
+  category TEXT DEFAULT 'Core',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all for authenticated" ON subjects;
+CREATE POLICY "Enable all for authenticated" ON subjects FOR ALL USING (true);
+
+-- ==================== CLASS SUBJECTS (CURRICULUM) TABLE ====================
+CREATE TABLE IF NOT EXISTS class_subjects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
+  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+  teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
+  section TEXT NOT NULL DEFAULT 'A',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (class_id, subject_id, section)
+);
+
+ALTER TABLE class_subjects ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all for authenticated" ON class_subjects;
+CREATE POLICY "Enable all for authenticated" ON class_subjects FOR ALL USING (true);
 
 -- ==================== GRADES TABLE ====================
 CREATE TABLE IF NOT EXISTS grades (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID REFERENCES students(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES class_subjects(id) ON DELETE CASCADE,
   academic_year TEXT NOT NULL,
   term TEXT NOT NULL CHECK (term IN ('1st', '2nd', '3rd', '4th')),
   -- assessments: [{name, type, maxScore, score, weight, date, gradedBy, comments}]
@@ -229,7 +256,7 @@ CREATE POLICY "Enable all for authenticated" ON grades FOR ALL USING (true);
 CREATE TABLE IF NOT EXISTS attendance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID REFERENCES students(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
+  course_id UUID REFERENCES class_subjects(id) ON DELETE SET NULL,
   academic_year TEXT NOT NULL,
   term TEXT NOT NULL CHECK (term IN ('1st', '2nd', '3rd', '4th')),
   date DATE NOT NULL,
@@ -254,7 +281,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
-  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES class_subjects(id) ON DELETE CASCADE,
   teacher_id UUID REFERENCES teachers(id) ON DELETE CASCADE,
   academic_year TEXT NOT NULL,
   term TEXT NOT NULL CHECK (term IN ('1st', '2nd', '3rd', '4th')),
@@ -422,7 +449,7 @@ CREATE TABLE IF NOT EXISTS timetable (
   period INTEGER NOT NULL CHECK (period BETWEEN 1 AND 10),
   start_time TEXT NOT NULL,            -- e.g. "07:30"
   end_time TEXT NOT NULL,              -- e.g. "08:20"
-  course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
+  course_id UUID REFERENCES class_subjects(id) ON DELETE SET NULL,
   teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
   room TEXT,
   is_break BOOLEAN DEFAULT false,      -- True for break/lunch periods
@@ -483,32 +510,6 @@ ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON events;
 CREATE POLICY "Enable all for authenticated" ON events FOR ALL USING (true);
 
--- ==================== TIMETABLE TABLE ====================
--- Class and teacher schedules
-CREATE TABLE IF NOT EXISTS timetable (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  academic_year TEXT NOT NULL,
-  term TEXT NOT NULL CHECK (term IN ('1st', '2nd', '3rd', '4th')),
-  grade TEXT NOT NULL,
-  section TEXT NOT NULL,
-  day TEXT NOT NULL CHECK (day IN ('monday', 'tuesday', 'wednesday', 'thursday', 'friday')),
-  period INTEGER NOT NULL,
-  start_time TEXT,
-  end_time TEXT,
-  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  room TEXT,
-  is_break BOOLEAN DEFAULT false,
-  break_label TEXT,
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (academic_year, term, grade, section, day, period)
-);
-
-ALTER TABLE timetable ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Enable all for authenticated" ON timetable;
-CREATE POLICY "Enable all for authenticated" ON timetable FOR ALL USING (true);
 
 -- ==================== DISCIPLINARY RECORDS TABLE ====================
 -- Student behaviour tracking and disciplinary actions
@@ -621,60 +622,6 @@ ALTER TABLE login_history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own login history" ON login_history FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Admin can view all login history" ON login_history FOR SELECT USING (true);
 
--- ==================== ACADEMIC CLASSES TABLE ====================
-CREATE TABLE IF NOT EXISTS academic_classes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  academic_year TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE academic_classes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Enable all for authenticated" ON academic_classes FOR ALL USING (true);
-
--- ==================== SECTIONS TABLE ====================
-CREATE TABLE IF NOT EXISTS sections (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  class_master_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  academic_year TEXT NOT NULL DEFAULT '2024/2025',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE sections ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Enable all for authenticated" ON sections FOR ALL USING (true);
-
--- ==================== SUBJECTS TABLE ====================
-CREATE TABLE IF NOT EXISTS subjects (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  code TEXT UNIQUE NOT NULL,
-  description TEXT,
-  category TEXT DEFAULT 'Core',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Enable all for authenticated" ON subjects FOR ALL USING (true);
-
--- ==================== CLASS SUBJECTS (CURRICULUM) TABLE ====================
-CREATE TABLE IF NOT EXISTS class_subjects (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
-  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
-  teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  section TEXT NOT NULL DEFAULT 'A',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (class_id, subject_id, section)
-);
-
-ALTER TABLE class_subjects ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Enable all for authenticated" ON class_subjects FOR ALL USING (true);
 
 -- ==================== EXAMS TABLE ====================
 CREATE TABLE IF NOT EXISTS exams (
