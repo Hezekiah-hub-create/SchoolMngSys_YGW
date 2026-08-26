@@ -10,16 +10,33 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  },
-  withCredentials: true // Send HttpOnly cookies with every request
+  }
 });
 
-// Handle 401 responses — redirect to login
+// Helper to get auth token from storage
+const getToken = () =>
+  localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
+// Attach Bearer token to every request
+api.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Handle 401 — clear storage and redirect to login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
+      sessionStorage.removeItem('authToken');
       window.location.href = '/login';
     }
     return Promise.reject(error);
