@@ -8,6 +8,19 @@ const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
 
 const generateToken = (id) => jwt.sign({ id }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
 
+// Cookie configuration for HttpOnly auth tokens
+const getCookieOptions = (remember = false) => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+  maxAge: remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
+  path: '/'
+});
+
+const setAuthCookie = (res, token, remember = false) => {
+  res.cookie('authToken', token, getCookieOptions(remember));
+};
+
 const register = asyncHandler(async (req, res) => {
   const { email, password, role, firstName, lastName, phone } = req.body;
   
@@ -87,7 +100,7 @@ const register = asyncHandler(async (req, res) => {
       .select()
       .single();
     profile = parent;
-  } else if (['admin', 'finance', 'ITSupport', 'staff'].includes(role?.toLowerCase() || '')) {
+  } else if (['admin', 'ITSupport', 'staff'].includes(role?.toLowerCase() || '')) {
     const { data: staff } = await supabase
       .from('staff')
       .insert({
@@ -107,6 +120,7 @@ const register = asyncHandler(async (req, res) => {
   }
 
   const token = generateToken(user.id);
+  setAuthCookie(res, token);
   res.status(201).json({ 
     success: true, 
     token, 
@@ -122,7 +136,7 @@ const register = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, remember } = req.body;
   
   if (!email || !password) {
     return res.status(400).json({ message: 'Please provide email and password' });
@@ -203,6 +217,7 @@ const login = asyncHandler(async (req, res) => {
   }
 
   const token = generateToken(user.id);
+  setAuthCookie(res, token, !!remember);
 
   let profile = null;
   if (user.role === 'student') {
@@ -221,7 +236,7 @@ const login = asyncHandler(async (req, res) => {
   } else if (user.role === 'parent') {
     const { data } = await supabase.from('parents').select('*').eq('user_id', user.id).single();
     profile = data;
-  } else if (['admin', 'finance', 'itsupport', 'staff'].includes(user.role?.toLowerCase() || '')) {
+  } else if (['admin', 'itsupport', 'staff'].includes(user.role?.toLowerCase() || '')) {
     const { data } = await supabase.from('staff').select('*').eq('user_id', user.id).single();
     profile = data;
   }
@@ -231,7 +246,6 @@ const login = asyncHandler(async (req, res) => {
   const userRole = user.role?.toLowerCase();
   
   if (userRole === 'admin') redirectPath = '/admin-dashboard';
-  else if (userRole === 'finance') redirectPath = '/finance-dashboard';
   else if (userRole === 'student') redirectPath = '/student-dashboard';
   else if (userRole === 'teacher') redirectPath = '/teacher-dashboard';
   else if (userRole === 'parent') redirectPath = '/parent-dashboard';
@@ -242,8 +256,6 @@ const login = asyncHandler(async (req, res) => {
     const email = user.email?.toLowerCase() || '';
     if (email.includes('it')) {
       redirectPath = '/it-dashboard';
-    } else if (email.includes('finance')) {
-      redirectPath = '/finance-dashboard';
     } else if (email.includes('admission')) {
       redirectPath = '/admission-dashboard';
     } else {
@@ -294,7 +306,7 @@ const getMe = asyncHandler(async (req, res) => {
   } else if (user.role === 'parent') {
     const { data } = await supabase.from('parents').select('*').eq('user_id', user.id).single();
     profile = data;
-  } else if (['admin', 'finance', 'itsupport', 'staff'].includes(user.role?.toLowerCase() || '')) {
+  } else if (['admin', 'itsupport', 'staff'].includes(user.role?.toLowerCase() || '')) {
     const { data } = await supabase.from('staff').select('*').eq('user_id', user.id).single();
     profile = data;
   }
@@ -369,8 +381,7 @@ const updateProfile = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Failed to update profile: ' + updateError.message });
   }
 
-  // Also update specific profile tables if needed (teachers, students, etc.)
-  if (user.role === 'admin' || user.role === 'staff' || user.role === 'ITSupport' || user.role === 'finance') {
+  if (user.role === 'admin' || user.role === 'staff' || user.role === 'ITSupport') {
     await supabase.from('staff').update({ first_name: firstName, last_name: lastName, phone }).eq('user_id', user.id);
   } else if (user.role === 'teacher') {
     await supabase.from('teachers').update({ first_name: firstName, last_name: lastName, phone }).eq('user_id', user.id);
@@ -419,6 +430,12 @@ const updateNotifications = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
+  res.clearCookie('authToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+    path: '/'
+  });
   res.json({ success: true, message: 'Logged out successfully' });
 });
 

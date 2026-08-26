@@ -4,10 +4,10 @@ const auditMiddleware = require('./auditMiddleware');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'school-management-secret-key';
 
-// Verify JWT token
+// Verify JWT token — checks HttpOnly cookie first, then Authorization header (for mobile)
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const token = req.cookies?.authToken || req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
       return res.status(401).json({ message: 'No token provided, authorization denied' });

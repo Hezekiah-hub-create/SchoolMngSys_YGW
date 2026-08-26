@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 // The right side displays user info based on the logged-in user
 const TopNav = ({ user, onLogout, title, onSearch }) => {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [settings, setSettings] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
@@ -50,9 +51,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
     } catch (error) {
       console.log('Logout error:', error);
     } finally {
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken');
       navigate('/login');
     }
   };
@@ -182,11 +181,13 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
         </div>
 
         {/* Notifications */}
-        <div style={{ position: 'relative', cursor: 'pointer', padding: '10px', borderRadius: '12px', transition: 'all 0.2s' }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+        <div style={{ position: 'relative' }}>
+          <div style={{ cursor: 'pointer', padding: '10px', borderRadius: '12px', transition: 'all 0.2s' }}
+            onClick={() => { setShowNotifications(!showNotifications); setShowDropdown(false); }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
           </svg>
           {notifications.length > 0 && (
@@ -210,12 +211,61 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
               {notifications.length}
             </span>
           )}
+          </div>
+          {/* Notifications Dropdown */}
+          {showNotifications && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              right: 0,
+              width: '320px',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+              border: '1px solid #f1f5f9',
+              overflow: 'hidden',
+              zIndex: 1000,
+              animation: 'fadeIn 0.2s ease-out'
+            }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Notifications</h4>
+                {notifications.length > 0 && <span style={{ fontSize: '12px', color: '#3b82f6', fontWeight: '700', cursor: 'pointer' }} onClick={() => setNotifications([])}>Mark all as read</span>}
+              </div>
+              <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                {notifications.length > 0 ? (
+                  notifications.map((notif, index) => (
+                    <div key={index} style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6', marginTop: '6px' }}></div>
+                        <div>
+                          <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{notif.title}</p>
+                          <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>{notif.description || notif.message}</p>
+                          <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginTop: '6px', fontWeight: '500' }}>{new Date(notif.date || notif.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#64748b' }}>No new notifications</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#94a3b8' }}>You're all caught up!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* User Profile Dropdown */}
         <div style={{ position: 'relative' }}>
           <div 
-            onClick={() => setShowDropdown(!showDropdown)}
+            onClick={() => { setShowDropdown(!showDropdown); setShowNotifications(false); }}
             style={{ 
               display: 'flex', 
               alignItems: 'center', 

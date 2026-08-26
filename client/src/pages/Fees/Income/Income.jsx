@@ -87,7 +87,7 @@ const Income = () => {
     }
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const filteredIncome = income.filter(i => 
     i.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||

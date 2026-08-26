@@ -47,7 +47,7 @@ const Results = () => {
   const isAdmin = role === 'admin';
   const isStudent = role === 'student';
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   useEffect(() => {
     const saved = localStorage.getItem('authUser');
@@ -100,7 +100,7 @@ const Results = () => {
       
       // Initialize with all database classes
       fetchedClasses.forEach(c => {
-         classMap[c.name] = { scores: [], students: new Set() };
+         classMap[c.name] = { scores: [], students: new Set(), femaleScores: [], femaleStudents: new Set() };
       });
 
       resData.forEach(r => {
@@ -111,9 +111,15 @@ const Results = () => {
 
          // For class analytics
          const className = r.grade || 'Unknown';
-         if (!classMap[className]) classMap[className] = { scores: [], students: new Set() };
+         if (!classMap[className]) classMap[className] = { scores: [], students: new Set(), femaleScores: [], femaleStudents: new Set() };
          classMap[className].scores.push(Number(r.score) || 0);
          classMap[className].students.add(r.studentId);
+         
+         // Female analysis
+         if (r.gender && String(r.gender).toLowerCase() === 'female') {
+           classMap[className].femaleScores.push(Number(r.score) || 0);
+           classMap[className].femaleStudents.add(r.studentId);
+         }
       });
 
       setStats({
@@ -124,12 +130,15 @@ const Results = () => {
 
       const analytics = Object.entries(classMap).map(([className, data]) => {
          const sum = data.scores.reduce((a,b) => a+b, 0);
+         const fSum = data.femaleScores.reduce((a,b) => a+b, 0);
          return {
            class: className,
            average: data.scores.length ? Math.round(sum / data.scores.length) : 0,
            highest: data.scores.length ? Math.max(...data.scores) : 0,
            lowest: data.scores.length ? Math.min(...data.scores) : 0,
-           students: data.students.size
+           students: data.students.size,
+           femaleAverage: data.femaleScores.length ? Math.round(fSum / data.femaleScores.length) : 0,
+           femaleStudents: data.femaleStudents.size
          };
       });
       setAnalyticsData(analytics);
@@ -203,6 +212,15 @@ const Results = () => {
     
     // Sort by average descending
     grouped.sort((a, b) => b.average - a.average);
+
+    // Assign Rank
+    let currentRank = 1;
+    grouped.forEach((student, index) => {
+      if (index > 0 && student.average < grouped[index - 1].average) {
+        currentRank = index + 1;
+      }
+      student.rank = currentRank;
+    });
 
     return { subjects: subjectsList, students: grouped };
   }, [generatedResults, selectedSection]);
@@ -411,6 +429,7 @@ const Results = () => {
                             ))}
                             <th style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Total</th>
                             <th style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Avg</th>
+                            <th style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Rank</th>
                             <th style={{ padding: '16px', textAlign: 'center', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Grade</th>
                           </tr>
                         </thead>
@@ -431,6 +450,9 @@ const Results = () => {
                               })}
                               <td style={{ padding: '16px', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: '#00843e' }}>{student.total}</td>
                               <td style={{ padding: '16px', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: '#3b82f6' }}>{student.average}%</td>
+                              <td style={{ padding: '16px', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: '#8b5cf6' }}>
+                                {student.rank}{[1, 21, 31].includes(student.rank) ? 'st' : [2, 22].includes(student.rank) ? 'nd' : [3, 23].includes(student.rank) ? 'rd' : 'th'}
+                              </td>
                               <td style={{ padding: '16px', textAlign: 'center' }}>
                                 <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', backgroundColor: student.grade === 'A' ? '#dcfce7' : student.grade === 'B' ? '#e0f2fe' : student.grade === 'C' ? '#fef3c7' : '#fee2e2', color: student.grade === 'A' ? '#166534' : student.grade === 'B' ? '#075985' : student.grade === 'C' ? '#92400e' : '#991b1b' }}>
                                   {student.grade}
@@ -455,9 +477,9 @@ const Results = () => {
                     <h4 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>{cr.class}</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <div><p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Average</p><p style={{ fontSize: '20px', fontWeight: '800', color: '#f59e0b' }}>{cr.average}%</p></div>
+                      <div><p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Female Avg</p><p style={{ fontSize: '20px', fontWeight: '800', color: '#ec4899' }}>{cr.femaleAverage}%</p></div>
                       <div><p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Highest</p><p style={{ fontSize: '20px', fontWeight: '800', color: '#00843e' }}>{cr.highest}%</p></div>
-                      <div><p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Lowest</p><p style={{ fontSize: '20px', fontWeight: '800', color: '#ef4444' }}>{cr.lowest}%</p></div>
-                      <div><p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Students</p><p style={{ fontSize: '20px', fontWeight: '800', color: '#0ea5e9' }}>{cr.students}</p></div>
+                      <div><p style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Students</p><p style={{ fontSize: '20px', fontWeight: '800', color: '#0ea5e9' }}>{cr.students} <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>({cr.femaleStudents}F)</span></p></div>
                     </div>
                     <button style={{ width: '100%', padding: '12px', marginTop: '24px', backgroundColor: 'white', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>View Detailed Report</button>
                   </div>

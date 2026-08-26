@@ -7,7 +7,6 @@ import Login from './pages/Login/Login';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import TeacherDashboard from './pages/Dashboard/TeacherDashboard';
 import ParentDashboard from './pages/Dashboard/ParentDashboard';
-import FinanceDashboard from './pages/Dashboard/FinanceDashboard';
 import ITSupportDashboard from './pages/Dashboard/ITSupportDashboard';
 import AdmissionDashboard from './pages/Dashboard/AdmissionDashboard';
 import Students from './pages/Students/Students';
@@ -33,18 +32,12 @@ import Results from './pages/Results/Results';
 import ExamSchedule from './pages/Exams/ExamSchedule/ExamSchedule';
 import MarksEntry from './pages/Exams/MarksEntry/MarksEntry';
 import ExamResults from './pages/Exams/ExamResults/ExamResults';
-import Fees from './pages/Fees/Fees';
-import FeesStructure from './pages/Fees/FeesStructure/FeesStructure';
-import FeesCollection from './pages/Fees/FeesCollection/FeesCollection';
-import Expenses from './pages/Fees/Expenses/Expenses';
-import Income from './pages/Fees/Income/Income';
 import SettingsGeneral from './pages/Settings/General/General';
 import SettingsAcademic from './pages/Settings/Academic/Academic';
 import SettingsUsers from './pages/Settings/Users/Users';
 import SettingsRoles from './pages/Settings/Roles/Roles';
 import SettingsLayout from './pages/Settings/SettingsLayout';
 import Reports from './pages/Reports/Reports';
-import FinancialReports from './pages/Reports/FinancialReports';
 import StaffReports from './pages/Reports/StaffReports';
 import Sections from './pages/Sections/Sections';
 import NonTeaching from './pages/Staff/NonTeaching';
@@ -130,7 +123,6 @@ const RoleBasedRoute = ({ children }) => {
     '/exams/marks',
     '/exams/schedule',
     '/timetable',
-    '/fees',
     '/announcements',
     '/reports/academic',
     '/account/login-history',
@@ -192,7 +184,6 @@ const RoleBasedRoute = ({ children }) => {
     if (user.role === 'teacher') return <Navigate to="/teacher-dashboard" replace />;
     if (user.role === 'parent') return <Navigate to="/parent-dashboard" replace />;
     if (user.role === 'admission') return <Navigate to="/admission-dashboard" replace />;
-    if (user.role === 'finance') return <Navigate to="/finance-dashboard" replace />;
     if (user.role === 'itsupport') return <Navigate to="/it-dashboard" replace />;
     if (user.role === 'admin') return <Navigate to="/admin-dashboard" replace />;
   }
@@ -245,7 +236,6 @@ function App() {
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
             <Route path="/parent-dashboard" element={<ParentDashboard />} />
-            <Route path="/finance-dashboard" element={<FinanceDashboard />} />
             <Route path="/it-dashboard" element={<ITSupportDashboard />} />
             <Route path="/admission-dashboard" element={<AdmissionDashboard />} />
             
@@ -283,20 +273,9 @@ function App() {
             <Route path="/exams" element={<Results />} />
             <Route path="/exams/schedule" element={<ExamSchedule />} />
             <Route path="/exams/marks" element={<MarksEntry />} />
-            <Route path="/exams/results" element={<ExamResults />} />
-            
-            {/* Finance */}
-            <Route path="/fees" element={<Fees />} />
-            <Route path="/fees/structure" element={<FeesStructure />} />
-            <Route path="/fees/collection" element={<FeesCollection />} />
-            <Route path="/fees/collection/:studentId" element={<FeesCollection />} />
-            <Route path="/fees/expenses" element={<Expenses />} />
-            <Route path="/fees/income" element={<Income />} />
-            
             {/* Reports */}
             <Route path="/reports" element={<Reports />} />
             <Route path="/reports/academic" element={<Reports type="academic" />} />
-            <Route path="/reports/financial" element={<FinancialReports />} />
             <Route path="/reports/staff" element={<StaffReports />} />
 
             {/* Sections Management */}

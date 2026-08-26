@@ -9,35 +9,16 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true // Send HttpOnly cookies with every request
 });
 
-// Helper function to get token from both storages
-const getToken = () => {
-  return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-};
-
-// Add interceptors for request/response
-api.interceptors.request.use(
-  (config) => {
-    // Add auth token if available
-    const token = getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
+// Handle 401 responses — redirect to login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -189,46 +170,7 @@ export const attendanceAPI = {
   getSummary: (studentId) => api.get(`/api/attendance/student/${studentId}/summary`)
 };
 
-// ==================== FEES API ====================
-export const feeAPI = {
-  getAll: (params) => api.get('/api/fees', { params }),
-  getById: (id) => api.get(`/api/fees/${id}`),
-  getStats: () => api.get('/api/fees/stats/overview'),
-  create: (data) => api.post('/api/fees', data),
-  update: (id, data) => api.put(`/api/fees/${id}`, data),
-  delete: (id) => api.delete(`/api/fees/${id}`),
-  getByStudent: (studentId) => api.get(`/api/fees/student/${studentId}`),
-  sendReminder: (studentId) => api.post(`/api/fees/${studentId}/remind`),
-  sendBulkReminders: () => api.post('/api/fees/remind-all')
-};
 
-// ==================== EXPENSES API ====================
-export const expenseAPI = {
-  getAll: (params) => api.get('/api/expenses', { params }),
-  getStats: () => api.get('/api/expenses/stats/overview'),
-  create: (data) => api.post('/api/expenses', data),
-  update: (id, data) => api.put(`/api/expenses/${id}`, data),
-  delete: (id) => api.delete(`/api/expenses/${id}`)
-};
-
-// ==================== INCOME API ====================
-export const incomeAPI = {
-  getAll: (params) => api.get('/api/income', { params }),
-  getStats: () => api.get('/api/income/stats/overview'),
-  create: (data) => api.post('/api/income', data),
-  update: (id, data) => api.put(`/api/income/${id}`, data),
-  delete: (id) => api.delete(`/api/income/${id}`)
-};
-
-// ==================== PAYMENTS API ====================
-export const paymentAPI = {
-  getAll: (params) => api.get('/api/payments', { params }),
-  getById: (id) => api.get(`/api/payments/${id}`),
-  create: (data) => api.post('/api/payments', data),
-  getByStudent: (studentId) => api.get('/api/payments/student', { params: { studentId } }),
-  getByDateRange: (startDate, endDate) => api.get('/api/payments/date-range', { params: { startDate, endDate } }),
-  generateReceipt: (id) => api.get(`/api/payments/${id}/receipt`)
-};
 
 // ==================== ASSIGNMENTS API ====================
 export const assignmentAPI = {
@@ -249,12 +191,10 @@ export const assignmentAPI = {
 
 // ==================== REPORTS API ====================
 export const reportAPI = {
-  getFinancialReport: (params) => api.get('/api/reports/financial', { params }),
   getAcademicReport: (params) => api.get('/api/reports/academic', { params }),
   getAttendanceReport: (params) => api.get('/api/reports/attendance', { params }),
   getStudentReport: (studentId, params) => api.get(`/api/reports/student/${studentId}`, { params }),
   getClassReport: (grade, params) => api.get(`/api/reports/class/${encodeURIComponent(grade)}`, { params }),
-  getFeeReport: (params) => api.get('/api/reports/fees', { params }),
   sendToParents: (reports) => api.post('/api/reports/send', { reports }),
   getPublishedReports: () => api.get('/api/reports/published'),
   deletePublishedReport: (id) => api.delete(`/api/reports/published/${id}`)

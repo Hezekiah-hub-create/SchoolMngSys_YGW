@@ -76,7 +76,7 @@ const ActivityLogs = () => {
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Role</label>
             <PremiumSelect 
               value={filterRole}
-              onChange={setFilterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
               options={[
                 { value: 'All', label: 'All Roles' },
                 { value: 'admin', label: 'Administrator' },
@@ -90,7 +90,7 @@ const ActivityLogs = () => {
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter by Action</label>
             <PremiumSelect 
               value={filterAction}
-              onChange={setFilterAction}
+              onChange={(e) => setFilterAction(e.target.value)}
               options={[
                 { value: 'All', label: 'All Actions' },
                 { value: 'LOGIN', label: 'Authentication (Login/Logout)' },

@@ -122,7 +122,7 @@ const ExamSchedule = () => {
     }
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const filteredExams = exams.filter(exam => {
     if (user?.role === 'student') {

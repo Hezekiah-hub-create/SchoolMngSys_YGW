@@ -15,9 +15,9 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  // Generate years (from 2010 to 10 years ahead)
+  // Generate years (from 1990 to 10 years ahead)
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 2010 + 11 }, (_, i) => 2010 + i);
+  const years = Array.from({ length: currentYear - 1990 + 11 }, (_, i) => 1990 + i);
   
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -140,7 +140,10 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
       {/* Footer */}
       <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'center' }}>
         <button 
-          onClick={() => handleDateClick(today.getDate())}
+          onClick={() => {
+            setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1));
+            handleDateClick(today.getDate());
+          }}
           style={{ background: 'none', border: 'none', color: 'var(--brand-green)', fontWeight: '800', fontSize: '13px', cursor: 'pointer' }}
         >
           Jump to Today

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentAPI, teacherAPI, courseAPI, feeAPI, parentAPI, attendanceAPI, staffAPI, academicSubjectsAPI } from '../../services/api';
+import { studentAPI, teacherAPI, courseAPI, parentAPI, attendanceAPI, staffAPI, academicSubjectsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 // Icon components
 const Icons = {
@@ -123,10 +123,22 @@ const RecentItem = ({ initials, name, subtitle, status, time, onClick }) => (
           {status}
         </span>
       )}
-      <p style={{ fontSize: '12px', color: '#94a3b8', margin: '10px 0 0', fontWeight: '700' }}>{time}</p>
+      <p style={{ fontSize: '12px', color: '#94a3b8', margin: '8px 0 0', fontWeight: '700' }}>{time}</p>
     </div>
   </div>
 );
+
+const formatRecentDate = (dateVal) => {
+  if (!dateVal) return 'Recently';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return 'Recently';
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
 
 const AdminDashboard = () => {
@@ -186,10 +198,21 @@ const AdminDashboard = () => {
         attendanceRate: attendanceRate
       });
 
-      // Get recent students (last 5)
-      setRecentStudents(students.slice(0, 5));
-      // Get recent teachers (last 5)
-      setRecentTeachers(teachers.slice(0, 5));
+      // Sort students by creation date / admission date (latest first)
+      const sortedStudents = [...students].sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || a.dateOfAdmission || a.date_of_admission || 0);
+        const dateB = new Date(b.createdAt || b.created_at || b.dateOfAdmission || b.date_of_admission || 0);
+        return dateB - dateA;
+      });
+      setRecentStudents(sortedStudents.slice(0, 5));
+
+      // Sort teachers by creation date / employment date (latest first)
+      const sortedTeachers = [...teachers].sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || a.dateOfEmployment || a.date_of_employment || 0);
+        const dateB = new Date(b.createdAt || b.created_at || b.dateOfEmployment || b.date_of_employment || 0);
+        return dateB - dateA;
+      });
+      setRecentTeachers(sortedTeachers.slice(0, 5));
     } catch (error) {
       console.error('Error fetching dashboard:', error);
     } finally {
@@ -199,7 +222,6 @@ const AdminDashboard = () => {
 
   const handleLogout = async () => {
     try { await logout(); } finally {
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
       navigate('/login');
     }
@@ -252,14 +274,14 @@ const AdminDashboard = () => {
               value={stats.teachers} 
               icon={<Icons.Graduation />}
               color="#00843e"
-              onClick={() => navigate('/staff')}
+              onClick={() => navigate('/teachers')}
             />
             <MetricCard 
               title="Non-Teaching Staff" 
               value={stats.nonTeachingStaff} 
               icon={<Icons.Users />}
               color="#64748b"
-              onClick={() => navigate('/staff')}
+              onClick={() => navigate('/staff/non-teaching')}
             />
             <MetricCard 
               title="Total Parents" 
@@ -311,13 +333,7 @@ const AdminDashboard = () => {
                 color="var(--brand-yellow)"
                 onClick={() => navigate('/classes')}
               />
-              <ActionCard 
-                icon={<Icons.Dollar />} 
-                title="Fee Collection" 
-                desc="Process institutional fees" 
-                color="#00843e"
-                onClick={() => navigate('/fees/collection')}
-              />
+
             </div>
           </div>
 
@@ -340,17 +356,25 @@ const AdminDashboard = () => {
               </div>
 
               {recentStudents.length > 0 ? (
-                recentStudents.map((student, idx) => (
-                  <RecentItem 
-                    key={idx}
-                    initials={`${(student.firstName || student.first_name)?.[0] || ''}${(student.lastName || student.last_name)?.[0] || ''}`}
-                    name={`${student.firstName || student.first_name} ${student.lastName || student.last_name}`}
-                    subtitle={student.grade || 'No grade'}
-                    status={student.status}
-                    time={new Date(student.createdAt).toLocaleDateString()}
-                    onClick={() => navigate(`/students/${student.id}`)}
-                  />
-                ))
+                recentStudents.map((student, idx) => {
+                  const firstName = student.firstName || student.first_name || '';
+                  const lastName = student.lastName || student.last_name || '';
+                  const grade = student.grade || 'No class';
+                  const sec = student.section ? ` • ${student.section}` : '';
+                  const rawDate = student.createdAt || student.created_at || student.dateOfAdmission || student.date_of_admission;
+
+                  return (
+                    <RecentItem 
+                      key={student.id || idx}
+                      initials={`${firstName[0] || ''}${lastName[0] || ''}`}
+                      name={`${firstName} ${lastName}`}
+                      subtitle={`${grade}${sec}`}
+                      status={student.status || 'active'}
+                      time={formatRecentDate(rawDate)}
+                      onClick={() => navigate(`/students/${student.id}`)}
+                    />
+                  );
+                })
               ) : (
                 <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No students yet</p>
               )}
@@ -364,7 +388,7 @@ const AdminDashboard = () => {
                   <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', fontWeight: '600' }}>Latest professional onboards</p>
                 </div>
                 <button 
-                  onClick={() => navigate('/staff')}
+                  onClick={() => navigate('/teachers')}
                   className="premium-btn-secondary"
                   style={{ padding: '10px 20px', fontSize: '13px' }}
                 >
@@ -373,17 +397,26 @@ const AdminDashboard = () => {
               </div>
 
               {recentTeachers.length > 0 ? (
-                recentTeachers.map((teacher, idx) => (
-                  <RecentItem 
-                    key={idx}
-                    initials={`${(teacher.firstName || teacher.first_name)?.[0] || ''}${(teacher.lastName || teacher.last_name)?.[0] || ''}`}
-                    name={`${teacher.firstName || teacher.first_name} ${teacher.lastName || teacher.last_name}`}
-                    subtitle={teacher.subjects?.join(', ') || teacher.subject || 'Teacher'}
-                    status={teacher.status}
-                    time={new Date(teacher.createdAt).toLocaleDateString()}
-                    onClick={() => navigate(`/staff/${teacher.id}`)}
-                  />
-                ))
+                recentTeachers.map((teacher, idx) => {
+                  const firstName = teacher.firstName || teacher.first_name || '';
+                  const lastName = teacher.lastName || teacher.last_name || '';
+                  const subList = Array.isArray(teacher.subjects) && teacher.subjects.length > 0 
+                    ? teacher.subjects.join(', ') 
+                    : (teacher.subject || teacher.position || 'Teacher');
+                  const rawDate = teacher.createdAt || teacher.created_at || teacher.dateOfEmployment || teacher.date_of_employment;
+
+                  return (
+                    <RecentItem 
+                      key={teacher.id || idx}
+                      initials={`${firstName[0] || ''}${lastName[0] || ''}`}
+                      name={`${firstName} ${lastName}`}
+                      subtitle={subList}
+                      status={teacher.status || 'active'}
+                      time={formatRecentDate(rawDate)}
+                      onClick={() => navigate(`/teachers/${teacher.id}`)}
+                    />
+                  );
+                })
               ) : (
                 <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No teachers yet</p>
               )}

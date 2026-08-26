@@ -12,7 +12,6 @@ const SettingsLayout = () => {
     try {
       await logout();
     } finally {
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
       window.location.href = '/login';
     }

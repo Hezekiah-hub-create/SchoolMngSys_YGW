@@ -88,7 +88,6 @@ const Subjects = () => {
 
   const handleLogout = async () => {
     try { await logout(); } finally { 
-      localStorage.removeItem('authToken'); 
       localStorage.removeItem('authUser'); 
       navigate('/login'); 
     }

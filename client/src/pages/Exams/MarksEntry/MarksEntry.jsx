@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { studentAPI, courseAPI, gradeAPI, settingsAPI, teacherAPI, academicClassesAPI } from '../../../services/api';
 import PremiumSelect from '../../../components/common/PremiumSelect';
+import { useAlert } from '../../../context/AlertContext';
+import { getKGAreas } from '../../../utils/kgAssessments';
 import { mapSectionName } from '../../../utils/sectionHelper';
 
 const displayGrade = (g) => {
@@ -226,14 +228,19 @@ const MarksEntry = () => {
             const cat2 = savedAssessments.find(a => a.name === 'Cat2')?.score ?? existingGrade.cat2 ?? 0;
             const pw   = savedAssessments.find(a => a.name === 'PW')?.score   ?? existingGrade.pw   ?? 0;
             const exam = savedAssessments.find(a => a.name === 'Exam')?.score ?? existingGrade.exam ?? 0;
+            
+            const kgMetrics = {};
+            savedAssessments.forEach(a => {
+              if (a.isKG) kgMetrics[a.name] = a.score;
+            });
 
             initialMarks[sId] = {
-              cat1, gw, cat2, pw, exam,
+              cat1, gw, cat2, pw, exam, kgMetrics,
               id: existingGrade.id || existingGrade._id,
               courseId: existingGrade.course_id || existingGrade.course || filters.courseId
             };
           } else {
-            initialMarks[sId] = { cat1: 0, gw: 0, cat2: 0, pw: 0, exam: 0, courseId: filters.courseId };
+            initialMarks[sId] = { cat1: 0, gw: 0, cat2: 0, pw: 0, exam: 0, kgMetrics: {}, courseId: filters.courseId };
           }
         });
         setMarks(initialMarks);
@@ -245,6 +252,17 @@ const MarksEntry = () => {
   };
 
   const handleMarkChange = (studentId, field, value, max) => {
+    if (field.startsWith('kg_')) {
+      const area = field.replace('kg_', '');
+      setMarks(prev => ({
+        ...prev,
+        [studentId]: { 
+          ...prev[studentId], 
+          kgMetrics: { ...(prev[studentId]?.kgMetrics || {}), [area]: value }
+        }
+      }));
+      return;
+    }
     const val = Math.min(max, Math.max(0, parseInt(value) || 0));
     setMarks(prev => ({
       ...prev,
@@ -283,16 +301,35 @@ const MarksEntry = () => {
       const currentYear = settings?.currentSession || '2024/2025';
       console.log('Submitting marks with academic_year:', currentYear, 'term:', filters.term);
       
+      const isKG = filters.grade?.toUpperCase().includes('KG');
+      const selectedCourseName = courses.find(c => (c.id === filters.courseId || c._id === filters.courseId))?.name || '';
+      
       const gradesToSubmit = students.map(s => {
         const sId = s.id || s._id;
-        const m = marks[sId] || { cat1: 0, gw: 0, cat2: 0, pw: 0, exam: 0, courseId: filters.courseId };
+        const m = marks[sId] || { cat1: 0, gw: 0, cat2: 0, pw: 0, exam: 0, kgMetrics: {}, courseId: filters.courseId };
         const total = calculateTotal(sId);
+        
+        let assessments = [];
+        if (isKG) {
+          assessments = Object.entries(m.kgMetrics || {}).map(([name, score]) => ({
+            name, score, isKG: true
+          }));
+        } else {
+          assessments = [
+            { name: 'Cat1', score: m.cat1 || 0 },
+            { name: 'GW', score: m.gw || 0 },
+            { name: 'Cat2', score: m.cat2 || 0 },
+            { name: 'PW', score: m.pw || 0 },
+            { name: 'Exam', score: m.exam || 0 }
+          ];
+        }
+
         return {
           id: m.id,
           student_id: sId,
           student_name: `${s.firstName || s.first_name} ${s.lastName || s.last_name}`,
           course_id: m.courseId || filters.courseId,
-          course_name: courses.find(c => (c.id === (m.courseId || filters.courseId) || c._id === (m.courseId || filters.courseId)))?.name,
+          course_name: selectedCourseName,
           academic_year: currentYear,
           term: filters.term,
           cat1: m.cat1 || 0,
@@ -300,8 +337,9 @@ const MarksEntry = () => {
           cat2: m.cat2 || 0,
           pw: m.pw || 0,
           exam: m.exam || 0,
-          score: total,
-          grade: getGrade(total)
+          assessments: assessments,
+          score: isKG ? 0 : total,
+          grade: isKG ? 'KG' : getGrade(total)
         };
       });
 
@@ -330,9 +368,12 @@ const MarksEntry = () => {
     finally { setSaving(false); }
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const grades = [...new Set(courses.map(c => c.grade))];
+  const isKG = filters.grade?.toUpperCase().includes('KG');
+  const selectedCourseName = courses.find(c => (c.id === filters.courseId || c._id === filters.courseId))?.name || '';
+  const kgAreas = isKG ? getKGAreas(selectedCourseName) : [];
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -599,22 +640,28 @@ const MarksEntry = () => {
               </div>
             </div>
             
-            <div style={{ padding: 0 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ padding: 0, overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isKG ? '800px' : '100%' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--brand-slate-50)' }}>
-                    <th className="premium-th">Scholar Identity</th>
-                    <th className="premium-th">Cat1 (25)</th>
-                    <th className="premium-th">GW (25)</th>
-                    <th className="premium-th">Cat2 (25)</th>
-                    <th className="premium-th">PW (25)</th>
-                    <th className="premium-th">Exam (100)</th>
-                    <th className="premium-th">Aggregate Score (200)</th>
-                    <th className="premium-th">Classification</th>
+                    <th className="premium-th" style={{ minWidth: '250px' }}>Scholar Identity</th>
+                    {isKG ? (
+                      kgAreas.map((area, i) => (
+                        <th key={i} className="premium-th" style={{ minWidth: '150px', whiteSpace: 'normal', fontSize: '11px' }}>{area} (G, PS, NI)</th>
+                      ))
+                    ) : (
+                      <>
+                        <th className="premium-th">Cat1 (25)</th>
+                        <th className="premium-th">GW (25)</th>
+                        <th className="premium-th">Cat2 (25)</th>
+                        <th className="premium-th">PW (25)</th>
+                        <th className="premium-th">Exam (100)</th>
+                        <th className="premium-th">Aggregate Score (200)</th>
+                        <th className="premium-th">Classification</th>
+                      </>
+                    )}
                   </tr>
-
                 </thead>
-
                 <tbody>
                   {students.length > 0 ? students.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((s) => {
                     const sId = s.id || s._id;
@@ -626,55 +673,83 @@ const MarksEntry = () => {
                           <p style={{ fontSize: '15px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>{s.firstName || s.first_name} {s.lastName || s.last_name}</p>
                           <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0', fontWeight: '600' }}>ID: {s.admissionNumber || s.admission_number}</p>
                         </td>
-                        <td style={{ padding: '20px 24px' }}>
-                          {canEdit
-                            ? <input type="number" max="25" value={marks[sId]?.cat1 || 0} onChange={(e) => handleMarkChange(sId, 'cat1', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.cat1 ?? 0}</div>
-                          }
-                        </td>
-                        <td style={{ padding: '20px 24px' }}>
-                          {canEdit
-                            ? <input type="number" max="25" value={marks[sId]?.gw || 0} onChange={(e) => handleMarkChange(sId, 'gw', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.gw ?? 0}</div>
-                          }
-                        </td>
-                        <td style={{ padding: '20px 24px' }}>
-                          {canEdit
-                            ? <input type="number" max="25" value={marks[sId]?.cat2 || 0} onChange={(e) => handleMarkChange(sId, 'cat2', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.cat2 ?? 0}</div>
-                          }
-                        </td>
-                        <td style={{ padding: '20px 24px' }}>
-                          {canEdit
-                            ? <input type="number" max="25" value={marks[sId]?.pw || 0} onChange={(e) => handleMarkChange(sId, 'pw', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.pw ?? 0}</div>
-                          }
-                        </td>
-                        <td style={{ padding: '20px 24px' }}>
-                          {canEdit
-                            ? <input type="number" max="100" value={marks[sId]?.exam || 0} onChange={(e) => handleMarkChange(sId, 'exam', e.target.value, 100)} className="premium-input" style={{ width: '80px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
-                            : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.exam ?? 0}</div>
-                          }
-                        </td>
+                        
+                        {isKG ? (
+                          kgAreas.map((area, i) => (
+                            <td key={i} style={{ padding: '20px 16px' }}>
+                              {canEdit ? (
+                                <PremiumSelect
+                                  name={`kg_${area}`}
+                                  value={marks[sId]?.kgMetrics?.[area] || ''}
+                                  onChange={(e) => handleMarkChange(sId, `kg_${area}`, e.target.value, 0)}
+                                  options={[
+                                    { value: '', label: '-' },
+                                    { value: 'G', label: 'Good (G)' },
+                                    { value: 'PS', label: 'Progressively Satisfactory (PS)' },
+                                    { value: 'NI', label: 'Needs Improvement (NI)' }
+                                  ]}
+                                  placeholder="Grade"
+                                />
+                              ) : (
+                                <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0', minWidth: '40px', textAlign: 'center' }}>
+                                  {marks[sId]?.kgMetrics?.[area] || '-'}
+                                </div>
+                              )}
+                            </td>
+                          ))
+                        ) : (
+                          <>
+                            <td style={{ padding: '20px 24px' }}>
+                              {canEdit
+                                ? <input type="number" max="25" value={marks[sId]?.cat1 || 0} onChange={(e) => handleMarkChange(sId, 'cat1', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                                : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.cat1 ?? 0}</div>
+                              }
+                            </td>
+                            <td style={{ padding: '20px 24px' }}>
+                              {canEdit
+                                ? <input type="number" max="25" value={marks[sId]?.gw || 0} onChange={(e) => handleMarkChange(sId, 'gw', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                                : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.gw ?? 0}</div>
+                              }
+                            </td>
+                            <td style={{ padding: '20px 24px' }}>
+                              {canEdit
+                                ? <input type="number" max="25" value={marks[sId]?.cat2 || 0} onChange={(e) => handleMarkChange(sId, 'cat2', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                                : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.cat2 ?? 0}</div>
+                              }
+                            </td>
+                            <td style={{ padding: '20px 24px' }}>
+                              {canEdit
+                                ? <input type="number" max="25" value={marks[sId]?.pw || 0} onChange={(e) => handleMarkChange(sId, 'pw', e.target.value, 25)} className="premium-input" style={{ width: '70px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                                : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.pw ?? 0}</div>
+                              }
+                            </td>
+                            <td style={{ padding: '20px 24px' }}>
+                              {canEdit
+                                ? <input type="number" max="100" value={marks[sId]?.exam || 0} onChange={(e) => handleMarkChange(sId, 'exam', e.target.value, 100)} className="premium-input" style={{ width: '80px', textAlign: 'center', fontWeight: '900', fontSize: '16px', color: 'var(--brand-green)', padding: '8px' }} />
+                                : <div className="read-only-badge" style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '8px', display: 'inline-block', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0' }}>{marks[sId]?.exam ?? 0}</div>
+                              }
+                            </td>
 
-                        <td style={{ padding: '20px 24px' }}>
-                          <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{total}</p>
-                          <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0', fontWeight: '600' }}>{Math.round(total / 2)}%</p>
-                        </td>
-                        <td style={{ padding: '20px 24px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ 
-                              padding: '6px 14px', 
-                              borderRadius: '12px', 
-                              fontSize: '12px', 
-                              fontWeight: '900',
-                              backgroundColor: total >= 70 ? '#ecfdf5' : total >= 50 ? '#fefce8' : '#fef2f2',
-                              color: total >= 70 ? '#10b981' : total >= 50 ? '#ca8a04' : '#ef4444',
-                              border: `1px solid ${total >= 70 ? '#d1fae5' : total >= 50 ? '#fef08a' : '#fee2e2'}`
-                            }}>{grade}</span>
-                            {total >= 40 && <div style={{ color: '#10b981' }}><Icons.Check /></div>}
-                          </div>
-                        </td>
+                            <td style={{ padding: '20px 24px' }}>
+                              <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{total}</p>
+                              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0', fontWeight: '600' }}>{Math.round(total / 2)}%</p>
+                            </td>
+                            <td style={{ padding: '20px 24px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ 
+                                  padding: '6px 14px', 
+                                  borderRadius: '12px', 
+                                  fontSize: '12px', 
+                                  fontWeight: '900',
+                                  backgroundColor: total >= 70 ? '#ecfdf5' : total >= 50 ? '#fefce8' : '#fef2f2',
+                                  color: total >= 70 ? '#10b981' : total >= 50 ? '#ca8a04' : '#ef4444',
+                                  border: `1px solid ${total >= 70 ? '#d1fae5' : total >= 50 ? '#fef08a' : '#fee2e2'}`
+                                }}>{grade}</span>
+                                {total >= 40 && <div style={{ color: '#10b981' }}><Icons.Check /></div>}
+                              </div>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     );
                   }) : (

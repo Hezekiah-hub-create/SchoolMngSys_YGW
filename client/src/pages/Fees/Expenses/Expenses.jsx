@@ -87,7 +87,7 @@ const Expenses = () => {
     }
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const filteredExpenses = expenses.filter(e => 
     e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||

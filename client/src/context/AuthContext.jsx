@@ -48,9 +48,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       // Continue with local logout even if API fails
     } finally {
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken');
       setUser(null);
       if (isAutoLogout) {
         // We could also redirect with a message by setting state or using alert, 
@@ -148,11 +146,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login({
         email: identifier.includes('@') ? identifier : `${identifier}@school.com`,
-        password
+        password,
+        remember
       });
 
       if (response.data.success) {
-        const { token, user: userData, profile, redirectPath } = response.data;
+        const { user: userData, profile, redirectPath } = response.data;
         const mergedUser = {
           ...userData,
           ...(profile || {}),
@@ -164,12 +163,6 @@ export const AuthProvider = ({ children }) => {
         
         if (mergedUser.grade) {
           mergedUser.grade = mergedUser.grade.replace('Primary', 'Basic');
-        }
-
-        if (remember) {
-          localStorage.setItem('authToken', token);
-        } else {
-          sessionStorage.setItem('authToken', token);
         }
 
         localStorage.setItem('authUser', JSON.stringify(mergedUser));
@@ -198,9 +191,8 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.register(userData);
       
       if (response.data.success) {
-        const { token, user: newUser } = response.data;
+        const { user: newUser } = response.data;
         
-        localStorage.setItem('authToken', token);
         if (newUser && newUser.grade) {
           newUser.grade = newUser.grade.replace('Primary', 'Basic');
         }

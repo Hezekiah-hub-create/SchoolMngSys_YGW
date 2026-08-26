@@ -8,19 +8,27 @@ const PremiumSelect = ({
   placeholder = "Select Option",
   label = "",
   disabled = false,
-  icon = null
+  icon = null,
+  name = ""
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, openUp: false });
   const containerRef = useRef(null);
+  const dropdownRef = useRef(null);
   
   const updateCoords = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
+      const estimatedHeight = Math.min(300, Math.max(60, options.length * 44 + 16));
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUp = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
+
       setCoords({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
-        width: rect.width
+        top: openUp ? Math.max(8, rect.top - estimatedHeight - 6) : rect.bottom + 6,
+        left: rect.left,
+        width: Math.max(rect.width, 140),
+        maxHeight: openUp ? Math.min(300, rect.top - 16) : Math.min(300, spaceBelow - 16),
+        openUp
       });
     }
   };
@@ -28,31 +36,38 @@ const PremiumSelect = ({
   useEffect(() => {
     if (isOpen) {
       updateCoords();
-      window.addEventListener('scroll', updateCoords);
-      window.addEventListener('resize', updateCoords);
+      const handleScroll = () => updateCoords();
+      const handleResize = () => updateCoords();
+
+      window.addEventListener('scroll', handleScroll, true);
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        window.removeEventListener('scroll', handleScroll, true);
+        window.removeEventListener('resize', handleResize);
+      };
     }
-    return () => {
-      window.removeEventListener('scroll', updateCoords);
-      window.removeEventListener('resize', updateCoords);
-    };
-  }, [isOpen]);
+  }, [isOpen, options.length]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        const portalContent = document.getElementById('premium-select-portal');
-        if (portalContent && portalContent.contains(event.target)) return;
-        setIsOpen(false);
-      }
+      if (containerRef.current && containerRef.current.contains(event.target)) return;
+      if (dropdownRef.current && dropdownRef.current.contains(event.target)) return;
+      setIsOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
-  const selectedOption = options.find(opt => opt.value === value);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const selectedOption = options.find(opt => String(opt.value) === String(value));
 
   const handleSelect = (optionValue) => {
-    onChange({ target: { name: label, value: optionValue } });
+    onChange({ target: { name: name || label, value: optionValue } });
     setIsOpen(false);
   };
 
@@ -67,12 +82,12 @@ const PremiumSelect = ({
           gap: '12px',
           cursor: disabled ? 'not-allowed' : 'pointer',
           padding: '12px 16px',
-          backgroundColor: disabled ? '#ffffff' : 'white',
+          backgroundColor: disabled ? '#f8fafc' : 'white',
           opacity: disabled ? 0.7 : 1,
           position: 'relative',
-          zIndex: isOpen ? 10 : 1,
           borderColor: isOpen ? 'var(--brand-green)' : 'var(--brand-slate-200)',
-          boxShadow: isOpen ? '0 0 0 4px rgba(0, 132, 62, 0.08)' : 'none'
+          boxShadow: isOpen ? '0 0 0 4px rgba(0, 132, 62, 0.08)' : 'none',
+          userSelect: 'none'
         }}
       >
         {icon && <span style={{ color: 'var(--brand-green)', display: 'flex' }}>{icon}</span>}
@@ -92,7 +107,8 @@ const PremiumSelect = ({
           style={{ 
             marginLeft: 'auto', 
             transform: isOpen ? 'rotate(180deg)' : 'none', 
-            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)' 
+            transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            flexShrink: 0
           }}
         >
           <path d="M6 9l6 6 6-6"/>
@@ -101,77 +117,79 @@ const PremiumSelect = ({
 
       {isOpen && createPortal(
         <div 
-          id="premium-select-portal"
+          ref={dropdownRef}
+          className="premium-select-dropdown"
           style={{ 
-            position: 'absolute', 
-            top: `${coords.top + 6}px`, 
+            position: 'fixed', 
+            top: `${coords.top}px`, 
             left: `${coords.left}px`, 
             width: `${coords.width}px`,
             backgroundColor: 'white',
             borderRadius: '16px',
-            boxShadow: '0 15px 40px rgba(0,0,0,0.12), 0 5px 15px rgba(0,0,0,0.05)',
-            border: '1px solid #f1f5f9',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.08)',
+            border: '1.5px solid #e2e8f0',
             padding: '8px',
-            zIndex: 99999,
-            maxHeight: '300px',
+            zIndex: 9999999,
+            maxHeight: `${coords.maxHeight || 280}px`,
             overflowY: 'auto',
-            animation: 'premiumSelectFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+            animation: 'premiumSelectFadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
           <style>{`
             @keyframes premiumSelectFadeIn {
-              from { opacity: 0; transform: translateY(-10px); }
+              from { opacity: 0; transform: translateY(${coords.openUp ? '8px' : '-8px'}); }
               to { opacity: 1; transform: translateY(0); }
             }
             .premium-option {
               padding: 10px 14px;
               border-radius: 10px;
               cursor: pointer;
-              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-              font-size: 14px;
+              transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+              font-size: 13.5px;
               font-weight: 700;
-              color: #475569;
+              color: #334155;
               display: flex;
               align-items: center;
               gap: 10px;
+              user-select: none;
             }
             .premium-option:hover {
-              background-color: rgba(0, 132, 62, 0.06);
+              background-color: rgba(0, 132, 62, 0.08);
               color: var(--brand-green);
               padding-left: 18px;
             }
             .premium-option.selected {
               background-color: var(--brand-green);
               color: white;
-              box-shadow: 0 4px 12px rgba(0, 132, 62, 0.2);
+              box-shadow: 0 4px 12px rgba(0, 132, 62, 0.25);
             }
             /* Custom Scrollbar */
-            #premium-select-portal::-webkit-scrollbar {
+            .premium-select-dropdown::-webkit-scrollbar {
               width: 5px;
             }
-            #premium-select-portal::-webkit-scrollbar-track {
+            .premium-select-dropdown::-webkit-scrollbar-track {
               background: transparent;
             }
-            #premium-select-portal::-webkit-scrollbar-thumb {
-              background: #e2e8f0;
+            .premium-select-dropdown::-webkit-scrollbar-thumb {
+              background: #cbd5e1;
               border-radius: 10px;
             }
           `}</style>
           {options.length === 0 ? (
-            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>No options available</div>
+            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontWeight: '600' }}>No options available</div>
           ) : (
             options.map((opt) => (
               <div 
                 key={opt.value}
-                className={`premium-option ${opt.value === value ? 'selected' : ''}`}
+                className={`premium-option ${String(opt.value) === String(value) ? 'selected' : ''}`}
                 onClick={() => handleSelect(opt.value)}
               >
-                {opt.value === value && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                {String(opt.value) === String(value) && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ flexShrink: 0 }}>
                     <path d="M20 6L9 17L4 12"/>
                   </svg>
                 )}
-                {opt.label}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.label}</span>
               </div>
             ))
           )}

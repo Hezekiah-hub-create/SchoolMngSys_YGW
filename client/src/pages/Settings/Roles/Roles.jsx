@@ -8,6 +8,7 @@ import '../Settings.css';
 const SettingsRoles = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { showAlert } = require('../../../context/AlertContext').useAlert();
   const [activeMenu, setActiveMenu] = useState('Settings');
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState([
@@ -41,7 +42,7 @@ const SettingsRoles = () => {
     fetchRoleStats();
   }, []);
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   return (
     <>
@@ -120,8 +121,8 @@ const SettingsRoles = () => {
                 </div>
 
               <div style={{ display: 'flex', gap: '12px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', marginTop: 'auto' }}>
-                <button className="premium-btn-secondary" style={{ flex: 1, padding: '12px', fontSize: '13px' }}>Configure</button>
-                <button className="premium-btn-secondary" style={{ flex: 1, padding: '12px', fontSize: '13px', backgroundColor: '#fefce8', color: '#854d0e', border: '1px solid #fef08a' }}>Permissions</button>
+                <button className="premium-btn-secondary" onClick={() => showAlert({ type: 'info', title: 'Configure Role', message: 'Role configuration is currently in read-only mode.' })} style={{ flex: 1, padding: '12px', fontSize: '13px' }}>Configure</button>
+                <button className="premium-btn-secondary" onClick={() => showAlert({ type: 'info', title: 'Role Permissions', message: 'Permissions matrix is locked by system administrator.' })} style={{ flex: 1, padding: '12px', fontSize: '13px', backgroundColor: '#fefce8', color: '#854d0e', border: '1px solid #fef08a' }}>Permissions</button>
               </div>
             </div>
           );

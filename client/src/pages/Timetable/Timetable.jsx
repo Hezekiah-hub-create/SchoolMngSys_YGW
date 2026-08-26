@@ -252,9 +252,7 @@ const Timetable = () => {
 
   const handleLogout = async () => {
     try { await logout(); } finally {
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken');
       navigate('/login');
     }
   };

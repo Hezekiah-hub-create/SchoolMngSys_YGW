@@ -10,10 +10,15 @@ const PremiumDatePicker = ({ value, onChange, placeholder = "Select Date" }) => 
   const updateCoords = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
+      const calendarHeight = 420; // approximate calendar height
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUp = spaceBelow < calendarHeight && rect.top > calendarHeight;
+
       setCoords({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
-        width: rect.width
+        top: openUp ? rect.top - calendarHeight - 8 : rect.bottom + 8,
+        left: rect.left,
+        width: rect.width,
+        openUp
       });
     }
   };
@@ -21,11 +26,11 @@ const PremiumDatePicker = ({ value, onChange, placeholder = "Select Date" }) => 
   useEffect(() => {
     if (isOpen) {
       updateCoords();
-      window.addEventListener('scroll', updateCoords);
+      window.addEventListener('scroll', updateCoords, true);
       window.addEventListener('resize', updateCoords);
     }
     return () => {
-      window.removeEventListener('scroll', updateCoords);
+      window.removeEventListener('scroll', updateCoords, true);
       window.removeEventListener('resize', updateCoords);
     };
   }, [isOpen]);
@@ -33,11 +38,14 @@ const PremiumDatePicker = ({ value, onChange, placeholder = "Select Date" }) => 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        // Check if the click was inside the datepicker portal or any select portal
+        // Check if the click was inside the datepicker portal or any select dropdown
         const datepickerPortal = document.getElementById('premium-datepicker-portal');
         if (datepickerPortal && datepickerPortal.contains(event.target)) return;
-        const selectPortal = document.getElementById('premium-select-portal');
-        if (selectPortal && selectPortal.contains(event.target)) return;
+        // PremiumSelect dropdowns are portaled to body with this class
+        const selectDropdowns = document.querySelectorAll('.premium-select-dropdown');
+        for (const dropdown of selectDropdowns) {
+          if (dropdown.contains(event.target)) return;
+        }
         setIsOpen(false);
       }
     };
@@ -85,8 +93,8 @@ const PremiumDatePicker = ({ value, onChange, placeholder = "Select Date" }) => 
         <div 
           id="premium-datepicker-portal"
           style={{ 
-            position: 'absolute', 
-            top: `${coords.top + 8}px`, 
+            position: 'fixed', 
+            top: `${coords.top}px`, 
             left: `${coords.left}px`, 
             zIndex: 9999 
           }}

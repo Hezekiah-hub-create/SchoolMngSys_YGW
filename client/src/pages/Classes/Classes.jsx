@@ -210,7 +210,6 @@ const Classes = () => {
 
   const handleLogout = async () => {
     try { await logout(); } finally { 
-      localStorage.removeItem('authToken'); 
       localStorage.removeItem('authUser'); 
       navigate('/login'); 
     }
@@ -464,7 +463,7 @@ const Classes = () => {
                 <PremiumSelect
                   options={teachers.map(t => ({ value: t.id, label: `${t.firstName || t.first_name || ''} ${t.lastName || t.last_name || ''}`.trim() }))}
                   value={masterFormData.class_master_id}
-                  onChange={(val) => setMasterFormData({ class_master_id: val })}
+                  onChange={(e) => setMasterFormData({ class_master_id: e.target.value })}
                   placeholder="Select a teacher..."
                   required
                 />

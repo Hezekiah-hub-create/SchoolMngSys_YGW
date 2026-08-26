@@ -364,6 +364,7 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     mergedSubjects.push({
       name: sInfo.name,
       category: sInfo.category,
+      assessments: grade?.assessments || [],
       classScore,
       examScore,
       total,

@@ -42,7 +42,7 @@ const LoginHistory = () => {
   };
 
   const handleLogout = async () => {
-    try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); }
+    try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); }
   };
 
   const currentUser = storedUser || user;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentAPI, gradeAPI, attendanceAPI, assignmentAPI, feeAPI, courseAPI, eventAPI } from '../../services/api';
+import { studentAPI, gradeAPI, attendanceAPI, assignmentAPI, courseAPI, eventAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { mapSectionName } from '../../utils/sectionHelper';
 import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
@@ -38,7 +38,7 @@ const StudentDashboard = () => {
   const [grades, setGrades]         = useState([]);
   const [attendance, setAttendance] = useState({ present: 0, absent: 0, total: 0, pct: 0, records: [] });
   const [assignments, setAssignments] = useState([]);
-  const [fees, setFees]             = useState([]);
+
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading]       = useState(true);
   const currentUser = user;
@@ -64,7 +64,6 @@ const StudentDashboard = () => {
           studentId ? gradeAPI.getByStudent(studentId) : gradeAPI.getAll({ studentId, limit: 20 }),
           studentId ? attendanceAPI.getByStudent(studentId) : attendanceAPI.getAll({ studentId, limit: 100 }),
           studentId ? assignmentAPI.getByStudent(studentId) : assignmentAPI.getAll({ limit: 20 }),
-          studentId ? feeAPI.getByStudent(studentId) : feeAPI.getAll({ limit: 20 }),
           eventAPI ? eventAPI.getUpcoming() : Promise.resolve(null),
           studentId ? attendanceAPI.getSummary(studentId) : Promise.resolve(null)
         ]);
@@ -110,8 +109,7 @@ const StudentDashboard = () => {
         if (asgRes.status === 'fulfilled' && asgRes.value?.data)
           setAssignments((asgRes.value.data.data || asgRes.value.data || []).slice(0, 6));
 
-        if (feeRes.status === 'fulfilled' && feeRes.value?.data)
-          setFees((feeRes.value.data.data || feeRes.value.data || []).slice(0, 5));
+
 
         if (evtRes.status === 'fulfilled' && evtRes.value?.data) {
           const evts = evtRes.value.data.data || evtRes.value.data || [];
@@ -138,7 +136,7 @@ const StudentDashboard = () => {
   if (!isAuthenticated) return null;
 
   const pendingAsg  = assignments.filter(a => !(a.submissions || []).some(s => s.student === studentId)).length;
-  const unpaidFees  = fees.filter(f => f.status !== 'paid').length;
+
   const avgGrade    = grades.length > 0 ? Math.round(grades.reduce((s, g) => s + scoreFromGrade(g), 0) / grades.length) : null;
 
   const statCards = [
@@ -146,7 +144,7 @@ const StudentDashboard = () => {
     { label: 'Attendance', value: attendance.total > 0 ? `${attendance.pct}%` : '—', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>, color: '#0284c7', bg: '#e0f2fe', path: '/attendance' },
     { label: 'Pending Tasks', value: pendingAsg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>, color: '#d97706', bg: '#fef3c7', path: '/assignments' },
     { label: 'My Courses', value: courses.length, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>, color: '#7c3aed', bg: '#ede9fe', path: '/courses' },
-    { label: 'Unpaid Fees', value: unpaidFees, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>, color: unpaidFees > 0 ? '#dc2626' : '#00843e', bg: unpaidFees > 0 ? '#fee2e2' : '#dcfce7', path: '/fees' },
+
   ];
 
   const gradeColor = s => s >= 80 ? { bg: '#dcfce7', color: '#00843e' } : s >= 60 ? { bg: '#fef3c7', color: '#d97706' } : { bg: '#fee2e2', color: '#dc2626' };
@@ -339,37 +337,6 @@ const StudentDashboard = () => {
           {/* ── Bottom Row ─────────────────────────────────── */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
 
-            {/* Fees */}
-            <Section title={<div style={{display:'flex', alignItems:'center', gap:'8px'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> My Fees</div>} action="Pay / View All" actionPath="/fees" navigate={navigate}>
-              <div style={{ padding:'16px 20px' }}>
-                {unpaidFees > 0 && (
-                  <div style={{ padding:'12px 16px', backgroundColor:'#fef2f2', border:'1px solid #fecaca', borderRadius:'10px', marginBottom:'14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <div>
-                      <p style={{ fontSize:'13px', fontWeight:'700', color:'#dc2626' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{marginRight:'4px', verticalAlign:'text-bottom'}}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        {unpaidFees} Unpaid {unpaidFees === 1 ? 'Fee' : 'Fees'}
-                      </p>
-                      <p style={{ fontSize:'12px', color:'#991b1b', marginTop:'2px' }}>Please settle outstanding payments</p>
-                    </div>
-                    <button onClick={() => navigate('/fees')} style={{ padding:'7px 14px', backgroundColor:'#dc2626', color:'white', border:'none', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>Pay Now</button>
-                  </div>
-                )}
-                {loading ? <div style={{ height:'60px', backgroundColor:'#f1f5f9', borderRadius:'8px', animation:'pulse 1.5s infinite' }}></div>
-                  : fees.length === 0 ? <Empty msg="No fee records found" />
-                  : fees.map((f, i) => (
-                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 0', borderBottom: i < fees.length - 1 ? '1px solid #ffffff' : 'none' }}>
-                      <div>
-                        <p style={{ fontSize:'13px', fontWeight:'600', color:'#1e293b' }}>{f.description || f.feeType || 'School Fee'}</p>
-                        <p style={{ fontSize:'12px', color:'#64748b' }}>Due: {f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'}</p>
-                      </div>
-                      <div style={{ textAlign:'right' }}>
-                        <p style={{ fontSize:'14px', fontWeight:'700', color:'#1e293b', marginBottom:'4px' }}>GH₵{Number(f.amount).toLocaleString() || '—'}</p>
-                        <Pill label={f.status === 'paid' ? 'Paid' : 'Unpaid'} color={f.status === 'paid' ? '#00843e' : '#dc2626'} bg={f.status === 'paid' ? '#dcfce7' : '#fee2e2'} />
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </Section>
 
             {/* Announcements */}
             <Section title={<div style={{display:'flex', alignItems:'center', gap:'8px'}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> Announcements</div>}>

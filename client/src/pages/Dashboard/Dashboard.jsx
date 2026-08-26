@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentAPI, teacherAPI, courseAPI, feeAPI, settingsAPI } from '../../services/api';
+import { studentAPI, teacherAPI, courseAPI, settingsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
 import { 
@@ -933,9 +933,7 @@ const Dashboard = () => {
       console.log('Logout API error:', error);
     } finally {
       // Clear any remaining storage
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken');
       // Navigate to login
       navigate('/login');
     }
@@ -946,11 +944,10 @@ const Dashboard = () => {
       setLoading(true);
       
       // Fetch all data in parallel
-      const [studentsRes, teachersRes, coursesRes, feesRes, settingsRes] = await Promise.allSettled([
+      const [studentsRes, teachersRes, coursesRes, settingsRes] = await Promise.allSettled([
         studentAPI.getAll({ limit: 1000 }),
         teacherAPI.getAll({ limit: 1000 }),
         courseAPI.getAll({ limit: 1000 }),
-        feeAPI.getAll({ limit: 1000 }),
         settingsAPI.getSettings()
       ]);
 
@@ -981,22 +978,7 @@ const Dashboard = () => {
         setStats(prev => ({ ...prev, subjects: Array.isArray(coursesData) ? coursesData.length : 0 }));
       }
 
-      // Handle fees
-      if (feesRes.status === 'fulfilled' && feesRes.value?.data) {
-        const responseData = feesRes.value.data;
-        const fees = responseData.data || [];
-        // Process fees data for chart (mock processing - in production would come from API)
-        if (Array.isArray(fees) && fees.length > 0) {
-          setFeesData([
-            { month: 'Jul', paid: 65, unpaid: 35 },
-            { month: 'Aug', paid: 70, unpaid: 30 },
-            { month: 'Sep', paid: 55 + Math.floor(Math.random() * 30), unpaid: 45 - Math.floor(Math.random() * 20) },
-            { month: 'Oct', paid: 80, unpaid: 20 },
-            { month: 'Nov', paid: 75, unpaid: 25 },
-            { month: 'Dec', paid: 85, unpaid: 15 },
-          ]);
-        }
-      }
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

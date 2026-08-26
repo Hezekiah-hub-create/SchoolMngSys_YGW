@@ -21,7 +21,7 @@ const Calendar = () => {
   const isStudent = role === 'student';
   const isAdmin = role === 'admin' || role === 'staff' || role === 'ITSupport' || role === 'teacher';
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   useEffect(() => {
     const saved = localStorage.getItem('authUser');

@@ -13,10 +13,10 @@ const getActivityLogs = asyncHandler(async (req, res) => {
   let sbQuery = supabase.from(COLLECTIONS.ACTIVITY_LOGS).select('*').order('created_at', { ascending: false }).limit(Number(limit));
 
   if (role && role !== 'All') {
-    sbQuery = sbQuery.eq('role', role);
+    sbQuery = sbQuery.ilike('role', role);
   }
   if (action && action !== 'All') {
-    sbQuery = sbQuery.eq('action', action);
+    sbQuery = sbQuery.ilike('action', action);
   }
 
   const { data, error } = await sbQuery;

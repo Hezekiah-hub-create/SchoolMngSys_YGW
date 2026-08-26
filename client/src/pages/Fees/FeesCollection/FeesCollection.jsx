@@ -188,7 +188,7 @@ const FeesCollection = () => {
   const totalPaid = studentFees.reduce((sum, f) => sum + (parseFloat(f.amountPaid) || 0), 0);
   const totalBalance = totalBilled - totalPaid;
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   return (
     <div>

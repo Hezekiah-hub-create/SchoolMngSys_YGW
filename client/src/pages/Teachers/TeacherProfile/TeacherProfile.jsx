@@ -31,16 +31,19 @@ const Icons = {
 };
 
 const subjectOptions = [
+  { value: 'English Language', label: 'English Language' },
   { value: 'Mathematics', label: 'Mathematics' },
-  { value: 'English', label: 'English' },
-  { value: 'Science', label: 'Science' },
+  { value: 'Integrated Science', label: 'Integrated Science' },
   { value: 'Social Studies', label: 'Social Studies' },
-  { value: 'ICT', label: 'ICT' },
-  { value: 'Religious Studies', label: 'Religious Studies' },
+  { value: 'Computing (ICT)', label: 'Computing (ICT)' },
+  { value: 'Religious & Moral Education', label: 'Religious & Moral Education' },
+  { value: 'Ghanaian Language', label: 'Ghanaian Language' },
+  { value: 'Creative Arts & Design', label: 'Creative Arts & Design' },
+  { value: 'Career Technology', label: 'Career Technology' },
   { value: 'French', label: 'French' },
-  { value: 'Creative Arts', label: 'Creative Arts' },
+  { value: 'Our World Our People', label: 'Our World Our People' },
+  { value: 'History', label: 'History' },
   { value: 'Physical Education', label: 'Physical Education' },
-  { value: 'Home Economics', label: 'Home Economics' },
 ];
 
 const gradeOptions = [
@@ -240,7 +243,7 @@ const TeacherProfile = () => {
     finally { setLoading(false); }
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const startEdit = () => {
     setFormData({
@@ -489,15 +492,20 @@ const TeacherProfile = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                       <SectionTitle title="Professional Details" />
                       <div className="responsive-grid-3">
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <label className="premium-label">Primary Subject</label>
-                          <select name="subject" value={formData.subject || ''} onChange={handleChange} className="premium-input">
-                            <option value="">Select Subject</option>
-                            {(dbSubjects.length > 0 ? dbSubjects.map(s => s.name) : subjectOptions.map(s => s.value)).map(s => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
-                        </div>
+                        <MultiSelect 
+                          label="Assigned Subjects" 
+                          name="subjects" 
+                          value={formData.subjects || (formData.subject ? [formData.subject] : [])} 
+                          onChange={(val) => setFormData(p => ({ ...p, subjects: val }))} 
+                          options={dbSubjects.length > 0 ? dbSubjects.map(s => ({ value: s.name, label: s.name })) : subjectOptions} 
+                        />
+                        <MultiSelect 
+                          label="Assigned Grades" 
+                          name="grades" 
+                          value={formData.grades || []} 
+                          onChange={(val) => setFormData(p => ({ ...p, grades: val }))} 
+                          options={dbGrades.length > 0 ? dbGrades.map(g => ({ value: g.name, label: g.name })) : gradeOptions} 
+                        />
                         <FormGroup label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} />
                         <FormGroup label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} type="select" options={coordinatorOptions} />
                         <FormGroup label="Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
@@ -535,10 +543,10 @@ const TeacherProfile = () => {
                         <div>
                           <SectionTitle title="Assigned Curriculum Nodes" />
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => c.name || c.subject))] : (teacher?.subjects || [])).map((s, i) => (
+                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => c.name || c.subject))] : (teacher?.subjects?.length > 0 ? teacher.subjects : (teacher?.subject ? [teacher.subject] : []))).map((s, i) => (
                               <Badge key={i} text={s} color="var(--brand-green)" />
                             ))}
-                            {teacherCourses.length === 0 && (!teacher?.subjects || teacher.subjects.length === 0) && <p style={{ color: 'var(--brand-slate-400)', fontSize: '14px' }}>No subjects assigned</p>}
+                            {teacherCourses.length === 0 && (!teacher?.subjects || teacher.subjects.length === 0) && !teacher?.subject && <p style={{ color: 'var(--brand-slate-400)', fontSize: '14px' }}>No subjects assigned</p>}
                           </div>
                         </div>
                         <div>

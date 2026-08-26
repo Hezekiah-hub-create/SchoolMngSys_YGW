@@ -220,7 +220,7 @@ const AddStudent = () => {
 
   const handleLogout = async () => {
     try { await logout(); } 
-    finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); }
+    finally { localStorage.removeItem('authUser'); navigate('/login'); }
   };
 
   return (

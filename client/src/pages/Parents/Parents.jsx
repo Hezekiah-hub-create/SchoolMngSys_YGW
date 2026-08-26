@@ -45,7 +45,7 @@ const Parents = () => {
   }, [search]);
 
   const handleLogout = async () => {
-    try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); }
+    try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); }
   };
 
   const handleAddParent = () => navigate('/parents/add');

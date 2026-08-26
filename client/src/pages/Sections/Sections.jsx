@@ -210,7 +210,7 @@ const Sections = () => {
                             <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Scholars</span>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{Math.round((tierScholars / (tierSections.length * 40 || 1)) * 100)}%</span>
+                            <span style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>{Math.round((tierScholars / (Math.max(tierSections.length, 1) * 40)) * 100)}%</span>
                             <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' }}>Density</span>
                           </div>
                         </div>

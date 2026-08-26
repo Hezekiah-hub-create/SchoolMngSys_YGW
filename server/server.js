@@ -1,13 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
 const courseRoutes = require('./routes/courseRoutes');
-const feeRoutes = require('./routes/feeRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const gradeRoutes = require('./routes/gradeRoutes');
 const parentRoutes = require('./routes/parentRoutes');
@@ -21,9 +21,6 @@ const auditRoutes = require('./routes/auditRoutes');
 
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const examRoutes = require('./routes/examRoutes');
-const expenseRoutes = require('./routes/expenseRoutes');
-const incomeRoutes = require('./routes/incomeRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
 const gradeMasterRoutes = require('./routes/gradeMasterRoutes');
 const classRoutes = require('./routes/classRoutes');
 const sectionRoutes = require('./routes/sectionRoutes');
@@ -38,7 +35,27 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 const path = require('path');
-app.use(cors());
+
+// CORS: explicit origins required for credentials (cookies)
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://school-mng-sys-ygw-client.vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
+app.use(cookieParser());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -78,7 +95,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/courses', courseRoutes);
-app.use('/api/fees', feeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/grades/masters', gradeMasterRoutes);
 app.use('/api/grades', gradeRoutes);
@@ -92,9 +108,6 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/exams', examRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/income', incomeRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/sections', sectionRoutes);
 app.use('/api/subjects', subjectRoutes);

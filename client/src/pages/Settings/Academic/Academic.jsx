@@ -136,7 +136,7 @@ const SettingsAcademic = () => {
     }
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
 
 
@@ -222,7 +222,7 @@ const SettingsAcademic = () => {
               <label className="settings-label">Active Operational Term</label>
               <PremiumSelect 
                 value={settings.current_term}
-                onChange={(val) => handleInputChange({ target: { name: 'current_term', value: val } })}
+                onChange={(e) => handleInputChange({ target: { name: 'current_term', value: e.target.value } })}
                 options={[
                   { value: '1st', label: 'First Academic Term' },
                   { value: '2nd', label: 'Second Academic Term' },
@@ -474,7 +474,7 @@ const SettingsAcademic = () => {
                   <label className="settings-label">Status</label>
                   <PremiumSelect 
                     value={currentCalEvent.status} 
-                    onChange={val => setCurrentCalEvent(p => ({...p, status: val}))}
+                    onChange={(e) => setCurrentCalEvent(p => ({...p, status: e.target.value}))}
                     options={[
                       { value: 'Pending', label: 'Pending' },
                       { value: 'Ongoing', label: 'Ongoing' },

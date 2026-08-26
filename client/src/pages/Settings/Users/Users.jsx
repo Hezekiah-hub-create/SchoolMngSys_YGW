@@ -8,6 +8,7 @@ import '../Settings.css';
 const SettingsUsers = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { showAlert } = require('../../../context/AlertContext').useAlert();
   const [activeMenu, setActiveMenu] = useState('Settings');
   const [loading, setLoading] = useState(true);
   const [identities, setIdentities] = useState([]);
@@ -30,7 +31,7 @@ const SettingsUsers = () => {
     fetchIdentities();
   }, []);
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const filteredIdentities = identities.filter(id => 
     id.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -67,7 +68,7 @@ const SettingsUsers = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <button className="premium-btn-primary" style={{ padding: '10px 20px', fontSize: '13px', borderRadius: '14px' }}>
+              <button className="premium-btn-primary" onClick={() => showAlert({ type: 'info', title: 'New Identity', message: 'Identity creation modal is under construction.' })} style={{ padding: '10px 20px', fontSize: '13px', borderRadius: '14px' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ marginRight: '6px' }}><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>
                 New Identity
               </button>
@@ -129,8 +130,8 @@ const SettingsUsers = () => {
                       </td>
                       <td style={{ padding: '20px 32px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                          <button className="premium-btn-secondary" style={{ padding: '8px 14px', fontSize: '12px', borderRadius: '10px' }}>Configure</button>
-                          <button style={{ padding: '8px 14px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2', borderRadius: '10px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>Revoke</button>
+                          <button className="premium-btn-secondary" onClick={() => showAlert({ type: 'info', title: 'Configure Identity', message: 'Configuration panel opening soon.' })} style={{ padding: '8px 14px', fontSize: '12px', borderRadius: '10px' }}>Configure</button>
+                          <button onClick={() => showAlert({ type: 'warning', title: 'Revoke Identity', message: 'Identity revocation requires superadmin approval.' })} style={{ padding: '8px 14px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2', borderRadius: '10px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>Revoke</button>
                         </div>
                       </td>
                     </tr>

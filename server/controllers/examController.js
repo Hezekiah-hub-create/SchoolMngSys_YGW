@@ -152,6 +152,7 @@ exports.getExamResults = asyncHandler(async (req, res) => {
       id: g.id,
       studentId: g.student_id,
       studentName: student ? `${student.first_name} ${student.last_name}` : 'Unknown Scholar',
+      gender: student?.gender,
       admissionNumber: student?.admission_number,
       section: student?.section || 'Yellow',
       subject: subject?.name || 'General Subject',

@@ -37,6 +37,7 @@ import {
 } from '../../services/api';
 import RLogo from '../../assets/R.png';
 import UbsLogo from '../../assets/UBS.png';
+import { kgAssessments } from '../../utils/kgAssessments';
 import './Reports.css';
 
 const mapSectionName = (name) => {
@@ -87,11 +88,12 @@ const Reports = () => {
     const normalize = (s) => String(s).toLowerCase()
       .replace(/primary|basic/g, 'basic')
       .replace(/kindergarten|kg/g, 'kg')
+      .replace(/\s+/g, '')
       .trim();
-    return normalize(g1) === normalize(g2);
+    return normalize(g1) === normalize(g2) || normalize(g1).includes(normalize(g2)) || normalize(g2).includes(normalize(g1));
   };
 
-  const filteredSections = sections.filter(s => isGradeMatch(s.grade, selectedGrade));
+  const filteredSections = sections.filter(s => isGradeMatch(s.grade || s.class_name, selectedGrade));
   
   const filteredStudents = students.filter(s => {
     const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
@@ -109,12 +111,12 @@ const Reports = () => {
   }, [isParent]);
 
   useEffect(() => {
-    if (selectedSection) {
+    if (selectedGrade && !isParent) {
       fetchStudents(selectedSection);
     } else {
       setStudents([]);
     }
-  }, [selectedSection]);
+  }, [selectedGrade, selectedSection, isParent]);
 
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
 
@@ -211,10 +213,20 @@ const Reports = () => {
         settingsAPI.getSettings().catch(() => ({ data: { data: null } }))
       ]);
       
-      const secData = secRes.data?.data || secRes.data || [];
-      const allowedGrades = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+      const allowedGrades = ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
       let classData = classRes.data?.data || classRes.data || [];
       classData = classData.filter(g => allowedGrades.includes(g.name));
+      
+      if (classData.length === 0) {
+        classData = allowedGrades.map((g, i) => ({ id: `grade-${i}`, name: g }));
+      }
+
+      const secData = secRes.data?.data || secRes.data || [];
+      let finalSecData = Array.isArray(secData) ? secData : [];
+      if (finalSecData.length === 0) {
+        finalSecData = allowedGrades.flatMap((g, i) => ['A', 'B', 'C', 'D'].map((s, j) => ({ id: `sec-${i}-${j}`, name: s, class_id: `grade-${i}`, grade: g })));
+      }
+
       const settingsData = settingsRes.data?.settings || settingsRes.data?.data || settingsRes.data;
 
       if (settingsData) {
@@ -225,7 +237,7 @@ const Reports = () => {
         }
       }
       
-      setSections(Array.isArray(secData) ? secData : []);
+      setSections(finalSecData);
       setGrades(Array.isArray(classData) ? classData : []);
       
       if (classData.length > 0 && !selectedGrade) {
@@ -246,18 +258,21 @@ const Reports = () => {
   };
 
   const fetchStudents = async (sectionId) => {
-    if (!sectionId || !selectedGrade) return;
+    if (!selectedGrade) return;
     
     setIsLoadingStudents(true);
     try {
-      const sectionObj = sections.find(s => s.id === sectionId);
-      const sectionName = sectionObj ? sectionObj.name : '';
-      
-      const response = await studentAPI.getAll({ 
+      const params = { 
         grade: selectedGrade, 
-        section: sectionName,
         limit: 'none'
-      });
+      };
+      
+      if (sectionId) {
+        const sectionObj = sections.find(s => s.id === sectionId);
+        params.section = sectionObj ? sectionObj.name : sectionId;
+      }
+      
+      const response = await studentAPI.getAll(params);
       
       const data = response.data?.data || response.data || [];
       setStudents(Array.isArray(data) ? data : []);
@@ -464,7 +479,6 @@ const Reports = () => {
   const handleGradeChange = (val) => {
     setSelectedGrade(val);
     setSelectedSection('');
-    setStudents([]);
   };
 
   const [sendingToParents, setSendingToParents] = useState(false);
@@ -511,13 +525,21 @@ const Reports = () => {
     allowedSections = filteredSections.filter(s => masteredSectionIds.includes(String(s.id)));
   }
 
-  const gradeOptions = allowedGrades.map(g => {
-    let label = g.name.replace(/Primary|Basic/i, 'Basic');
-    if (g.name.toUpperCase().includes('JHS 1') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS1') label = 'Basic 7';
-    if (g.name.toUpperCase().includes('JHS 2') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS2') label = 'Basic 8';
-    if (g.name.toUpperCase().includes('JHS 3') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS3') label = 'Basic 9';
-    return { value: g.name, label };
-  });
+  const seenGradeValues = new Set();
+  const gradeOptions = allowedGrades
+    .map(g => {
+      let label = g.name.replace(/Primary|Basic/i, 'Basic');
+      if (g.name.toUpperCase().includes('JHS 1') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS1') label = 'Basic 7';
+      if (g.name.toUpperCase().includes('JHS 2') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS2') label = 'Basic 8';
+      if (g.name.toUpperCase().includes('JHS 3') || g.name.toUpperCase().replace(/\s/g, '') === 'JHS3') label = 'Basic 9';
+      return { value: g.name, label };
+    })
+    .filter(opt => !opt.value.toUpperCase().includes('KG 3'))
+    .filter(opt => {
+      if (seenGradeValues.has(opt.value)) return false;
+      seenGradeValues.add(opt.value);
+      return true;
+    });
 
 
 
@@ -1025,9 +1047,14 @@ const Reports = () => {
                         type: reportType
                       }} />
                     ) : (
-                      generatedReports.map((report, idx) => (
-                        <ReportTemplate key={idx} data={report} />
-                      ))
+                      generatedReports.map((report, idx) => {
+                        const isKG = report.class?.toUpperCase().includes('KG') || report.grade?.toUpperCase().includes('KG') || report.student?.class?.toUpperCase().includes('KG');
+                        return isKG ? (
+                          <KGReportTemplate key={idx} data={report} />
+                        ) : (
+                          <ReportTemplate key={idx} data={report} />
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -1441,6 +1468,150 @@ const CohortSummaryTemplate = ({ reports, filters }) => {
           <div style={{ textAlign: 'center' }}>
             <div style={{ borderBottom: '1.5px solid black', width: '200px', marginBottom: '8px' }}></div>
             <div style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase' }}>Head of School's Signature</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const KGReportTemplate = ({ data }) => {
+  const allSubjects = [...(data.subjects || []), ...(data.electives || [])];
+
+  const getSubjectAssessments = (subjectKey) => {
+    // Attempt to find the course by partial match since the DB course name might be 'KG-LAL' or 'Language and Literacy'
+    const sub = allSubjects.find(s => s.name?.toUpperCase().includes(subjectKey.toUpperCase()) || s.courseName?.toUpperCase().includes(subjectKey.toUpperCase()) || (subjectKey === 'LANGUAGE AND LITERACY' && s.name?.toUpperCase().includes('LANGUAGE')));
+    if (!sub || !sub.assessments) return {};
+    const map = {};
+    (sub.assessments || []).forEach(a => { map[a.name] = a.score; });
+    return map;
+  };
+
+  return (
+    <div className="report-card printable-report" style={{ width: '100%', minHeight: '297mm', backgroundColor: 'white', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.03, pointerEvents: 'none', zIndex: 0 }}>
+        <img src={UbsLogo} alt="Watermark" style={{ width: '600px', height: '600px', objectFit: 'contain', filter: 'grayscale(100%)' }} />
+      </div>
+
+      <div style={{ padding: '40px', position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        
+        {/* Header matching docx exactly */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '3px solid #0f172a', paddingBottom: '10px', marginBottom: '20px' }}>
+          <img src={RLogo} alt="School Logo Left" style={{ width: '90px', height: '90px', objectFit: 'contain' }} />
+          <div style={{ textAlign: 'center', flex: 1, margin: '0 20px' }}>
+            <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '1000', color: '#cbd5e1', letterSpacing: '1px', WebkitTextStroke: '1px #94a3b8' }}>UHAS BASIC SCHOOL</h1>
+            <h2 style={{ margin: '5px 0 0 0', fontSize: '18px', fontWeight: '900', color: '#94a3b8', letterSpacing: '2px' }}>ASSESSMENT REPORT</h2>
+          </div>
+          <img src={UbsLogo} alt="School Logo Right" style={{ width: '90px', height: '90px', objectFit: 'contain' }} />
+        </div>
+
+        {/* Student Info */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', marginBottom: '10px', fontSize: '14px' }}>
+            <div style={{ fontWeight: '900', width: '130px' }}>STUDENT NAME:</div>
+            <div style={{ fontWeight: '800', flex: 1 }}>{data.studentName?.toUpperCase()}</div>
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px' }}>
+            <div style={{ display: 'flex', width: '33%' }}>
+              <span style={{ fontWeight: '900', marginRight: '10px' }}>CLASS:</span>
+              <span style={{ fontWeight: '800' }}>{data.class}</span>
+            </div>
+            <div style={{ display: 'flex', width: '33%' }}>
+              <span style={{ fontWeight: '900', marginRight: '10px' }}>NUMBER ON ROLL:</span>
+              <span style={{ fontWeight: '800' }}>{data.totalStudents || ''}</span>
+            </div>
+            <div style={{ display: 'flex', width: '33%' }}>
+              <span style={{ fontWeight: '900', marginRight: '10px' }}>TERM:</span>
+              <span style={{ fontWeight: '800' }}>{data.term}</span>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+            <div style={{ display: 'flex', width: '33%' }}>
+              <span style={{ fontWeight: '900', marginRight: '10px' }}>DATE:</span>
+              <span style={{ fontWeight: '800' }}>{data.date || new Date().toLocaleDateString()}</span>
+            </div>
+            <div style={{ display: 'flex', width: '33%' }}>
+              <span style={{ fontWeight: '900', marginRight: '10px' }}>NEXT TERM BEGINS:</span>
+              <span style={{ fontWeight: '800' }}>{data.resumptionDate || ''}</span>
+            </div>
+            <div style={{ display: 'flex', width: '33%' }}>
+              <span style={{ fontWeight: '900', marginRight: '10px' }}>YEAR:</span>
+              <span style={{ fontWeight: '800' }}>{data.year || data.academicYear}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Grades Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid black', fontSize: '13px', marginBottom: '30px' }}>
+          <thead>
+            <tr>
+              <th rowSpan={2} style={{ border: '1px solid black', padding: '8px', width: '20%', textAlign: 'center' }}>SUBJECT</th>
+              <th rowSpan={2} style={{ border: '1px solid black', padding: '8px', width: '65%', textAlign: 'center' }}>AREAS OF ASSESSMENT</th>
+              <th colSpan={3} style={{ border: '1px solid black', padding: '4px', width: '15%', textAlign: 'center' }}>GRADE</th>
+            </tr>
+            <tr>
+              <th style={{ border: '1px solid black', padding: '4px', textAlign: 'center', width: '5%' }}>G</th>
+              <th style={{ border: '1px solid black', padding: '4px', textAlign: 'center', width: '5%' }}>PS</th>
+              <th style={{ border: '1px solid black', padding: '4px', textAlign: 'center', width: '5%' }}>NI</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(kgAssessments).map(([subject, areas]) => {
+              const assessments = getSubjectAssessments(subject);
+              return areas.map((area, index) => {
+                const val = assessments[area];
+                return (
+                  <tr key={`${subject}-${index}`}>
+                    {index === 0 && (
+                      <td rowSpan={areas.length} style={{ border: '1px solid black', padding: '8px', fontWeight: '900', textAlign: 'center' }}>
+                        {subject}
+                      </td>
+                    )}
+                    <td style={{ border: '1px solid black', padding: '4px 8px' }}>{area}</td>
+                    <td style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>{val === 'G' ? '✓' : ''}</td>
+                    <td style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>{val === 'PS' ? '✓' : ''}</td>
+                    <td style={{ border: '1px solid black', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>{val === 'NI' ? '✓' : ''}</td>
+                  </tr>
+                );
+              });
+            })}
+          </tbody>
+        </table>
+
+        {/* Footer Area */}
+        <div style={{ marginTop: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '14px', fontWeight: '900' }}>
+            <div>Attendance: <span style={{ fontWeight: '800' }}>{data.attendance || ''}</span></div>
+            <div>Out of: <span style={{ fontWeight: '800' }}>{data.totalDays || ''}</span></div>
+            <div>Promoted to: <span style={{ fontWeight: '800' }}>{data.promotedTo || ''}</span></div>
+          </div>
+          
+          <div style={{ marginBottom: '20px', fontSize: '14px' }}>
+            <span style={{ fontWeight: '900' }}>Class Teacher's Remarks:</span> <span style={{ fontWeight: '800', fontStyle: 'italic' }}>{data.teacherRemarks || ''}</span>
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px', fontSize: '14px' }}>
+            <div style={{ width: '45%' }}>
+              <span style={{ fontWeight: '900' }}>Class Teacher's Signature:</span> <span style={{ display: 'inline-block', width: '150px', borderBottom: '1px solid black' }}></span>
+            </div>
+            <div style={{ width: '45%', textAlign: 'right' }}>
+              <span style={{ fontWeight: '900' }}>Head of School's Signature:</span> <span style={{ display: 'inline-block', width: '150px', borderBottom: '1px solid black' }}></span>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', fontSize: '11px' }}>
+            <div style={{ fontWeight: '900', marginBottom: '5px' }}>INTERPRETATION OF GRADING SYSTEM</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#f1f5f9', padding: '8px', fontWeight: '800' }}>
+              <div style={{ width: '33%' }}>GOOD<br/>G</div>
+              <div style={{ width: '33%' }}>PROGRESSIVELY SATISFACTORY<br/>PS</div>
+              <div style={{ width: '33%' }}>NEEDS IMPROVEMENT<br/>NI</div>
+            </div>
+          </div>
+          
+          <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '18px', fontWeight: '900', fontStyle: 'italic', color: '#94a3b8' }}>
+            Learning Today, Leading Tomorrow
           </div>
         </div>
       </div>

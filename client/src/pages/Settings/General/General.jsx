@@ -45,7 +45,7 @@ const General = () => {
   }, []);
 
   const handleLogout = async () => {
-    try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); navigate('/login'); }
+    try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); }
   };
 
   const handleChange = (field, value) => {
@@ -164,7 +164,7 @@ const General = () => {
                 <label className="settings-label">Active Operational Term</label>
                 <PremiumSelect 
                   value={settings.current_term || settings.currentTerm || ''}
-                  onChange={(val) => handleChange('current_term', val)}
+                  onChange={(e) => handleChange('current_term', e.target.value)}
                   options={[
                     { value: '1st', label: '1st Term' },
                     { value: '2nd', label: '2nd Term' },
@@ -195,7 +195,7 @@ const General = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'white', borderRadius: '16px', border: '1.5px solid var(--slate-100)', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleChange('emailNotifications', !settings.emailNotifications)}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'white', borderRadius: '16px', border: '1.5px solid var(--slate-100)', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleChange('email_notifications', !(settings.email_notifications ?? settings.emailNotifications ?? false))}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ padding: '10px', backgroundColor: '#f0fdf4', borderRadius: '10px', color: 'var(--brand-green)' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -205,10 +205,10 @@ const General = () => {
                     <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Automated reports and alerts</p>
                   </div>
                 </div>
-                <input type="checkbox" checked={settings.email_notifications || settings.emailNotifications} readOnly style={{ width: '20px', height: '20px', accentColor: 'var(--brand-green)' }} />
+                <input type="checkbox" checked={settings.email_notifications ?? settings.emailNotifications ?? false} readOnly style={{ width: '20px', height: '20px', accentColor: 'var(--brand-green)' }} />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'white', borderRadius: '16px', border: '1.5px solid var(--slate-100)', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleChange('smsNotifications', !settings.smsNotifications)}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'white', borderRadius: '16px', border: '1.5px solid var(--slate-100)', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleChange('sms_notifications', !(settings.sms_notifications ?? settings.smsNotifications ?? false))}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ padding: '10px', backgroundColor: '#fffbeb', borderRadius: '10px', color: 'var(--brand-yellow)' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
@@ -218,10 +218,10 @@ const General = () => {
                     <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Critical mobile notifications</p>
                   </div>
                 </div>
-                <input type="checkbox" checked={settings.sms_notifications || settings.smsNotifications} readOnly style={{ width: '20px', height: '20px', accentColor: 'var(--brand-green)' }} />
+                <input type="checkbox" checked={settings.sms_notifications ?? settings.smsNotifications ?? false} readOnly style={{ width: '20px', height: '20px', accentColor: 'var(--brand-green)' }} />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'white', borderRadius: '16px', border: '1.5px solid var(--slate-100)', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleChange('pushNotifications', !settings.pushNotifications)}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'white', borderRadius: '16px', border: '1.5px solid var(--slate-100)', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleChange('push_notifications', !(settings.push_notifications ?? settings.pushNotifications ?? false))}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '10px', color: '#0284c7' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -231,7 +231,7 @@ const General = () => {
                     <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '500' }}>In-app push synchrony</p>
                   </div>
                 </div>
-                <input type="checkbox" checked={settings.push_notifications || settings.pushNotifications} readOnly style={{ width: '20px', height: '20px', accentColor: 'var(--brand-green)' }} />
+                <input type="checkbox" checked={settings.push_notifications ?? settings.pushNotifications ?? false} readOnly style={{ width: '20px', height: '20px', accentColor: 'var(--brand-green)' }} />
               </div>
             </div>
 

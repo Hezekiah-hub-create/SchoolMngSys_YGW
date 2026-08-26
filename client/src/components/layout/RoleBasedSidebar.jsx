@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Menu configurations for each role
 const menuConfigs = {
@@ -49,25 +49,13 @@ const menuConfigs = {
         { name: 'Marks Entry', path: '/exams/marks' }
       ]
     },
-    { 
-      name: 'Fees & Finance', 
-      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
-      expandable: true,
-      subItems: [
-        { name: 'Overview', path: '/fees' },
-        { name: 'Fee Structure', path: '/fees/structure' },
-        { name: 'Collection', path: '/fees/collection' },
-        { name: 'Expenses', path: '/fees/expenses' },
-        { name: 'Income', path: '/fees/income' }
-      ]
-    },
+
     { 
       name: 'Reports', 
       icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', 
       expandable: true,
       subItems: [
         { name: 'Academic Reports', path: '/reports/academic' },
-        { name: 'Financial Reports', path: '/reports/financial' },
         { name: 'Staff Reports', path: '/reports/staff' }
       ]
     },
@@ -108,25 +96,9 @@ const menuConfigs = {
       path: '/exams'
     },
     { name: 'Terminal Reports', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', path: '/reports/academic' },
-    { name: 'Fees & Payments', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', path: '/fees' },
     { name: 'Announcements', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', path: '/announcements' },
   ],
-  finance: [
-    { name: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', path: '/finance-dashboard' },
-    { 
-      name: 'Fees & Finance', 
-      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
-      expandable: true,
-      subItems: [
-        { name: 'Overview', path: '/fees' },
-        { name: 'Collection', path: '/fees/collection' },
-        { name: 'Expenses', path: '/fees/expenses' },
-        { name: 'Income', path: '/fees/income' }
-      ]
-    },
-    { name: 'Students', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', path: '/students' },
-    { name: 'Financial Report', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', path: '/reports/financial' },
-  ],
+
   itsupport: [
     { name: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', path: '/it-dashboard' },
     { name: 'Exam Schedule', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', path: '/exams/schedule' },
@@ -178,6 +150,7 @@ const accountItems = [
 
 const RoleBasedSidebar = ({ user, onLogout, activeMenu, setActiveMenu }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [expandedItems, setExpandedItems] = useState({});
   const [isOpen, setIsOpen] = useState(false);
 
@@ -186,6 +159,14 @@ const RoleBasedSidebar = ({ user, onLogout, activeMenu, setActiveMenu }) => {
     window.addEventListener('toggle-sidebar', handleToggle);
     return () => window.removeEventListener('toggle-sidebar', handleToggle);
   }, []);
+  
+  const isItemActive = (item) => {
+    if (item.path && (location.pathname === item.path || location.pathname.startsWith(item.path + '/'))) return true;
+    if (item.subItems) {
+      return item.subItems.some(subItem => location.pathname === subItem.path || location.pathname.startsWith(subItem.path + '/'));
+    }
+    return false;
+  };
   
   const role = user?.role || 'admin';
   let menuItems = [...(menuConfigs[role] || menuConfigs.admin)];
@@ -332,7 +313,9 @@ return (
           Navigation
         </p>
         
-        {menuItems.map((item) => (
+        {menuItems.map((item) => {
+          const isActive = isItemActive(item);
+          return (
           <div key={item.name}>
             <button
               onClick={() => handleMenuClick(item)}
@@ -343,23 +326,23 @@ return (
                 justifyContent: 'space-between',
                 padding: '12px 14px',
                 borderRadius: '12px',
-                backgroundColor: activeMenu === item.name ? 'rgba(255,255,255,0.15)' : 'transparent',
+                backgroundColor: isActive ? 'rgba(255,255,255,0.15)' : 'transparent',
                 border: 'none',
-                color: activeMenu === item.name ? 'white' : 'rgba(255,255,255,0.6)',
+                color: isActive ? 'white' : 'rgba(255,255,255,0.6)',
                 cursor: 'pointer',
                 marginBottom: '6px',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: activeMenu === item.name ? '3px solid var(--brand-yellow)' : '3px solid transparent'
+                borderLeft: isActive ? '3px solid var(--brand-yellow)' : '3px solid transparent'
               }}
 
               onMouseOver={(e) => {
-                if (activeMenu !== item.name) {
+                if (!isActive) {
                   e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
                   e.currentTarget.style.color = 'white';
                 }
               }}
               onMouseOut={(e) => {
-                if (activeMenu !== item.name) {
+                if (!isActive) {
                   e.currentTarget.style.backgroundColor = 'transparent';
                   e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
                 }
@@ -369,7 +352,7 @@ return (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
                 </svg>
-                <span style={{ fontSize: '14px', fontWeight: activeMenu === item.name ? '700' : '500' }}>{item.name}</span>
+                <span style={{ fontSize: '14px', fontWeight: isActive ? '700' : '500' }}>{item.name}</span>
               </div>
               {item.expandable && (
                 <svg 
@@ -387,47 +370,53 @@ return (
             </button>
             
             {/* Sub-items - Pill-style dropdown on green background */}
-            {item.subItems && expandedItems[item.name] && (
+            {item.subItems && (expandedItems[item.name] || (isActive && Object.keys(expandedItems).length === 0)) && (
               <div style={{ marginLeft: '12px', marginBottom: '8px', padding: '6px', backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: '12px' }}>
-                {item.subItems.map((subItem, index) => (
+                {item.subItems.map((subItem, index) => {
+                  const isSubActive = location.pathname === subItem.path || location.pathname.startsWith(subItem.path + '/');
+                  return (
                   <button
                     key={index}
                     onClick={() => {
                       if (subItem.path) {
                         navigate(subItem.path);
-                        setActiveMenu(subItem.name);
+                        if (typeof setActiveMenu === 'function') setActiveMenu(subItem.name);
                       }
                     }}
                     style={{
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '10px',
-                      backgroundColor: 'transparent',
+                      backgroundColor: isSubActive ? 'rgba(255,255,255,0.15)' : 'transparent',
                       border: 'none',
-                      color: 'rgba(255,255,255,0.7)',
+                      color: isSubActive ? 'white' : 'rgba(255,255,255,0.7)',
                       cursor: 'pointer',
                       fontSize: '13px',
                       textAlign: 'left',
                       marginBottom: '4px',
-                      fontWeight: '500',
+                      fontWeight: isSubActive ? '700' : '500',
                       transition: 'all 0.2s'
                     }}
                     onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
-                      e.currentTarget.style.color = 'white';
+                      if (!isSubActive) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
+                        e.currentTarget.style.color = 'white';
+                      }
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                      if (!isSubActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                      }
                     }}
                   >
                     {subItem.name}
                   </button>
-                ))}
+                )})}
               </div>
             )}
           </div>
-        ))}
+        )})}
       </div>
 
       {/* Account Section */}
@@ -444,7 +433,9 @@ return (
           Account
         </p>
         
-        {accountItems.map((item) => (
+        {accountItems.map((item) => {
+          const isActive = isItemActive(item);
+          return (
           <button
             key={item.name}
             onClick={() => handleMenuClick(item)}
@@ -455,29 +446,33 @@ return (
               gap: '12px',
               padding: '12px 14px',
               borderRadius: '12px',
-              backgroundColor: 'transparent',
+              backgroundColor: isActive ? 'rgba(255,255,255,0.15)' : 'transparent',
               border: 'none',
-              color: 'rgba(255,255,255,0.7)',
+              color: isActive ? 'white' : 'rgba(255,255,255,0.7)',
               cursor: 'pointer',
               marginBottom: '4px',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              borderLeft: isActive ? '3px solid var(--brand-yellow)' : '3px solid transparent'
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-              e.currentTarget.style.color = 'white';
+              if (!isActive) {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                e.currentTarget.style.color = 'white';
+              }
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+              if (!isActive) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+              }
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
             </svg>
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.name}</span>
+            <span style={{ fontSize: '14px', fontWeight: isActive ? '700' : '500' }}>{item.name}</span>
           </button>
-        ))
-        }
+        )})}
         
         {/* Sign Out Button */}
         <button

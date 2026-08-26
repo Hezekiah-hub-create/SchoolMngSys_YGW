@@ -223,10 +223,14 @@ const updateParent = asyncHandler(async (req, res) => {
 
   // Sync with users table if name changed
   if ((updates.first_name || updates.last_name) && updatedParent.user_id) {
-    await supabase.from('users').update({
-      first_name: updatedParent.first_name,
-      last_name: updatedParent.last_name
-    }).eq('id', updatedParent.user_id);
+    await supabaseService.update(
+      COLLECTIONS.USERS,
+      updatedParent.user_id,
+      {
+        first_name: updatedParent.first_name,
+        last_name: updatedParent.last_name
+      }
+    );
   }
 
   res.json({

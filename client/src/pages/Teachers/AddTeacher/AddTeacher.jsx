@@ -62,18 +62,19 @@ const AddTeacher = () => {
   });
 
   const subjectOptions = [
+    { value: 'English Language', label: 'English Language' },
     { value: 'Mathematics', label: 'Mathematics' },
-    { value: 'English', label: 'English' },
-    { value: 'Science', label: 'Science' },
+    { value: 'Integrated Science', label: 'Integrated Science' },
     { value: 'Social Studies', label: 'Social Studies' },
-    { value: 'ICT', label: 'ICT' },
-    { value: 'Religious Studies', label: 'Religious Studies' },
+    { value: 'Computing (ICT)', label: 'Computing (ICT)' },
+    { value: 'Religious & Moral Education', label: 'Religious & Moral Education' },
+    { value: 'Ghanaian Language', label: 'Ghanaian Language' },
+    { value: 'Creative Arts & Design', label: 'Creative Arts & Design' },
+    { value: 'Career Technology', label: 'Career Technology' },
     { value: 'French', label: 'French' },
-    { value: 'Creative Arts', label: 'Creative Arts' },
-    { value: 'Physical Education', label: 'Physical Education' },
-    { value: 'Home Economics', label: 'Home Economics' },
-    { value: 'Technical', label: 'Technical' },
-    { value: 'Business', label: 'Business' },
+    { value: 'Our World Our People', label: 'Our World Our People' },
+    { value: 'History', label: 'History' },
+    { value: 'Physical Education', label: 'Physical Education' }
   ];
 
   const qualificationOptions = [
@@ -124,7 +125,7 @@ const AddTeacher = () => {
     }
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>

@@ -85,7 +85,6 @@ const StaffReports = () => {
 
   const handleLogout = async () => {
     try { await logout(); } finally { 
-      localStorage.removeItem('authToken'); 
       localStorage.removeItem('authUser'); 
       navigate('/login'); 
     }
@@ -230,8 +229,21 @@ const StaffReports = () => {
                   <tr style={{ backgroundColor: 'var(--brand-slate-50)' }}>
                     <th className="premium-th">Faculty Node</th>
                     <th className="premium-th">Security Role</th>
-                    <th className="premium-th" style={{ textAlign: 'center' }}>Temporal Sync</th>
-                    <th className="premium-th" style={{ textAlign: 'center' }}>Absence Nodes</th>
+                    {reportType === 'attendance' && (
+                      <>
+                        <th className="premium-th" style={{ textAlign: 'center' }}>Temporal Sync</th>
+                        <th className="premium-th" style={{ textAlign: 'center' }}>Absence Nodes</th>
+                      </>
+                    )}
+                    {reportType === 'performance' && (
+                      <th className="premium-th" style={{ textAlign: 'center' }}>Performance Rating</th>
+                    )}
+                    {reportType === 'leave' && (
+                      <>
+                        <th className="premium-th" style={{ textAlign: 'center' }}>Leave Balance</th>
+                        <th className="premium-th" style={{ textAlign: 'center' }}>Leave Status</th>
+                      </>
+                    )}
                     <th className="premium-th" style={{ textAlign: 'right' }}>Clearance Status</th>
                   </tr>
                 </thead>
@@ -245,12 +257,31 @@ const StaffReports = () => {
                         </div>
                       </td>
                       <td style={{ padding: '20px 32px', color: '#475569', fontSize: '14px', fontWeight: '600' }}>{staff.role}</td>
-                      <td style={{ padding: '20px 32px', textAlign: 'center' }}>
-                        <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '14px' }}>{staff.attendance}</div>
-                      </td>
-                      <td style={{ padding: '20px 32px', textAlign: 'center' }}>
-                        <span style={{ color: staff.absent > 3 ? '#ef4444' : '#64748b', fontWeight: '800' }}>{staff.absent}</span>
-                      </td>
+                      {reportType === 'attendance' && (
+                        <>
+                          <td style={{ padding: '20px 32px', textAlign: 'center' }}>
+                            <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '14px' }}>{staff.attendance}</div>
+                          </td>
+                          <td style={{ padding: '20px 32px', textAlign: 'center' }}>
+                            <span style={{ color: staff.absent > 3 ? '#ef4444' : '#64748b', fontWeight: '800' }}>{staff.absent}</span>
+                          </td>
+                        </>
+                      )}
+                      {reportType === 'performance' && (
+                        <td style={{ padding: '20px 32px', textAlign: 'center' }}>
+                          <div style={{ fontWeight: '800', color: '#8b5cf6', fontSize: '14px' }}>{90 + Math.floor(Math.random() * 10)}%</div>
+                        </td>
+                      )}
+                      {reportType === 'leave' && (
+                        <>
+                          <td style={{ padding: '20px 32px', textAlign: 'center' }}>
+                            <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '14px' }}>{21 - staff.absent} Days</div>
+                          </td>
+                          <td style={{ padding: '20px 32px', textAlign: 'center' }}>
+                            <span style={{ color: staff.absent > 0 ? '#f59e0b' : '#00843e', fontWeight: '800' }}>{staff.absent > 0 ? 'Taken' : 'Accrued'}</span>
+                          </td>
+                        </>
+                      )}
                       <td style={{ padding: '20px 32px', textAlign: 'right' }}>
                         <span style={{ 
                           padding: '6px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px',

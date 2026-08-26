@@ -95,7 +95,7 @@ const PromoteStudents = () => {
     fetchStudents();
   }, [page, filterGrade]);
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const handlePromote = async (studentId, newGrade) => {
     setPromoting(studentId);
@@ -236,7 +236,7 @@ const PromoteStudents = () => {
             </div>
             <button 
               onClick={initializeGlobalAdvancement} 
-              disabled={loading || filteredStudents.length === 0 || (!isAdmin && masterClasses.length === 0)}
+              disabled={loading || totalStudents === 0 || (!isAdmin && masterClasses.length === 0)}
               style={{ 
                 backgroundColor: 'white', 
                 color: 'var(--brand-green)', 

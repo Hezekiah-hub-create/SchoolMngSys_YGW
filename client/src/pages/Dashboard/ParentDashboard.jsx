@@ -138,8 +138,8 @@ const ParentDashboard = () => {
 
   const handleLogout = async () => {
     try { await logout(); } finally {
-      localStorage.removeItem('authToken'); localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken'); navigate('/login');
+      localStorage.removeItem('authUser');
+      navigate('/login');
     }
   };
 
@@ -167,18 +167,13 @@ const ParentDashboard = () => {
               <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>Overseeing the academic trajectory and fiscal status for your <span style={{ color: '#0f172a', fontWeight: '800' }}>Scholar Nodes</span>.</p>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>
-              <button onClick={() => navigate('/fees')} className="premium-btn-secondary" style={{ padding: '14px 24px', backgroundColor: stats.pendingFees > 0 ? '#fef2f2' : 'white', color: stats.pendingFees > 0 ? '#dc2626' : '#64748b' }}>
-                {stats.pendingFees > 0 ? `${stats.pendingFees} Outstanding Protocols` : 'View Fee Ledger'}
-              </button>
               <button onClick={() => navigate('/exams/results')} className="premium-btn-primary" style={{ padding: '14px 24px' }}>Analyze Results</button>
             </div>
           </div>
 
 
-          <div className="responsive-grid-4" style={{ marginBottom: '48px' }}>
+          <div className="responsive-grid-2" style={{ marginBottom: '48px' }}>
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand-green)" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>} title="Scholar Count" value={stats.children} color="var(--brand-green)" loading={loading} subtitle="Registered Scholars" onClick={() => navigate('/students')} />
-            <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2.5"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2"/></svg>} title="Fiscal Ledger" value={stats.fees} color="var(--brand-yellow)" loading={loading} subtitle="Total Records" onClick={() => navigate('/fees')} />
-            <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>} title="Outstanding" value={stats.pendingFees} color="#ef4444" loading={loading} subtitle="Protocols Pending" onClick={() => navigate('/fees')} />
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand-green)" strokeWidth="2.5"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422"/></svg>} title="Scholar Success" value={stats.avgGrade > 0 ? stats.avgGrade + '%' : '—'} color="#06b6d4" loading={loading} subtitle="Avg. Aggregate" onClick={() => navigate('/exams/results')} />
           </div>
 
@@ -319,33 +314,6 @@ const ParentDashboard = () => {
                 </div>
               </div>
 
-              <div className="glass-card" style={{ overflow: 'hidden' }}>
-                <div style={{ padding: '24px 28px', borderBottom: '1.5px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>Fiscal Ledger</h2>
-                  <button onClick={() => navigate('/fees')} className="premium-btn-secondary" style={{ padding: '8px 16px', fontSize: '12px' }}>Verify All</button>
-                </div>
-                <div style={{ padding: '24px' }}>
-                  {loading ? <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Syncing...</div>
-                    : fees.length > 0 ? fees.slice(0, 5).map((fee, i) => {
-                      const student = children.find(c => (c.id || c._id) === (fee.studentId || fee.student?._id || fee.student?.id));
-                      const studentName = student ? `${student.firstName} ${student.lastName}` : (fee.studentName || 'Scholar Node');
-                      return (
-                        <div key={i} onClick={() => navigate('/fees')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < fees.length - 1 ? '1.5px solid #ffffff' : 'none', cursor: 'pointer' }}>
-                          <div>
-                            <span style={{ fontWeight: '900', color: '#0f172a', fontSize: '15px' }}>{studentName}</span>
-                            <br/>
-                            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>{fee.description || 'Institutional Fee'}</span>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontWeight: '950', color: '#0f172a', fontSize: '15px' }}>₵{(fee.amount || fee.amountDue || 0).toLocaleString()}</span>
-                            <br/>
-                            <span style={{ padding: '4px 10px', borderRadius: '24px', fontSize: '10px', fontWeight: '950', backgroundColor: fee.status === 'paid' ? '#f0fdf4' : '#fef2f2', color: fee.status === 'paid' ? 'var(--brand-green)' : '#dc2626', textTransform: 'uppercase' }}>{fee.status || 'Unpaid'}</span>
-                          </div>
-                        </div>
-                      );
-                    }) : <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: '600' }}>No fiscal records.</div>}
-                </div>
-              </div>
 
               <div className="glass-card" style={{ overflow: 'hidden' }}>
                 <div style={{ padding: '24px 28px', borderBottom: '1.5px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

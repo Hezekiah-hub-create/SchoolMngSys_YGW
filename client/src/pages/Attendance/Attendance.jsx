@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI, teacherAPI } from '../../services/api';
+import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI, teacherAPI, academicClassesAPI, academicSectionsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { mapSectionName } from '../../utils/sectionHelper';
 import PremiumDatePicker from '../../components/common/PremiumDatePicker';
@@ -55,6 +55,8 @@ const Attendance = () => {
   const [totalStudents, setTotalStudents] = useState(0);
   const [teacherCourses, setTeacherCourses] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('');
+  const [dbClasses, setDbClasses] = useState([]);
+  const [dbSections, setDbSections] = useState([]);
 
   // Period schedule — each has a label, start (HH:MM 24h), end, and grace minutes before "Late"
   const PERIOD_SCHEDULE = [
@@ -126,13 +128,21 @@ const Attendance = () => {
   const isTeacher = currentUser?.role === 'teacher';
   const isAdmin = currentUser?.role === 'admin';
 
-  // Fetch School Settings (kept for other uses like academic year/term)
+  // Fetch School Settings and Infrastructure
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await settingsAPI.getSettings();
-        if (res.data?.success) setSchoolSettings(res.data.data);
-      } catch (err) { console.error('Error fetching settings:', err); }
+        const [settingsRes, classRes, secRes] = await Promise.all([
+          settingsAPI.getSettings().catch(() => ({ data: { success: false } })),
+          academicClassesAPI.getAll().catch(() => ({ data: { data: [] } })),
+          academicSectionsAPI.getAll().catch(() => ({ data: { data: [] } }))
+        ]);
+        if (settingsRes.data?.success) setSchoolSettings(settingsRes.data.data);
+        const classes = classRes.data?.data || classRes.data || [];
+        const sections = secRes.data?.data || secRes.data || [];
+        setDbClasses(Array.isArray(classes) ? classes : []);
+        setDbSections(Array.isArray(sections) ? sections : []);
+      } catch (err) { console.error('Error fetching settings & infra:', err); }
     };
     fetchSettings();
   }, []);
@@ -255,7 +265,7 @@ const Attendance = () => {
   }, [selectedDate, selectedClass, selectedSection, page, selectedChildId, linkedStudents.length]);
 
   const handleLogout = async () => {
-    try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); }
+    try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); }
   };
 
   const getStatusDataForStudent = (studentId) => {
@@ -401,6 +411,64 @@ const Attendance = () => {
     })
   );
 
+  const standardOrder = ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+
+  const classOptions = useMemo(() => {
+    const uniqueClassNames = new Set();
+    
+    // Add from DB
+    dbClasses.forEach(c => {
+      if (c.name) {
+        let name = c.name.trim();
+        const primaryMatch = name.match(/^Primary\s*([1-6])$/i);
+        if (primaryMatch) name = `Basic ${primaryMatch[1]}`;
+        uniqueClassNames.add(name);
+      }
+    });
+
+    // If DB is empty, fallback to standardOrder
+    if (uniqueClassNames.size === 0) {
+      standardOrder.forEach(g => uniqueClassNames.add(g));
+    }
+
+    // Filter out invalid KG 3 and sort by standard GES order
+    return Array.from(uniqueClassNames)
+      .filter(name => !name.toUpperCase().includes('KG 3'))
+      .sort((a, b) => {
+        const idxA = standardOrder.indexOf(a);
+        const idxB = standardOrder.indexOf(b);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
+      })
+      .map(name => ({ value: name, label: name }));
+  }, [dbClasses]);
+
+  const sectionOptions = useMemo(() => {
+    if (!selectedClass) {
+      return ['A', 'B', 'C', 'D'].map(s => ({ value: s, label: mapSectionName(s) }));
+    }
+    const matchingSections = dbSections.filter(s => {
+      const sGrade = (s.grade || s.class_name || s.class?.name || '').toLowerCase().replace(/\s+/g, '');
+      const selGrade = selectedClass.toLowerCase().replace(/\s+/g, '');
+      return sGrade === selGrade || sGrade.includes(selGrade) || selGrade.includes(sGrade);
+    });
+
+    if (matchingSections.length > 0) {
+      const seen = new Set();
+      return matchingSections
+        .filter(s => {
+          if (!s.name || seen.has(s.name.trim().toUpperCase())) return false;
+          seen.add(s.name.trim().toUpperCase());
+          return true;
+        })
+        .map(s => ({ value: s.name, label: mapSectionName(s.name) }));
+    }
+
+    return ['A', 'B', 'C', 'D'].map(s => ({ value: s, label: mapSectionName(s) }));
+  }, [dbSections, selectedClass]);
+
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <main style={{ padding: '20px 0 60px 0' }}>
@@ -438,8 +506,11 @@ const Attendance = () => {
                           <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Curriculum Tier</span>
                           <PremiumSelect
                             value={selectedClass}
-                            onChange={(e) => setSelectedClass(e.target.value)}
-                            options={['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'].map(g => ({ value: g, label: g }))}
+                            onChange={(e) => {
+                              setSelectedClass(e.target.value);
+                              setSelectedSection('');
+                            }}
+                            options={classOptions}
                             placeholder="Select Tier"
                           />
                         </div>
@@ -448,7 +519,7 @@ const Attendance = () => {
                           <PremiumSelect
                             value={selectedSection}
                             onChange={(e) => setSelectedSection(e.target.value)}
-                            options={['A', 'B', 'C', 'D'].map(s => ({ value: s, label: mapSectionName(s) }))}
+                            options={sectionOptions}
                             placeholder="Select Node"
                           />
                         </div>

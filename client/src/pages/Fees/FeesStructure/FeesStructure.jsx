@@ -112,7 +112,7 @@ const FeesStructure = () => {
     setShowModal(true);
   };
 
-  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); sessionStorage.removeItem('authToken'); navigate('/login'); } };
+  const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const selectedChild = linkedStudents.find(s => s.id === selectedChildId);
   const filteredFees = isParent && selectedChild

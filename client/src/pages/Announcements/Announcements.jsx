@@ -59,9 +59,7 @@ const Announcements = () => {
     try {
       await logout();
     } finally {
-      localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
-      sessionStorage.removeItem('authToken');
       navigate('/login');
     }
   };

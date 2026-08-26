@@ -109,10 +109,24 @@ const getAllStudents = asyncHandler(async (req, res) => {
   // Helper to match grade names
   const isGradeMatch = (g1, g2) => {
     if (!g1 || !g2) return false;
-    const n1 = g1.toLowerCase().trim();
-    const n2 = g2.toLowerCase().trim();
-    // Check for exact match or if one is a substring of the other (for partial search)
-    return n1.includes(n2) || n2.includes(n1);
+    const clean = (s) => String(s).toLowerCase()
+      .replace(/kindergarten/g, 'kg')
+      .replace(/primary/g, 'basic')
+      .replace(/\s+/g, '')
+      .trim();
+    const n1 = clean(g1);
+    const n2 = clean(g2);
+    return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+  };
+
+  // Helper to match section names (e.g. 'Yellow (Y)', 'Yellow', 'A', 'Section A')
+  const normSection = (sec) => {
+    const s = String(sec || '').toLowerCase().replace(/section\s*/i, '').trim();
+    if (s.startsWith('a') || s.includes('yellow')) return 'yellow';
+    if (s.startsWith('b') || s.includes('green')) return 'green';
+    if (s.startsWith('c') || s.includes('red')) return 'red';
+    if (s.startsWith('d') || s.includes('blue')) return 'blue';
+    return s;
   };
 
   // Apply filters
@@ -123,10 +137,10 @@ const getAllStudents = asyncHandler(async (req, res) => {
     students = students.filter(s => isGradeMatch(s.grade, grade));
   }
   if (section) {
-    const normSec = String(section).toLowerCase().replace(/section\s*/i, '').trim();
+    const targetNorm = normSection(section);
     students = students.filter(s => {
-      const sSec = String(s.section || '').toLowerCase().replace(/section\s*/i, '').trim();
-      return sSec === normSec;
+      const sSec = normSection(s.section);
+      return sSec === targetNorm || sSec.includes(targetNorm) || targetNorm.includes(sSec);
     });
   }
   if (academicYear) {
