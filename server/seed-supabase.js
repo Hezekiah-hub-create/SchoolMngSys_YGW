@@ -141,10 +141,6 @@ const seedData = async () => {
     usersData.push({ id: getUId(adminId), email: `${adminId}@uhasbasic.edu.gh`, password: await getHash(`${adminId}uhas_basic_password`), role: 'admin', first_name: 'System', last_name: 'Administrator', phone: '+233501234567', is_active: true });
     staffData.push({ id: getStfId(adminId), user_id: getUId(adminId), employee_id: 'STF0001', first_name: 'System', last_name: 'Administrator', department: 'admin', position: 'Administrator', status: 'active', email: `${adminId}@uhasbasic.edu.gh` });
 
-    const financeId = 'f001';
-    usersData.push({ id: getUId(financeId), email: `${financeId}@uhasbasic.edu.gh`, password: await getHash(`${financeId}uhas_basic_password`), role: 'finance', first_name: 'Michael', last_name: 'Scott', phone: '+233501234588', is_active: true });
-    staffData.push({ id: getStfId(financeId), user_id: getUId(financeId), employee_id: 'STF0002', first_name: 'Michael', last_name: 'Scott', department: 'finance', position: 'Finance Manager', status: 'active', email: `${financeId}@uhasbasic.edu.gh` });
-
     const itId = 'it001';
     usersData.push({ id: getUId(itId), email: `${itId}@uhasbasic.edu.gh`, password: await getHash(`${itId}uhas_basic_password`), role: 'ITSupport', first_name: 'John', last_name: 'Boateng', phone: '+233501234599', is_active: true });
     staffData.push({ id: getStfId(itId), user_id: getUId(itId), employee_id: 'STF0003', first_name: 'John', last_name: 'Boateng', department: 'ITSupport', position: 'IT Support', status: 'active', email: `${itId}@uhasbasic.edu.gh` });
@@ -254,7 +250,7 @@ const seedData = async () => {
     // After the first clean run, subsequent runs will just upsert without deleting.
     console.log('Clearing stale data in FK-safe order...');
     const clearOrder = [
-      'payments', 'fees', 'health_records', 'disciplinary_records',
+      'health_records', 'disciplinary_records',
       'report_cards', 'grades', 'attendance', 'assignments', 'timetable',
       'class_subjects', 'sections', 'academic_classes', 'subjects', 'exams',
       'students', 'parents', 'teachers', 'staff',
@@ -440,48 +436,6 @@ const seedData = async () => {
       console.log(`Upserted ${gradesData.length} grades`);
     }
 
-    // ==================== FEES & PAYMENTS ====================
-    await tryInsert('fees', async () => {
-      const feesMock = [
-        { id: 'fee001', name: 'Term 1 Tuition', grade: 'JHS 1', amount: 1500 },
-        { id: 'fee002', name: 'Term 1 Tuition', grade: 'Basic 6', amount: 1600 },
-        { id: 'fee003', name: 'Term 1 Tuition', grade: 'KG 1', amount: 1400 }
-      ];
-
-      const feesData = feesMock.map(f => ({
-        id: getFId(f.id), name: f.name, academic_year: '2024-2025', term: '1st',
-        grade: f.grade, amount: f.amount, due_date: '2024-09-15'
-      }));
-
-      let { error: feesError } = await supabase
-        .from('fees')
-        .upsert(feesData, { onConflict: 'id' });
-      if (feesError) throw feesError;
-      console.log(`Upserted ${feesData.length} fees`);
-    });
-
-    await tryInsert('payments', async () => {
-      const paymentsData = [];
-      const paymentMethods = ['mobileMoney', 'bankTransfer', 'cash'];
-      const statuses = ['completed', 'completed', 'completed', 'pending'];
-      
-      studentsData.slice(0, 15).forEach((s, index) => {
-        paymentsData.push({
-          student_id: s.id, fee_id: getFId('fee001'), academic_year: '2024-2025', term: '1st', amount: 1500,
-          payment_method: paymentMethods[index % paymentMethods.length], status: statuses[index % statuses.length],
-          receipt_number: `RCP${String(index + 1).padStart(5, '0')}`, payment_date: new Date().toISOString()
-        });
-      });
-
-      if (paymentsData.length > 0) {
-        let { error: paymentsError } = await supabase
-          .from('payments')
-          .upsert(paymentsData, { onConflict: 'receipt_number' });
-        if (paymentsError) throw paymentsError;
-        console.log(`Upserted ${paymentsData.length} payments`);
-      }
-    });
-
     // ==================== NEW SCHEMA TABLES ====================
     // These tables require the updated schema.sql to be applied in the Supabase SQL Editor.
     // If not applied yet, they will be skipped gracefully.
@@ -491,7 +445,7 @@ const seedData = async () => {
         { id: deterministicUUID('ann-001'), title: 'Welcome Back to Term 1!', content: 'Dear students, teachers, and parents, welcome to the 2024-2025 academic year.', priority: 'high', is_published: true, published_at: new Date('2024-09-02').toISOString(), created_by: getUId(adminId) },
         { id: deterministicUUID('ann-002'), title: 'PTA Meeting Notice', content: 'A PTA meeting is scheduled for Saturday 28th September 2024 at 9:00 AM.', priority: 'normal', is_published: true, published_at: new Date('2024-09-15').toISOString(), created_by: getUId(adminId) },
         { id: deterministicUUID('ann-003'), title: 'Mid-Term Examination Timetable', content: 'Mid-term examinations will commence on October 7th.', priority: 'high', is_published: true, published_at: new Date('2024-09-20').toISOString(), created_by: getUId(adminId) },
-        { id: deterministicUUID('ann-004'), title: 'School Fees Reminder', content: 'All outstanding fees for Term 1 must be paid by 30th September 2024.', priority: 'urgent', is_published: true, published_at: new Date('2024-09-18').toISOString(), created_by: getUId(financeId) },
+        { id: deterministicUUID('ann-004'), title: 'School Uniform Policy', content: 'All students are reminded to wear the correct house shirts on Fridays.', priority: 'normal', is_published: true, published_at: new Date('2024-09-18').toISOString(), created_by: getUId(adminId) },
         { id: deterministicUUID('ann-005'), title: 'Inter-House Sports Day', content: 'Annual competition on 15th November 2024. Register with House Masters.', priority: 'normal', is_published: true, published_at: new Date('2024-10-01').toISOString(), created_by: getUId(adminId) }
       ];
       const { error } = await supabase.from('announcements').upsert(announcementsData, { onConflict: 'id' });
@@ -626,7 +580,6 @@ const seedData = async () => {
     console.log('  Teacher:   t001@uhasbasic.edu.gh    / t001uhas_basic_password');
     console.log('  Parent:    p001@uhasbasic.edu.gh    / p001uhas_basic_password');
     console.log('  Student:   s001@uhasbasic.edu.gh    / s001uhas_basic_password');
-    console.log('  Finance:   f001@uhasbasic.edu.gh    / f001uhas_basic_password');
     console.log('  ITSupport: it001@uhasbasic.edu.gh   / it001uhas_basic_password');
 
   } catch (e) {

@@ -225,7 +225,6 @@ const RoleBasedSidebar = ({ user, onLogout, activeMenu, setActiveMenu }) => {
       teacher: { name: 'Teacher', color: 'var(--brand-yellow)' },
       student: { name: 'Student', color: 'var(--brand-yellow)' },
       parent: { name: 'Parent', color: 'var(--brand-yellow)' },
-      finance: { name: 'Finance', color: 'var(--brand-yellow)' },
       itsupport: { name: 'IT Support', color: 'var(--brand-yellow)' },
       admission: { name: 'Admission', color: 'var(--brand-yellow)' },
     };

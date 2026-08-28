@@ -105,7 +105,6 @@ export const parentAPI = {
   migrate: () => api.post('/api/parents/migrate'),
   getChildrenTimetable: (id) => api.get(`/api/parents/${id}/children/timetable`),
   getMyChildren: () => api.get('/api/parents/me/children'),
-  getMyChildrenFees: () => api.get('/api/parents/me/children/fees'),
   getMyChildrenGrades: () => api.get('/api/parents/me/children/grades'),
   getMyChildrenAttendance: () => api.get('/api/parents/me/children/attendance'),
   getMyChildrenAssignments: () => api.get('/api/parents/me/children/assignments'),

@@ -73,7 +73,6 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
       teacher: 'Teacher',
       student: 'Student',
       parent: 'Parent',
-      finance: 'Finance Officer',
       'it-support': 'IT Support'
     };
     return roleLabels[currentUser?.role] || currentUser?.role || 'User';
@@ -97,7 +96,6 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
       teacher: 'var(--brand-green)',
       student: 'var(--brand-yellow)',  // Brand Yellow
       parent: 'var(--brand-yellow)',
-      finance: 'var(--brand-green)',
       'it-support': 'var(--brand-yellow)'
     };
     return colors[currentUser?.role] || 'var(--brand-green)';

@@ -11,9 +11,6 @@ router.get('/', parentController.getAllParents);
 // Get current parent children (logged in parent)
 router.get('/me/children', parentController.getMyChildren);
 
-// Get current parent children's fees
-router.get('/me/children/fees', parentController.getMyChildrenFees);
-
 // Get current parent children's grades
 router.get('/me/children/grades', parentController.getMyChildrenGrades);
 

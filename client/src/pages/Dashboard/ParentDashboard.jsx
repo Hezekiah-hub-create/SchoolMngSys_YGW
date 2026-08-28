@@ -67,9 +67,8 @@ const ParentDashboard = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated, loading: authLoading, user } = useAuth();
   const [activeMenu, setActiveMenu] = useState('Dashboard');
-  const [stats, setStats] = useState({ children: 0, fees: 0, pendingFees: 0, avgGrade: 0 });
+  const [stats, setStats] = useState({ children: 0, avgGrade: 0 });
   const [children, setChildren] = useState([]);
-  const [fees, setFees] = useState([]);
   const [grades, setGrades] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -93,9 +92,8 @@ const ParentDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [childrenRes, feesRes, gradesRes, attendRes, assignRes, announceRes] = await Promise.allSettled([
+      const [childrenRes, gradesRes, attendRes, assignRes, announceRes] = await Promise.allSettled([
         parentAPI.getMyChildren(),
-        parentAPI.getMyChildrenFees(),
         parentAPI.getMyChildrenGrades(),
         parentAPI.getMyChildrenAttendance(),
         parentAPI.getMyChildrenAssignments(),
@@ -107,12 +105,6 @@ const ParentDashboard = () => {
         setAllChildren(data);
         setChildren(data.slice(0, 5));
         setStats(p => ({ ...p, children: data.length }));
-      }
-
-      if (feesRes.status === 'fulfilled' && feesRes.value?.data) {
-        const data = feesRes.value.data.data || [];
-        setFees(data);
-        setStats(p => ({ ...p, fees: data.length, pendingFees: data.filter(f => f.status !== 'paid').length }));
       }
 
       if (gradesRes.status === 'fulfilled' && gradesRes.value?.data) {
@@ -164,7 +156,7 @@ const ParentDashboard = () => {
                 <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Scholar Monitoring</span>
               </div>
               <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>Family <span style={{ color: 'var(--brand-green)' }}>Observer</span></h1>
-              <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>Overseeing the academic trajectory and fiscal status for your <span style={{ color: '#0f172a', fontWeight: '800' }}>Scholar Nodes</span>.</p>
+              <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>Overseeing the academic trajectory and school activity status for your <span style={{ color: '#0f172a', fontWeight: '800' }}>Scholar Nodes</span>.</p>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>
               <button onClick={() => navigate('/exams/results')} className="premium-btn-primary" style={{ padding: '14px 24px' }}>Analyze Results</button>
