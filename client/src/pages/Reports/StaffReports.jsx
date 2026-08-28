@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { settingsAPI, staffAPI } from '../../services/api';
+import { settingsAPI, staffAPI, teacherAPI } from '../../services/api';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -49,6 +49,15 @@ const StaffReports = () => {
     ]
   });
 
+  const [staffFilter, setStaffFilter] = useState('all'); // 'all' | 'teaching' | 'non-teaching'
+  const [allStaffList, setAllStaffList] = useState([]);
+
+  const filteredStaffList = allStaffList.filter(s => {
+    if (staffFilter === 'teaching') return s.staffType === 'teaching';
+    if (staffFilter === 'non-teaching') return s.staffType === 'non-teaching';
+    return true;
+  });
+
   const fetchSettings = async () => {
     try {
       const response = await settingsAPI.getSettings();
@@ -61,18 +70,59 @@ const StaffReports = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await staffAPI.getStats();
-      if (res.data?.success) {
-        setReportData(prev => ({
-          ...prev,
-          stats: res.data.data.stats,
-          attendanceTrend: res.data.data.attendanceTrend,
-          roleDistribution: res.data.data.roleDistribution,
-          staffList: res.data.data.staffList
+      // Fetch both teaching and non-teaching staff
+      const [staffRes, teacherRes] = await Promise.allSettled([
+        staffAPI.getAll({ limit: 1000 }),
+        teacherAPI.getAll({ limit: 1000 })
+      ]);
+
+      const nonTeaching = (staffRes.status === 'fulfilled'
+        ? staffRes.value.data?.data || staffRes.value.data?.staff || []
+        : []).map(s => ({
+          id: s.id,
+          name: `${s.first_name || s.firstName || ''} ${s.last_name || s.lastName || ''}`.trim(),
+          role: s.position || s.department || 'Support Staff',
+          attendance: s.attendanceRate || '—',
+          status: s.status || 'Active',
+          avatar: `${(s.first_name || s.firstName || '?')[0]}${(s.last_name || s.lastName || '?')[0]}`.toUpperCase(),
+          staffType: 'non-teaching'
         }));
-      }
+
+      const teaching = (teacherRes.status === 'fulfilled'
+        ? teacherRes.value.data?.data || teacherRes.value.data?.teachers || []
+        : []).map(t => ({
+          id: t.id,
+          name: `${t.first_name || t.firstName || ''} ${t.last_name || t.lastName || ''}`.trim(),
+          role: t.subjects?.[0] ? `${t.subjects[0]} Teacher` : 'Teacher',
+          attendance: t.attendanceRate || '—',
+          status: t.status || 'Active',
+          avatar: `${(t.first_name || t.firstName || '?')[0]}${(t.last_name || t.lastName || '?')[0]}`.toUpperCase(),
+          staffType: 'teaching'
+        }));
+
+      const merged = [...teaching, ...nonTeaching];
+      setAllStaffList(merged);
+
+      // Update stats from real data
+      const total = merged.length;
+      const teachingCount = teaching.length;
+      const nonTeachingCount = nonTeaching.length;
+      setReportData(prev => ({
+        ...prev,
+        stats: {
+          total: { ...prev.stats.total, value: String(total) },
+          present: { ...prev.stats.present, value: String(teachingCount), change: `Teaching: ${teachingCount}` },
+          onLeave: { ...prev.stats.onLeave, value: String(nonTeachingCount), change: `Non-Teaching: ${nonTeachingCount}` },
+          performance: { ...prev.stats.performance, value: '—' }
+        },
+        roleDistribution: [
+          { name: 'Teaching', value: teachingCount, color: '#00843e' },
+          { name: 'Non-Teaching', value: nonTeachingCount, color: '#3b82f6' }
+        ],
+        staffList: merged
+      }));
     } catch (error) {
-      console.error('Error fetching staff stats:', error);
+      console.error('Error fetching staff:', error);
     } finally {
       setLoading(false);
     }
@@ -217,10 +267,22 @@ const StaffReports = () => {
 
 
           <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '28px 32px', borderBottom: '1px solid var(--brand-slate-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Performance Intelligence Matrix</h3>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <span style={{ padding: '6px 14px', backgroundColor: 'var(--brand-slate-50)', color: '#64748b', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}>Consolidated Manifest</span>
+            <div style={{ padding: '28px 32px', borderBottom: '1px solid var(--brand-slate-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Staff Performance Matrix</h3>
+              <div style={{ display: 'flex', gap: '6px', padding: '4px', backgroundColor: '#f1f5f9', borderRadius: '12px' }}>
+                {[['all', 'All Staff'], ['teaching', 'Teaching'], ['non-teaching', 'Non-Teaching']].map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setStaffFilter(val)}
+                    style={{
+                      padding: '8px 16px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '800',
+                      backgroundColor: staffFilter === val ? 'white' : 'transparent',
+                      color: staffFilter === val ? 'var(--brand-green)' : '#64748b',
+                      boxShadow: staffFilter === val ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                      transition: 'all 0.2s'
+                    }}
+                  >{label}</button>
+                ))}
               </div>
             </div>
             <div style={{ overflowX: 'auto' }}>
@@ -248,7 +310,7 @@ const StaffReports = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.staffList.map((staff, i) => (
+                  {(filteredStaffList.length > 0 ? filteredStaffList : reportData.staffList).map((staff, i) => (
                     <tr key={i} className="premium-row" style={{ borderBottom: '1px solid var(--brand-slate-100)' }}>
                       <td style={{ padding: '20px 32px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

@@ -46,7 +46,7 @@ const menuConfigs = {
       subItems: [
         { name: 'Results Overview', path: '/exams' },
         { name: 'Exam Schedule', path: '/exams/schedule' },
-        { name: 'Marks Entry', path: '/exams/marks' }
+        { name: 'View Marks', path: '/exams/marks' }
       ]
     },
 

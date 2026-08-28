@@ -292,6 +292,7 @@ const CreateAssignment = () => {
                   type="file" 
                   id="attachment-upload" 
                   style={{ display: 'none' }} 
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
                   onChange={async (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
@@ -314,21 +315,22 @@ const CreateAssignment = () => {
                       }
                     } catch (error) {
                       console.error('Upload failed:', error);
-                      setErrors({ submit: 'Failed to upload attachment.' });
+                      setErrors({ submit: 'File upload failed. Ensure the file is PDF, DOCX, or an image.' });
                     } finally {
                       setLoading(false);
-                      e.target.value = ''; // Reset input
+                      e.target.value = '';
                     }
                   }}
                 />
+                <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#94a3b8', fontWeight: '500' }}>Accepted: PDF, DOCX, Images</p>
                 <button 
                   type="button" 
                   className="premium-btn-secondary" 
                   onClick={() => document.getElementById('attachment-upload').click()}
                   disabled={loading}
-                  style={{ marginTop: '16px', fontSize: '12px', padding: '8px 16px', width: '100%' }}
+                  style={{ marginTop: '12px', fontSize: '12px', padding: '8px 16px', width: '100%' }}
                 >
-                  {loading ? 'Uploading...' : 'Browse'}
+                  {loading ? 'Uploading...' : '+ Attach File'}
                 </button>
               </div>
             </aside>

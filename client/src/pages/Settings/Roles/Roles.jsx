@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
+import { useAlert } from '../../../context/AlertContext';
 import SettingsTabs from '../../../components/layout/SettingsTabs';
 import { settingsAPI } from '../../../services/api';
 import '../Settings.css';
@@ -8,7 +9,8 @@ import '../Settings.css';
 const SettingsRoles = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const { showAlert } = require('../../../context/AlertContext').useAlert();
+  const { showAlert } = useAlert();
+
   const [activeMenu, setActiveMenu] = useState('Settings');
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState([

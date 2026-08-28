@@ -99,6 +99,21 @@ app.use('/api/ai', aiRoutes);
 
 
 
+// List all system users — Admin only
+const { auth: authMiddleware, adminOnly } = require('./middleware/authMiddleware');
+app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, email, first_name, last_name, role, is_active, created_at, last_login')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 app.use(notFound);
 app.use(errorHandler);
 
