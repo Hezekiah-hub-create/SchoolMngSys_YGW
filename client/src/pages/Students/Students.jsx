@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentAPI, parentAPI, academicClassesAPI } from '../../services/api';
+import { studentAPI, parentAPI, academicClassesAPI, teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { mapSectionName } from '../../utils/sectionHelper';
@@ -21,6 +21,7 @@ const Students = () => {
   const currentUser = storedUser || user;
   const isAdmin = currentUser?.role === 'admin';
   const isParent = currentUser?.role === 'parent';
+  const isTeacher = currentUser?.role === 'teacher';
   const canAddStudent = currentUser?.role === 'admin' || currentUser?.role === 'admission';
 
   async function fetchGrades() {
@@ -59,6 +60,26 @@ const Students = () => {
         }
         
         setStudents(myChildren);
+      } else if (isTeacher) {
+        // Teachers see only students in their assigned classes/sections
+        const coursesRes = await teacherAPI.getMyCourses();
+        const myCourses = coursesRes?.data?.data || coursesRes?.data || [];
+        // Build unique grade+section combos the teacher is assigned to
+        const teacherClassCombos = myCourses
+          .filter(c => c.grade && c.section)
+          .map(c => `${c.grade}|${c.section}`);
+        const uniqueCombos = [...new Set(teacherClassCombos)];
+
+        // Fetch all students and filter client-side by teacher's classes
+        const response = await studentAPI.getAll({ limit: 2000, search: searchTerm, grade: gradeFilter });
+        const allStudents = response?.data?.data || response?.data || [];
+        const myStudents = uniqueCombos.length > 0
+          ? allStudents.filter(s => uniqueCombos.some(combo => {
+              const [g, sec] = combo.split('|');
+              return s.grade === g && s.section === sec;
+            }))
+          : allStudents;
+        setStudents(myStudents);
       } else {
         // Admin and other roles fetch all students
         const response = await studentAPI.getAll({ 

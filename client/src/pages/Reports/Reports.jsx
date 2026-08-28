@@ -33,7 +33,8 @@ import {
   settingsAPI, 
   academicSectionsAPI,
   academicClassesAPI,
-  parentAPI 
+  parentAPI,
+  teacherAPI
 } from '../../services/api';
 import RLogo from '../../assets/R.png';
 import UbsLogo from '../../assets/UBS.png';
@@ -57,6 +58,7 @@ const Reports = () => {
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
   const [grades, setGrades] = useState([]);
+  const [teacherCourses, setTeacherCourses] = useState([]);
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedStudents, setSelectedStudents] = useState([]);
@@ -239,6 +241,17 @@ const Reports = () => {
       
       setSections(finalSecData);
       setGrades(Array.isArray(classData) ? classData : []);
+
+      let myAssignedCourses = [];
+      if (user?.role === 'teacher') {
+        try {
+          const tcRes = await teacherAPI.getMyCourses();
+          myAssignedCourses = tcRes.data?.data || tcRes.data || [];
+          setTeacherCourses(myAssignedCourses);
+        } catch (tcErr) {
+          console.warn('Reports: Could not fetch teacher courses', tcErr);
+        }
+      }
       
       if (classData.length > 0 && !selectedGrade) {
         let defaultGrade = classData[0].name;
@@ -246,8 +259,13 @@ const Reports = () => {
           const teacherId = user?.id;
           const masteredSectionsList = secData.filter(s => s.class_master_id === teacherId);
           const mastered = masteredSectionsList.length > 0 ? masteredSectionsList : (user?.masteredSections || []);
-          const masteredClassIds = mastered.map(m => String(m.class_id));
-          const allowed = classData.filter(g => masteredClassIds.includes(String(g.id)));
+          const masteredClassIds = new Set(mastered.map(m => String(m.class_id)));
+          const courseGrades = new Set(myAssignedCourses.map(c => String(c.grade || '').toLowerCase().trim()));
+          
+          const allowed = classData.filter(g => 
+            masteredClassIds.has(String(g.id)) || 
+            courseGrades.has(String(g.name || '').toLowerCase().trim())
+          );
           if (allowed.length > 0) defaultGrade = allowed[0].name;
         }
         setSelectedGrade(defaultGrade);
@@ -518,11 +536,24 @@ const Reports = () => {
     // Fallback to AuthContext if needed, though API data is preferred
     const mastered = masteredSectionsList.length > 0 ? masteredSectionsList : (user?.masteredSections || []);
     
-    const masteredClassIds = mastered.map(m => String(m.class_id));
-    const masteredSectionIds = mastered.map(m => String(m.id));
-    
-    allowedGrades = grades.filter(g => masteredClassIds.includes(String(g.id)));
-    allowedSections = filteredSections.filter(s => masteredSectionIds.includes(String(s.id)));
+    const masteredClassIds = new Set(mastered.map(m => String(m.class_id)));
+    const masteredSectionIds = new Set(mastered.map(m => String(m.id)));
+
+    // Include courses assigned to teacher
+    const courseGrades = new Set(teacherCourses.map(c => String(c.grade || '').toLowerCase().trim()));
+    const courseSections = new Set(teacherCourses.map(c => String(c.section || '').toLowerCase().trim()));
+
+    const teacherGrades = grades.filter(g => 
+      masteredClassIds.has(String(g.id)) || 
+      courseGrades.has(String(g.name || '').toLowerCase().trim())
+    );
+    if (teacherGrades.length > 0) allowedGrades = teacherGrades;
+
+    const teacherSections = filteredSections.filter(s => 
+      masteredSectionIds.has(String(s.id)) || 
+      courseSections.has(String(s.name || '').toLowerCase().trim())
+    );
+    if (teacherSections.length > 0) allowedSections = teacherSections;
   }
 
   const seenGradeValues = new Set();

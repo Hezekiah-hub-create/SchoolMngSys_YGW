@@ -135,6 +135,14 @@ const MarksEntry = () => {
               grade: mc.name || mc.grade || '',
               section: mc.section || ''
             }));
+          } else if (tCourses.length > 0) {
+            const firstCourse = tCourses[0];
+            setFilters(prev => ({
+              ...prev,
+              grade: firstCourse.grade || '',
+              section: firstCourse.section || '',
+              courseId: firstCourse.id || firstCourse._id || ''
+            }));
           }
         }
       } else {

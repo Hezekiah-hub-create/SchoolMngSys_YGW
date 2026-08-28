@@ -14,7 +14,7 @@ const getAllAssignments = asyncHandler(async (req, res) => {
     // Data Isolation for Teachers
     let teacherCourseIds = null;
     if (user.role === 'teacher' || user.role === 'staff') {
-      const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+      const teacherProfile = await supabaseService.getTeacherProfile(user);
       if (teacherProfile) {
         console.log(`[DEBUG] Found teacher profile: ${teacherProfile.id}`);
         // Fetch only relevant courses for this teacher
@@ -171,7 +171,7 @@ const createAssignment = asyncHandler(async (req, res) => {
 
   // Security check for teachers
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     
     teacherId = teacherProfile.id;
@@ -338,7 +338,7 @@ const gradeSubmission = asyncHandler(async (req, res) => {
   // Security check for teachers
   let teacherId = null;
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     teacherId = teacherProfile.id;
     

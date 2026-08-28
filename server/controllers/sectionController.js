@@ -11,7 +11,7 @@ const getAllSections = asyncHandler(async (req, res) => {
     .select('*, class:class_id (name)');
   
   if (req.user.role === 'teacher') {
-    const teacher = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', req.user.id);
+    const teacher = await supabaseService.getTeacherProfile(req.user);
     if (!teacher) {
       return res.status(404).json({ success: false, message: 'Teacher profile not found' });
     }
@@ -49,7 +49,7 @@ const getAllSections = asyncHandler(async (req, res) => {
 
   // Further refinement for teachers: if they are in the class but not for ALL sections of that class
   if (req.user.role === 'teacher') {
-    const teacher = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', req.user.id);
+    const teacher = await supabaseService.getTeacherProfile(req.user);
     const { data: subjectAssignments } = await supabase
       .from(COLLECTIONS.CLASS_SUBJECTS)
       .select('section, class_id')

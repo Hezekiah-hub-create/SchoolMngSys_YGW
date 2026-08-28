@@ -12,7 +12,7 @@ const getAllGrades = asyncHandler(async (req, res) => {
   // Data Isolation for Teachers
   let teacherCourseIds = null;
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (teacherProfile) {
       const teacherCourses = await supabaseService.getAll(COLLECTIONS.COURSES);
       teacherCourseIds = teacherCourses
@@ -121,7 +121,7 @@ const createGrade = asyncHandler(async (req, res) => {
 
   // Security check for teachers
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     
     // Verify course belongs to teacher
@@ -231,7 +231,7 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
   
   let teacherProfile = null;
   if (user.role === 'teacher' || user.role === 'staff') {
-    teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    teacherProfile = await supabaseService.getTeacherProfile(user);
   }
 
   const { grades } = req.body;

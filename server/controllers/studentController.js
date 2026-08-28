@@ -60,7 +60,7 @@ const getAllStudents = asyncHandler(async (req, res) => {
 
   // Data Isolation for Teachers
   if (req.user.role === 'teacher' || req.user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', req.user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(req.user);
     if (teacherProfile) {
       const teacherId = teacherProfile.id;
       
@@ -85,16 +85,21 @@ const getAllStudents = asyncHandler(async (req, res) => {
         return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
       }
 
-      // Helper to match grade names
+      // Flexible grade matcher (e.g. Primary 1 == Basic 1, JHS 1 == Basic 7)
       const isGradeMatch = (g1, g2) => {
         if (!g1 || !g2) return false;
-        return g1.trim().toLowerCase() === g2.trim().toLowerCase();
+        const norm = (s) => String(s).toLowerCase()
+          .replace(/primary|basic/g, 'basic')
+          .replace(/kindergarten|kg/g, 'kg')
+          .replace(/\s+/g, '')
+          .trim();
+        return norm(g1) === norm(g2) || norm(g1).includes(norm(g2)) || norm(g2).includes(norm(g1));
       };
 
       // Filter students by grade and section (case-insensitive)
       const normSection = (sec) => String(sec || '').toLowerCase().replace(/section\s*/i, '').trim();
       students = students.filter(s =>
-        assignments.some(a => isGradeMatch(a.grade, s.grade) && normSection(a.section) === normSection(s.section))
+        assignments.some(a => isGradeMatch(a.grade, s.grade) && (normSection(a.section) === normSection(s.section) || !a.section || !s.section))
       );
     } else {
       return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });

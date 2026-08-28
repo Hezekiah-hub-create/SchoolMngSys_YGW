@@ -671,7 +671,7 @@ const getMyCourses = asyncHandler(async (req, res) => {
     console.log(`[DEBUG] getMyCourses called for user: ${userId}`);
 
     // Find the teacher profile associated with this user
-    const teacher = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', userId);
+    const teacher = await supabaseService.getTeacherProfile(req.user);
     
     if (!teacher) {
       console.warn(`[DEBUG] No teacher profile found for user ${userId}`);
@@ -833,7 +833,7 @@ const getPendingGrading = asyncHandler(async (req, res) => {
     console.log(`[DEBUG] getPendingGrading called for user: ${userId}`);
 
     // Find the teacher profile
-    const teacher = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', userId);
+    const teacher = await supabaseService.getTeacherProfile(req.user);
     
     if (!teacher) {
       console.warn(`[DEBUG] No teacher profile found for user ${userId}`);

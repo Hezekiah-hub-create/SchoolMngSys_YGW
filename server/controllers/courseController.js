@@ -33,7 +33,7 @@ const getAllCourses = asyncHandler(async (req, res) => {
 
   // Data Isolation for teachers
   if (req.user.role === 'teacher' || req.user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', req.user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(req.user);
     if (teacherProfile) {
       teacher = teacherProfile.id;
       

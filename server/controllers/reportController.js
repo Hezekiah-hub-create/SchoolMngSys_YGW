@@ -482,26 +482,36 @@ const getStudentReport = asyncHandler(async (req, res) => {
   // Security check for teachers
   const user = req.user;
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     
-    // Check if the student belongs to the section the teacher is Class Master of
+    // Check if the student belongs to the section the teacher is Class Master of OR teaches subjects to
     const { data: masteredSections } = await supabase
       .from(COLLECTIONS.SECTIONS)
       .select('id, name, class_id, class:class_id(name)')
       .eq('class_master_id', teacherProfile.id);
     
-    const isMasterOfStudent = (masteredSections || []).some(s => {
+    const { data: subjectSections } = await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('id, section, class_id, class:class_id(name)')
+      .eq('teacher_id', teacherProfile.id);
+    
+    const allTeacherSections = [
+      ...(masteredSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.name })),
+      ...(subjectSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.section }))
+    ];
+    
+    const isTeacherOfStudent = allTeacherSections.some(s => {
       const matchesGrade = String(s.class?.name).toLowerCase() === String(student.grade).toLowerCase() || String(s.class_id) === String(student.class_id);
       
-      const dbSec = String(s.name).toLowerCase().replace('section', '').trim();
-      const stSec = String(student.section).toLowerCase().replace('section', '').trim();
+      const dbSec = String(s.name || '').toLowerCase().replace('section', '').trim();
+      const stSec = String(student.section || '').toLowerCase().replace('section', '').trim();
       
-      return matchesGrade && dbSec === stSec;
+      return matchesGrade && (dbSec === stSec || !dbSec || !stSec);
     });
 
-    if (!isMasterOfStudent) {
-      return res.status(403).json({ message: 'Access denied. You can only generate reports for students in the section you are the Class Master of.' });
+    if (!isTeacherOfStudent) {
+      return res.status(403).json({ message: 'Access denied. You can only generate reports for students in classes or sections assigned to you.' });
     }
   }
 
@@ -550,7 +560,7 @@ const getClassReport = asyncHandler(async (req, res) => {
 
   // Security check for teachers
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     
     // Check if teacher teaches this grade OR is Class Master for a section in this grade
@@ -559,19 +569,28 @@ const getClassReport = asyncHandler(async (req, res) => {
       .select('id, name, class_id, class:class_id(name)')
       .eq('class_master_id', teacherProfile.id);
     
-    // Check if teacher is Class Master for this grade and section
-    const isMasterOfGrade = (masteredSections || []).some(s => {
+    const { data: subjectSections } = await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('id, section, class_id, class:class_id(name)')
+      .eq('teacher_id', teacherProfile.id);
+
+    const allTeacherSections = [
+      ...(masteredSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.name })),
+      ...(subjectSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.section }))
+    ];
+    
+    const isTeacherOfGrade = allTeacherSections.some(s => {
       const matchesGrade = String(s.class?.name).toLowerCase() === String(grade).toLowerCase() || String(s.class_id) === String(grade);
       if (section && section !== 'All') {
         const targetSec = String(section).toLowerCase().replace('section', '').trim();
-        const dbSec = String(s.name).toLowerCase().replace('section', '').trim();
-        return matchesGrade && dbSec === targetSec;
+        const dbSec = String(s.name || '').toLowerCase().replace('section', '').trim();
+        return matchesGrade && (dbSec === targetSec || !dbSec);
       }
       return matchesGrade;
     });
 
-    if (!isMasterOfGrade) {
-      return res.status(403).json({ message: 'Access denied. You can only generate reports for the class and section you are the Class Master of.' });
+    if (!isTeacherOfGrade) {
+      return res.status(403).json({ message: 'Access denied. You can only generate reports for the class and section assigned to you.' });
     }
   }
 

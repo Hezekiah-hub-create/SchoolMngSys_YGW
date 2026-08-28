@@ -8,7 +8,7 @@ const { asyncHandler } = require('../middleware/errorMiddleware');
 const getAllClasses = asyncHandler(async (req, res) => {
   let teacherProfile = null;
   if (req.user.role === 'teacher') {
-    teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', req.user.id);
+    teacherProfile = await supabaseService.getTeacherProfile(req.user);
     if (!teacherProfile) {
       return res.status(404).json({ success: false, message: 'Teacher profile not found' });
     }

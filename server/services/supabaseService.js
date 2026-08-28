@@ -293,6 +293,47 @@ const supabaseService = {
       throw error;
     }
     return result;
+  },
+
+  async getTeacherProfile(userOrId) {
+    if (!userOrId) return null;
+    const userId = typeof userOrId === 'object' ? (userOrId.id || userOrId.uid) : userOrId;
+    const userEmail = typeof userOrId === 'object' ? userOrId.email : null;
+
+    // 1. Try finding by user_id
+    if (userId) {
+      const teacher = await this.getByField(COLLECTIONS.TEACHERS, 'user_id', userId);
+      if (teacher) return teacher;
+    }
+
+    // 2. Try finding by email
+    if (userEmail) {
+      const { data } = await supabase
+        .from(COLLECTIONS.TEACHERS)
+        .select('*')
+        .ilike('email', userEmail.trim())
+        .limit(1);
+      if (data && data.length > 0) {
+        const teacher = data[0];
+        if (userId && !teacher.user_id) {
+          supabase.from(COLLECTIONS.TEACHERS).update({ user_id: userId }).eq('id', teacher.id).then(() => {}).catch(() => {});
+        }
+        return teacher;
+      }
+    }
+
+    // 3. Try finding by id directly
+    if (userId) {
+      const teacher = await this.getById(COLLECTIONS.TEACHERS, userId).catch(() => null);
+      if (teacher) {
+        if (!teacher.user_id) {
+          supabase.from(COLLECTIONS.TEACHERS).update({ user_id: userId }).eq('id', teacher.id).then(() => {}).catch(() => {});
+        }
+        return teacher;
+      }
+    }
+
+    return null;
   }
 };
 

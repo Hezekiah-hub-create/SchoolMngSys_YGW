@@ -11,15 +11,17 @@ const getAllAttendance = asyncHandler(async (req, res) => {
 
   // Data Isolation for Teachers
   if (user.role === 'teacher') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (teacherProfile) {
       const teacherId = teacherProfile.id;
       
-      // Get sections where they are Class Master ONLY
+      // Get sections where they are Class Master OR teach subjects
       const { data: masterSections } = await supabase.from(COLLECTIONS.SECTIONS).select('name, class:class_id(name)').eq('class_master_id', teacherId);
+      const { data: subjectSections } = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).select('section, class:class_id(name)').eq('teacher_id', teacherId);
       
       const assignments = [
-        ...(masterSections || []).map(s => ({ grade: s.class?.name, section: s.name }))
+        ...(masterSections || []).map(s => ({ grade: s.class?.name, section: s.name })),
+        ...(subjectSections || []).map(s => ({ grade: s.class?.name, section: s.section }))
       ];
 
       if (assignments.length > 0) {
@@ -134,7 +136,7 @@ const recordAttendance = asyncHandler(async (req, res) => {
 
   // Security check for teachers
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (!teacherProfile) {
       return res.status(403).json({ message: 'Teacher profile not found' });
     }
@@ -150,7 +152,7 @@ const recordAttendance = asyncHandler(async (req, res) => {
     if (!academicClass) return res.status(403).json({ message: `Class mapping not found for student grade: ${studentGrade}` });
     const classId = academicClass.id;
 
-    // Check if teacher is master of student's section
+    // Check if teacher is master of student's section OR teaches subjects in this class/section
     const { data: isMaster } = await supabase
       .from(COLLECTIONS.SECTIONS)
       .select('id')
@@ -158,8 +160,15 @@ const recordAttendance = asyncHandler(async (req, res) => {
       .eq('name', studentData.section)
       .eq('class_master_id', teacherId);
     
-    if (!isMaster || isMaster.length === 0) {
-        return res.status(403).json({ message: 'Access denied. You can only mark attendance for the class where you are the designated Master.' });
+    const { data: teachesSubject } = await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('id')
+      .eq('class_id', classId)
+      .eq('section', studentData.section)
+      .eq('teacher_id', teacherId);
+
+    if ((!isMaster || isMaster.length === 0) && (!teachesSubject || teachesSubject.length === 0)) {
+        return res.status(403).json({ message: 'Access denied. You can only mark attendance for classes or sections assigned to you.' });
     }
   }
 
@@ -204,7 +213,7 @@ const bulkRecordAttendance = asyncHandler(async (req, res) => {
   const allSettings = await supabaseService.getAll('settings');
   const settings = allSettings && allSettings.length > 0 ? allSettings[0] : { current_session: '2024-2025', current_term: '1st' };
 
-  const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+  const teacherProfile = await supabaseService.getTeacherProfile(user);
   const resolvedMarkedBy = teacherProfile ? teacherProfile.id : user.id;
 
   // Validate all records for weekend dates

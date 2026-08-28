@@ -19,9 +19,11 @@ const Classes = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'ITSupport';
+  const isTeacher = user?.role === 'teacher';
   const [activeMenu, setActiveMenu] = useState('Academic');
   const [loading, setLoading] = useState(true);
-  const [classes, setClasses] = useState([]);
+  const [classes, setClasses] = useState([])
+  const [teacherClassNames, setTeacherClassNames] = useState(new Set()); // grades the teacher is assigned to
   const [teachers, setTeachers] = useState([]);
   const [allSubjects, setAllSubjects] = useState([]);
   const [showClassModal, setShowClassModal] = useState(false);
@@ -54,6 +56,18 @@ const Classes = () => {
       setClasses(classesRes.data?.data || []);
       setTeachers(teachersRes.data?.data || []);
       setAllSubjects(subjectsRes.data?.data || []);
+
+      // If teacher role, fetch their assigned courses to know which classes belong to them
+      if (isTeacher) {
+        try {
+          const coursesRes = await teacherAPI.getMyCourses();
+          const myCourses = coursesRes?.data?.data || coursesRes?.data || [];
+          const myGrades = new Set(myCourses.filter(c => c.grade).map(c => c.grade.toLowerCase().trim()));
+          setTeacherClassNames(myGrades);
+        } catch (e) {
+          console.warn('Could not fetch teacher courses for class filter:', e);
+        }
+      }
     } catch (error) {
       console.error('Error fetching academic data:', error);
     } finally {
@@ -221,6 +235,15 @@ const Classes = () => {
     return `${t.firstName || t.first_name || ''} ${t.lastName || t.last_name || ''}`.trim() || 'Unnamed Faculty';
   };
 
+  const displayedClasses = isTeacher
+    ? classes.filter(cls => {
+        const nameMatch = teacherClassNames.has(cls.name?.toLowerCase()?.trim()) ||
+          teacherClassNames.has(displayGrade(cls.name)?.toLowerCase()?.trim());
+        const masterMatch = cls.sections?.some(sec => sec.class_master_id === user?.id || sec.class_master_id === user?._id);
+        return nameMatch || masterMatch;
+      })
+    : classes;
+
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <main style={{ padding: '0 0 60px 0' }}>
@@ -231,26 +254,30 @@ const Classes = () => {
               <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
               <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Academic Hierarchy</span>
             </div>
-            <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>Academic <span style={{ color: 'var(--brand-green)' }}>Classes</span></h1>
-            <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>Manage grade levels, assign Class Masters, and configure subjects.</p>
+            <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-2px' }}>
+              {isTeacher ? 'My ' : 'Academic '}<span style={{ color: 'var(--brand-green)' }}>Classes</span>
+            </h1>
+            <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
+              {isTeacher ? 'Overview of classes, divisions, and curricula assigned to you.' : 'Manage grade levels, assign Class Masters, and configure subjects.'}
+            </p>
           </div>
-          </div>
+        </div>
 
         <div className="responsive-grid-3" style={{ marginBottom: '24px' }}>
           <div className="glass-card" style={{ padding: '24px' }}>
-            <p className="premium-label" style={{ marginBottom: '12px' }}>Active Grade Levels</p>
-            <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{classes.length}</p>
+            <p className="premium-label" style={{ marginBottom: '12px' }}>{isTeacher ? 'My Active Classes' : 'Active Grade Levels'}</p>
+            <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{displayedClasses.length}</p>
             <div style={{ width: '40px', height: '4px', backgroundColor: 'var(--brand-green)', borderRadius: '2px', marginTop: '16px' }}></div>
           </div>
           <div className="glass-card" style={{ padding: '24px' }}>
             <p className="premium-label" style={{ marginBottom: '12px' }}>Total Sections</p>
-            <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{classes.reduce((sum, c) => sum + (c.sections?.length || 0), 0)}</p>
+            <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>{displayedClasses.reduce((sum, c) => sum + (c.sections?.length || 0), 0)}</p>
             <div style={{ width: '40px', height: '4px', backgroundColor: '#3b82f6', borderRadius: '2px', marginTop: '16px' }}></div>
           </div>
           <div className="glass-card" style={{ padding: '24px' }}>
             <p className="premium-label" style={{ marginBottom: '12px' }}>Section Master Assignments</p>
             <p style={{ fontSize: '36px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1px' }}>
-              {classes.reduce((sum, c) => sum + (c.sections?.filter(s => s.class_master_id).length || 0), 0)}
+              {displayedClasses.reduce((sum, c) => sum + (c.sections?.filter(s => s.class_master_id).length || 0), 0)}
             </p>
             <div style={{ width: '40px', height: '4px', backgroundColor: '#facc15', borderRadius: '2px', marginTop: '16px' }}></div>
           </div>
@@ -258,9 +285,14 @@ const Classes = () => {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '100px' }}><div className="premium-loader"></div></div>
+        ) : displayedClasses.length === 0 ? (
+          <div className="glass-card" style={{ padding: '60px', textAlign: 'center', marginTop: '20px' }}>
+            <p style={{ fontSize: '18px', fontWeight: '700', color: '#64748b' }}>No classes currently assigned to your account.</p>
+            <p style={{ fontSize: '14px', color: '#94a3b8' }}>Contact the institutional administrator to assign classes or courses to your profile.</p>
+          </div>
         ) : (
           <div className="responsive-grid-2" style={{ gap: '32px' }}>
-            {classes.map((cls) => (
+            {displayedClasses.map((cls) => (
               <div key={cls.id} className="class-node">
                 {isAdmin && (
                   <button onClick={() => handleClassDelete(cls.id, cls.name)} className="node-delete-trigger" title="Remove Class">

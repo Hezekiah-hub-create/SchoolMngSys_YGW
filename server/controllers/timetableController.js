@@ -340,7 +340,7 @@ const updateTimetable = asyncHandler(async (req, res) => {
 
   // Security check for teachers
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getByField(COLLECTIONS.TEACHERS, 'user_id', user.id);
+    const teacherProfile = await supabaseService.getTeacherProfile(user);
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     const teacherCourses = await supabaseService.getAll(COLLECTIONS.COURSES);
     const hasAssignedCourse = teacherCourses.some(c => 
