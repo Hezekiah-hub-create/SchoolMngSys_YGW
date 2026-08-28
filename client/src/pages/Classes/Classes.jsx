@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { academicClassesAPI, academicSubjectsAPI, academicSectionsAPI, teacherAPI } from '../../services/api';
+import { academicClassesAPI, academicSubjectsAPI, academicSectionsAPI, teacherAPI, courseAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { useAlert } from '../../context/AlertContext';
@@ -44,9 +44,9 @@ const Classes = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [classesRes, teachersRes, subjectsRes] = await Promise.all([
         academicClassesAPI.getAll(),
         teacherAPI.getAll({ limit: 500 }),
@@ -120,7 +120,7 @@ const Classes = () => {
       await academicClassesAPI.assignSubjects(selectedClass.id, subjectFormData.subjectIds);
       setShowSubjectModal(false);
       setSubjectFormData({ subjectIds: [] });
-      fetchData();
+      fetchData(true);
     } catch (error) {
       showAlert({
         title: 'Curriculum Error',
@@ -139,22 +139,46 @@ const Classes = () => {
       type: 'confirm',
       onConfirm: async () => {
         try {
-          setLoading(true);
           const cls = classes.find(c => c.id === classId);
           const updatedIds = cls.subjects.filter(s => s.id !== subjectId).map(s => s.id);
           await academicClassesAPI.assignSubjects(classId, updatedIds);
-          fetchData();
+          fetchData(true);
         } catch (error) {
           showAlert({
             title: 'System Error',
             message: 'Failed to remove subject.',
             type: 'error'
           });
-        } finally {
-          setLoading(false);
         }
       }
     });
+  };
+
+  const handleAutoAllocateGES = async (gradeName) => {
+    try {
+      const res = await courseAPI.autoAllocate({ grade: gradeName, academicYear: '2024/2025' });
+      if (res.data?.success) {
+        showAlert({
+          title: 'GES Curriculum Mapped',
+          message: res.data.message || `Successfully mapped default GES subjects for ${gradeName}.`,
+          type: 'success'
+        });
+        fetchData(true);
+      } else {
+        showAlert({
+          title: 'Mapping Failed',
+          message: res.data?.message || 'Failed to auto-allocate GES curriculum.',
+          type: 'error'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert({
+        title: 'System Error',
+        message: err.response?.data?.message || 'Failed to communicate with institutional allocation system.',
+        type: 'error'
+      });
+    }
   };
 
   const handleClassDelete = async (classId, className) => {
@@ -373,9 +397,19 @@ const Classes = () => {
                         <span className="segment-label">Academic Curriculum</span>
                       </div>
                       {isAdmin && (
-                        <button onClick={() => { setSelectedClass(cls); setSubjectFormData({ subjectIds: (cls.subjects || []).map(s => s.id) }); setShowSubjectModal(true); }} className="segment-add-btn">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            onClick={() => handleAutoAllocateGES(cls.name)} 
+                            className="segment-add-btn" 
+                            title="Auto-map GES subjects"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                          </button>
+                          <button onClick={() => { setSelectedClass(cls); setSubjectFormData({ subjectIds: (cls.subjects || []).map(s => s.id) }); setShowSubjectModal(true); }} className="segment-add-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                          </button>
+                        </div>
                       )}
                     </div>
                     <div className="badge-grid">

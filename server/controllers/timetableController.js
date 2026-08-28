@@ -1,6 +1,7 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
+const { normalizeSection } = require('../utils/sectionHelper');
 
 const isUUID = (str) => {
   if (!str || typeof str !== 'string') return false;
@@ -77,12 +78,27 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
     grade = 'SYSTEM';
     section = 'CONFIG';
   } else {
-    section = className.slice(-1).toUpperCase();
-    grade = className.slice(0, -1).trim();
+    const clsName = className.trim();
+    const sectionsConfig = ['Yellow (Y)', 'Green (G)', 'Red (R)', 'Blue (B)', 'Yellow', 'Green', 'Red', 'Blue', 'yellow', 'green', 'red', 'blue'];
+    let foundSection = null;
+    for (const secName of sectionsConfig) {
+      if (clsName.toLowerCase().endsWith(secName.toLowerCase())) {
+        foundSection = secName;
+        grade = clsName.slice(0, -secName.length).trim();
+        break;
+      }
+    }
     
-    if (!['A', 'B', 'C', 'D'].includes(section)) {
-      section = 'A'; 
-      grade = className.trim();
+    if (foundSection) {
+      section = foundSection;
+    } else {
+      section = clsName.slice(-1).toUpperCase();
+      grade = clsName.slice(0, -1).trim();
+      
+      if (!['A', 'B', 'C', 'D'].includes(section)) {
+        section = 'A'; 
+        grade = clsName;
+      }
     }
   }
 
@@ -100,14 +116,16 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
   if (gradeLower === 'basic 8') gradesToSearch.push('JHS 2');
   if (gradeLower === 'basic 9') gradesToSearch.push('JHS 3');
 
-  const { data: rows, error } = await supabase
+  const { data: allRows, error } = await supabase
     .from(COLLECTIONS.TIMETABLE)
     .select('*, teacher:teacher_id(*)')
     .in('grade', gradesToSearch)
-    .eq('section', section)
     .eq('term', settings.current_term);
 
   if (error) throw error;
+
+  const targetSec = normalizeSection(section);
+  const rows = (allRows || []).filter(r => normalizeSection(r.section) === targetSec);
 
   const classRows = (rows || []).filter(r => {
     const rYear = (r.academic_year || r.academicYear || '').replace('/', '-');

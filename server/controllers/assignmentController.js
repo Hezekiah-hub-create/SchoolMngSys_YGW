@@ -2,6 +2,7 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const smsService = require('../services/smsService');
+const { normalizeSection } = require('../utils/sectionHelper');
 
 // Get all assignments
 const getAllAssignments = asyncHandler(async (req, res) => {
@@ -86,7 +87,7 @@ const getAllAssignments = asyncHandler(async (req, res) => {
           const aGradeNorm = normalize(a.grade || a.class);
           
           const matchesGrade = studentGradeNorm && aGradeNorm && (
-            studentGradeNorm === aGradeNorm && (!a.section || a.section === studentSection)
+            studentGradeNorm === aGradeNorm && (!a.section || normalizeSection(a.section) === normalizeSection(studentSection))
           );
           return hasSubmission || matchesGrade;
         });

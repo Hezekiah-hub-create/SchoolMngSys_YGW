@@ -1,6 +1,146 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
+const { normalizeSection } = require('../utils/sectionHelper');
+
+const GES_SUBJECTS_BY_GRADE = {
+  'kg 1': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'kg 2': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'kg 3': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 1': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'FREN', name: 'French' },
+    { code: 'HIST', name: 'History' },
+    { code: 'OWOP', name: 'Our World and Our People' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 2': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'FREN', name: 'French' },
+    { code: 'HIST', name: 'History' },
+    { code: 'OWOP', name: 'Our World and Our People' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 3': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'FREN', name: 'French' },
+    { code: 'HIST', name: 'History' },
+    { code: 'OWOP', name: 'Our World and Our People' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 4': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'COMP', name: 'Computing' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'FREN', name: 'French' },
+    { code: 'GHAN', name: 'Ghanaian Language' },
+    { code: 'HIST', name: 'History' },
+    { code: 'OWOP', name: 'Our World and Our People' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 5': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'COMP', name: 'Computing' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'FREN', name: 'French' },
+    { code: 'GHAN', name: 'Ghanaian Language' },
+    { code: 'HIST', name: 'History' },
+    { code: 'OWOP', name: 'Our World and Our People' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 6': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'COMP', name: 'Computing' },
+    { code: 'CREA', name: 'Creative Arts' },
+    { code: 'FREN', name: 'French' },
+    { code: 'GHAN', name: 'Ghanaian Language' },
+    { code: 'HIST', name: 'History' },
+    { code: 'OWOP', name: 'Our World and Our People' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 7': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'SOC', name: 'Social Studies' },
+    { code: 'COMP', name: 'Computing' },
+    { code: 'CAD', name: 'Creative Arts and Design' },
+    { code: 'CART', name: 'Career Technology' },
+    { code: 'FREN', name: 'French' },
+    { code: 'GHAN', name: 'Ghanaian Language' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 8': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'SOC', name: 'Social Studies' },
+    { code: 'COMP', name: 'Computing' },
+    { code: 'CAD', name: 'Creative Arts and Design' },
+    { code: 'CART', name: 'Career Technology' },
+    { code: 'FREN', name: 'French' },
+    { code: 'GHAN', name: 'Ghanaian Language' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ],
+  'basic 9': [
+    { code: 'MATH', name: 'Mathematics' },
+    { code: 'SCI', name: 'Science' },
+    { code: 'ENG', name: 'English Language' },
+    { code: 'SOC', name: 'Social Studies' },
+    { code: 'COMP', name: 'Computing' },
+    { code: 'CAD', name: 'Creative Arts and Design' },
+    { code: 'CART', name: 'Career Technology' },
+    { code: 'FREN', name: 'French' },
+    { code: 'GHAN', name: 'Ghanaian Language' },
+    { code: 'PEH', name: 'Physical Education and Health' },
+    { code: 'RME', name: 'Religious and Moral Education' }
+  ]
+};
+
+GES_SUBJECTS_BY_GRADE['jhs 1'] = GES_SUBJECTS_BY_GRADE['basic 7'];
+GES_SUBJECTS_BY_GRADE['jhs 2'] = GES_SUBJECTS_BY_GRADE['basic 8'];
+GES_SUBJECTS_BY_GRADE['jhs 3'] = GES_SUBJECTS_BY_GRADE['basic 9'];
 
 // @desc    Get all courses (academic assignments)
 // @route   GET /api/courses
@@ -101,7 +241,7 @@ const getAllCourses = asyncHandler(async (req, res) => {
         transformedData = transformedData.filter(c => {
           const courseGradeNorm = (c.grade || '').trim();
           const matchesGrade = courseGradeNorm === studentGradeNorm;
-          const matchesSection = !c.section || c.section === 'All' || c.section === studentProfile.section;
+          const matchesSection = !c.section || c.section === 'All' || normalizeSection(c.section) === normalizeSection(studentProfile.section);
           
           return matchesGrade && matchesSection;
         });
@@ -453,6 +593,104 @@ const syncStudentsWithClass = asyncHandler(async (req, res) => {
     res.json({ success: true, message: 'Synchronization is now handled via class sections.' });
 });
 
+// @desc    Auto allocate subjects based on GES guidelines for a grade/class
+// @route   POST /api/courses/auto-allocate
+// @access  Private (Admin)
+const autoAllocateCourses = asyncHandler(async (req, res) => {
+  const { grade, academicYear } = req.body;
+  if (!grade) {
+    return res.status(400).json({ success: false, message: 'Grade/Academic Level is required' });
+  }
+
+  // 1. Resolve academic class from grade name
+  const gradesToSearch = [grade.trim()];
+  const gradeLower = grade.toLowerCase().trim();
+  if (gradeLower === 'jhs 1' || gradeLower === 'jhs1') gradesToSearch.push('Basic 7');
+  if (gradeLower === 'jhs 2' || gradeLower === 'jhs2') gradesToSearch.push('Basic 8');
+  if (gradeLower === 'jhs 3' || gradeLower === 'jhs3') gradesToSearch.push('Basic 9');
+  if (gradeLower === 'basic 7') gradesToSearch.push('JHS 1');
+  if (gradeLower === 'basic 8') gradesToSearch.push('JHS 2');
+  if (gradeLower === 'basic 9') gradesToSearch.push('JHS 3');
+
+  const { data: matchedClasses } = await supabase
+    .from(COLLECTIONS.ACADEMIC_CLASSES)
+    .select('*')
+    .in('name', gradesToSearch);
+
+  if (!matchedClasses || matchedClasses.length === 0) {
+    return res.status(404).json({ success: false, message: `Academic class '${grade}' not found.` });
+  }
+  const academicClass = matchedClasses[0];
+
+  // 2. Fetch sections for this class
+  const { data: sections } = await supabase
+    .from(COLLECTIONS.SECTIONS)
+    .select('*')
+    .eq('class_id', academicClass.id);
+
+  const sectionsToAllocate = (sections && sections.length > 0) ? sections : [{ name: 'A' }];
+
+  // 3. Find subject rules for this grade
+  const subjectList = GES_SUBJECTS_BY_GRADE[gradeLower];
+  if (!subjectList) {
+    return res.status(400).json({ success: false, message: `No GES default curriculum found for class level '${grade}'.` });
+  }
+
+  // 4. Perform allocations
+  const created = [];
+  for (const subRule of subjectList) {
+    // A. Check if the subject exists in the subjects table, if not, create it
+    let { data: dbSub } = await supabase
+      .from(COLLECTIONS.SUBJECTS)
+      .select('*')
+      .eq('code', subRule.code)
+      .maybeSingle();
+
+    if (!dbSub) {
+      dbSub = await supabase.from(COLLECTIONS.SUBJECTS).insert({
+        name: subRule.name,
+        code: subRule.code,
+        category: 'Core',
+        description: `GES Curriculum for ${subRule.name}`
+      }).select().maybeSingle();
+    }
+
+    if (!dbSub) continue;
+
+    // B. Allocate for each section
+    for (const section of sectionsToAllocate) {
+      // Check if already allocated
+      const { data: existing } = await supabase
+        .from(COLLECTIONS.CLASS_SUBJECTS)
+        .select('*')
+        .eq('class_id', academicClass.id)
+        .eq('subject_id', dbSub.id)
+        .eq('section', section.name)
+        .maybeSingle();
+
+      if (!existing) {
+        const newAlloc = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).insert({
+          class_id: academicClass.id,
+          subject_id: dbSub.id,
+          section: section.name,
+          teacher_id: null,
+          academic_year: academicYear || '2024/2025',
+          credits: 3,
+          hours_per_week: 3,
+          room: 'Classroom'
+        }).select().maybeSingle();
+        if (newAlloc) created.push(newAlloc);
+      }
+    }
+  }
+
+  res.json({
+    success: true,
+    message: `Successfully allocated default GES subjects for ${grade}.`,
+    allocatedCount: created.length
+  });
+});
+
 module.exports = {
   getAllCourses,
   getCourseById,
@@ -464,5 +702,6 @@ module.exports = {
   enrollStudent,
   unenrollStudent,
   getCourseStats,
-  syncStudentsWithClass
+  syncStudentsWithClass,
+  autoAllocateCourses
 };

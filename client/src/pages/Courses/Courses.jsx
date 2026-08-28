@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { courseAPI, teacherAPI, studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI, aiAPI, settingsAPI } from '../../services/api';
+import { courseAPI, teacherAPI, studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI, academicSubjectsAPI, aiAPI, settingsAPI } from '../../services/api';
 import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
@@ -38,6 +38,10 @@ const Courses = () => {
   const [activeMenu, setActiveMenu] = useState('Courses');
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [showAutoAllocModal, setShowAutoAllocModal] = useState(false);
+  const [autoAllocGrade, setAutoAllocGrade] = useState('');
+  const [autoAllocating, setAutoAllocating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
@@ -77,6 +81,7 @@ const Courses = () => {
       fetchTeachers();
       fetchAcademicMetadata();
       fetchAllSections();
+      fetchSubjectsList();
     }
   }, [user, selectedChildId]);
 
@@ -113,9 +118,9 @@ const Courses = () => {
     } catch (e) {}
   };
 
-  const fetchCourses = async () => {
+  const fetchCourses = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       let response;
       const selectedChild = linkedStudents.find(s => s.id === selectedChildId);
       
@@ -146,6 +151,13 @@ const Courses = () => {
     try {
       const res = await teacherAPI.getAll();
       setTeachers(Array.isArray(res.data) ? res.data : (res.data?.data || []));
+    } catch (e) {}
+  };
+
+  const fetchSubjectsList = async () => {
+    try {
+      const res = await academicSubjectsAPI.getAll();
+      setAllSubjects(Array.isArray(res.data) ? res.data : (res.data?.data || []));
     } catch (e) {}
   };
 
@@ -235,7 +247,7 @@ const Courses = () => {
 
       await Promise.all(promises);
       setShowModal(false);
-      fetchCourses();
+      fetchCourses(true);
     } catch (e) { 
       console.error(e);
       showAlert({
@@ -254,7 +266,7 @@ const Courses = () => {
       onConfirm: async () => {
         try {
           await courseAPI.delete(id);
-          fetchCourses();
+          fetchCourses(true);
         } catch (e) { 
           showAlert({
             title: 'System Error',
@@ -264,6 +276,40 @@ const Courses = () => {
         }
       }
     });
+  };
+
+  const handleAutoAllocateSubmit = async (e) => {
+    e.preventDefault();
+    if (!autoAllocGrade) return;
+    try {
+      setAutoAllocating(true);
+      const res = await courseAPI.autoAllocate({ grade: autoAllocGrade, academicYear: currentSession });
+      if (res.data?.success) {
+        showAlert({
+          title: 'Curriculum Allocated',
+          message: res.data.message || `Successfully allocated default GES subjects for ${autoAllocGrade}.`,
+          type: 'success'
+        });
+        setShowAutoAllocModal(false);
+        setAutoAllocGrade('');
+        fetchCourses(true);
+      } else {
+        showAlert({
+          title: 'Allocation Failed',
+          message: res.data?.message || 'Failed to auto-allocate GES curriculum.',
+          type: 'error'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert({
+        title: 'System Error',
+        message: err.response?.data?.message || 'Failed to communicate with institutional allocation system.',
+        type: 'error'
+      });
+    } finally {
+      setAutoAllocating(false);
+    }
   };
 
   const viewStudents = async (course) => {
@@ -319,10 +365,16 @@ const Courses = () => {
               <p style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>Distribute academic subjects across the institution's curriculum grid.</p>
             </div>
             {isAdmin && (
-              <button className="btn-primary" onClick={() => openModal()}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                Allocate Subject
-              </button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button className="btn-secondary" onClick={() => setShowAutoAllocModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', borderRadius: '16px', fontWeight: '700', fontSize: '14px', border: '1.5px solid var(--brand-slate-200)', background: 'white', color: '#1e293b', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                  GES Auto-Allocate
+                </button>
+                <button className="btn-primary" onClick={() => openModal()}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                  Allocate Subject
+                </button>
+              </div>
             )}
           </div>
 
@@ -492,12 +544,30 @@ const Courses = () => {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <label className="premium-label">Subject Name</label>
-                <input name="name" className="premium-input" value={formData.name} onChange={handleInputChange} required />
+                {editingCourse ? (
+                  <input name="name" className="premium-input" value={formData.name} disabled required />
+                ) : (
+                  <PremiumSelect 
+                    label="name"
+                    value={formData.name}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const selectedSub = allSubjects.find(s => s.name === val);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        name: val, 
+                        code: selectedSub ? selectedSub.code : prev.code 
+                      }));
+                    }}
+                    options={allSubjects.map(sub => ({ value: sub.name, label: `${sub.name} (${sub.code})` }))}
+                    placeholder="Select Subject"
+                  />
+                )}
               </div>
               <div style={{ display: 'flex', gap: '20px' }}>
                 <div style={{ flex: 1 }}>
                   <label className="premium-label">Code</label>
-                  <input name="code" className="premium-input" value={formData.code} onChange={handleInputChange} required />
+                  <input name="code" className="premium-input" value={formData.code} onChange={handleInputChange} disabled={!!editingCourse} required />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="premium-label">Academic Level</label>
@@ -642,6 +712,36 @@ const Courses = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* GES Auto-Allocation Modal */}
+      {showAutoAllocModal && (
+        <div className="modal-overlay" onClick={() => setShowAutoAllocModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+            <h2 className="modal-title">GES Auto-Allocation</h2>
+            <p className="modal-subtitle">Automatically allocate all default Ghana Education Service subjects for a grade level.</p>
+            
+            <form onSubmit={handleAutoAllocateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' }}>
+              <div>
+                <label className="premium-label">Select Academic Level</label>
+                <PremiumSelect
+                  label="autoAllocGrade"
+                  value={autoAllocGrade}
+                  onChange={(e) => setAutoAllocGrade(e.target.value)}
+                  options={dbGrades.map(g => ({ value: g.name, label: displayGrade(g.name) }))}
+                  placeholder="Select Grade Level"
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
+                <button type="submit" className="btn-primary" disabled={autoAllocating || !autoAllocGrade} style={{ flex: 1 }}>
+                  {autoAllocating ? 'Allocating...' : 'Confirm Allocation'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => setShowAutoAllocModal(false)} disabled={autoAllocating}>Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

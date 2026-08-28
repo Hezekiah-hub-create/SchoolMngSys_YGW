@@ -2,6 +2,7 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const smsService = require('../services/smsService');
+const { normalizeSection } = require('../utils/sectionHelper');
 
 // Get all attendance with optimized filtering
 const getAllAttendance = asyncHandler(async (req, res) => {
@@ -40,7 +41,7 @@ const getAllAttendance = asyncHandler(async (req, res) => {
         for (const a of assignments) {
           if (!a.grade) continue;
           const gradesToSearch = getGradeVariations(a.grade);
-          const targetSec = String(a.section || 'A').toLowerCase().replace('section', '').trim();
+          const targetSec = normalizeSection(a.section);
 
           const { data: st } = await supabase
             .from(COLLECTIONS.STUDENTS)
@@ -48,8 +49,7 @@ const getAllAttendance = asyncHandler(async (req, res) => {
             .in('grade', gradesToSearch);
             
           const matched = (st || []).filter(s => {
-            const dbSec = String(s.section || '').toLowerCase().replace('section', '').trim();
-            return dbSec === targetSec || String(s.section || '').toLowerCase() === String(a.section || 'A').toLowerCase();
+            return normalizeSection(s.section) === targetSec;
           });
           assignedStudents.push(...matched);
         }

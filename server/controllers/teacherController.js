@@ -2,6 +2,7 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const bcrypt = require('bcryptjs');
+const { normalizeSection } = require('../utils/sectionHelper');
 
 // Helper to map DB snake_case to Frontend camelCase
 const mapTeacherToFrontend = (t) => {
@@ -760,7 +761,7 @@ const getMyCourses = asyncHandler(async (req, res) => {
     const transformedAssignments = await Promise.all(assignments.map(async (item) => {
       const gradeName = item.class?.name || '';
       const gradesToSearch = getGradeVariations(gradeName);
-      const targetSec = String(item.section || 'A').toLowerCase().replace('section', '').trim();
+      const targetSec = normalizeSection(item.section);
 
       const { data: studentsInGrade } = await supabase
         .from(COLLECTIONS.STUDENTS)
@@ -768,8 +769,7 @@ const getMyCourses = asyncHandler(async (req, res) => {
         .in('grade', gradesToSearch);
         
       const matchingStudents = (studentsInGrade || []).filter(s => {
-        const dbSec = String(s.section || '').toLowerCase().replace('section', '').trim();
-        return dbSec === targetSec || String(s.section || '').toLowerCase() === String(item.section || 'A').toLowerCase();
+        return normalizeSection(s.section) === targetSec;
       });
 
       return {
@@ -788,7 +788,7 @@ const getMyCourses = asyncHandler(async (req, res) => {
     const transformedMasterClasses = await Promise.all((masterSections || []).map(async (s) => {
       const gradeName = s.class?.name || '';
       const gradesToSearch = getGradeVariations(gradeName);
-      const targetSec = String(s.name || 'A').toLowerCase().replace('section', '').trim();
+      const targetSec = normalizeSection(s.name);
 
       const { data: studentsInGrade } = await supabase
         .from(COLLECTIONS.STUDENTS)
@@ -796,8 +796,7 @@ const getMyCourses = asyncHandler(async (req, res) => {
         .in('grade', gradesToSearch);
         
       const matchingStudents = (studentsInGrade || []).filter(st => {
-        const dbSec = String(st.section || '').toLowerCase().replace('section', '').trim();
-        return dbSec === targetSec || String(st.section || '').toLowerCase() === String(s.name || 'A').toLowerCase();
+        return normalizeSection(st.section) === targetSec;
       });
 
       return {

@@ -2,6 +2,7 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const bcrypt = require('bcryptjs');
+const { normalizeSection } = require('../utils/sectionHelper');
 
 // Helper to map DB snake_case to Frontend camelCase
 const mapStudentToFrontend = (s) => {
@@ -97,9 +98,8 @@ const getAllStudents = asyncHandler(async (req, res) => {
       };
 
       // Filter students by grade and section (case-insensitive)
-      const normSection = (sec) => String(sec || '').toLowerCase().replace(/section\s*/i, '').trim();
       students = students.filter(s =>
-        assignments.some(a => isGradeMatch(a.grade, s.grade) && (normSection(a.section) === normSection(s.section) || !a.section || !s.section))
+        assignments.some(a => isGradeMatch(a.grade, s.grade) && (normalizeSection(a.section) === normalizeSection(s.section) || !a.section || !s.section))
       );
     } else {
       return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
@@ -126,12 +126,7 @@ const getAllStudents = asyncHandler(async (req, res) => {
 
   // Helper to match section names (e.g. 'Yellow (Y)', 'Yellow', 'A', 'Section A')
   const normSection = (sec) => {
-    const s = String(sec || '').toLowerCase().replace(/section\s*/i, '').trim();
-    if (s.startsWith('a') || s.includes('yellow')) return 'yellow';
-    if (s.startsWith('b') || s.includes('green')) return 'green';
-    if (s.startsWith('c') || s.includes('red')) return 'red';
-    if (s.startsWith('d') || s.includes('blue')) return 'blue';
-    return s;
+    return normalizeSection(sec);
   };
 
   // Apply filters

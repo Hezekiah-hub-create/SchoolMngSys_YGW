@@ -116,6 +116,7 @@ export const courseAPI = {
   getAll: (params) => api.get('/api/courses', { params }),
   getById: (id) => api.get(`/api/courses/${id}`),
   create: (data) => api.post('/api/courses', data),
+  autoAllocate: (data) => api.post('/api/courses/auto-allocate', data),
   update: (id, data) => api.put(`/api/courses/${id}`, data),
   delete: (id) => api.delete(`/api/courses/${id}`),
   search: (query) => api.get('/api/courses/search', { params: { q: query } }),

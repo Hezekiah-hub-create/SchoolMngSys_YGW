@@ -15,6 +15,9 @@ router.get('/grade/:grade', auth, courseController.getCoursesByGrade);
 // Get course by ID - must be last
 router.get('/:id', auth, courseController.getCourseById);
 
+// Auto allocate courses based on GES subjects
+router.post('/auto-allocate', auth, admissionAndAdmin, courseController.autoAllocateCourses);
+
 // Create new course
 router.post('/', auth, admissionAndAdmin, courseController.createCourse);
 
