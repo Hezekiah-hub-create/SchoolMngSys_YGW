@@ -36,6 +36,7 @@ import SettingsGeneral from './pages/Settings/General/General';
 import SettingsAcademic from './pages/Settings/Academic/Academic';
 import SettingsUsers from './pages/Settings/Users/Users';
 import SettingsRoles from './pages/Settings/Roles/Roles';
+import SettingsSMS from './pages/Settings/SMS/SMSConfig';
 import SettingsLayout from './pages/Settings/SettingsLayout';
 import Reports from './pages/Reports/Reports';
 import StaffReports from './pages/Reports/StaffReports';
@@ -297,6 +298,7 @@ function App() {
               <Route path="academic" element={<SettingsAcademic />} />
               <Route path="users" element={<SettingsUsers />} />
               <Route path="roles" element={<SettingsRoles />} />
+              <Route path="sms" element={<SettingsSMS />} />
             </Route>
             
             <Route path="/announcements" element={<Announcements />} />

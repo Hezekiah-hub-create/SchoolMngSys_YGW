@@ -884,9 +884,41 @@ const sendReportToParents = asyncHandler(async (req, res) => {
     });
   }
 
+  // Automated Phone Push Notification (SMS) on Report Dispatch
+  try {
+    const smsService = require('../services/smsService');
+    reports.forEach(r => {
+      const sId = r.studentId || r.student_id;
+      if (!sId) return;
+      const sName = r.studentName || `${r.student?.first_name || ''} ${r.student?.last_name || ''}`.trim() || 'your ward';
+      const term = r.term || 'current term';
+      const academicYear = r.year || r.academic_year || 'current session';
+
+      supabase.from(COLLECTIONS.STUDENTS)
+        .select('phone, guardian_phone, parent:parent_id(phone)')
+        .eq('id', sId)
+        .single()
+        .then(({ data: st }) => {
+          if (st) {
+            const parentPhone = st.guardian_phone || st.phone || st.parent?.phone;
+            if (parentPhone) {
+              smsService.sendReportAlert({
+                studentName: sName,
+                parentPhone,
+                term,
+                academicYear
+              }).catch(e => console.warn('[SMS REPORT ALERT ERROR]', e.message));
+            }
+          }
+        }).catch(e => console.warn('[SMS REPORT LOOKUP ERROR]', e.message));
+    });
+  } catch (smsErr) {
+    console.warn('[SMS DISPATCH ERROR]', smsErr.message);
+  }
+
   res.json({
     success: true,
-    message: `${successCount} report(s) successfully dispatched and are now accessible in the Parent Portal.`,
+    message: `${successCount} report(s) successfully dispatched and notifications sent to parents.`,
     saved: successCount,
     failed: failCount
   });

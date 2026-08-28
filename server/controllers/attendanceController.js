@@ -1,6 +1,7 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
+const smsService = require('../services/smsService');
 
 // Get all attendance with optimized filtering
 const getAllAttendance = asyncHandler(async (req, res) => {
@@ -197,6 +198,27 @@ const recordAttendance = asyncHandler(async (req, res) => {
     onConflict: 'student_id,date,period' 
   });
 
+  // Automated Phone Push Notification (SMS)
+  if (['absent', 'late'].includes(String(status).toLowerCase())) {
+    supabase.from(COLLECTIONS.STUDENTS)
+      .select('first_name, last_name, phone, guardian_phone, parent:parent_id(phone)')
+      .eq('id', student)
+      .single()
+      .then(({ data: st }) => {
+        if (st) {
+          const parentPhone = st.guardian_phone || st.phone || st.parent?.phone;
+          const studentName = `${st.first_name || ''} ${st.last_name || ''}`.trim();
+          smsService.sendAttendanceAlert({
+            studentName,
+            parentPhone,
+            status,
+            date: dateStr,
+            schoolName: settings.school_name
+          }).catch(e => console.warn('[SMS ATTENDANCE ERROR]', e.message));
+        }
+      }).catch(e => console.warn('[SMS LOOKUP ERROR]', e.message));
+  }
+
   res.status(200).json({ success: true, data: result[0] });
 });
 
@@ -249,6 +271,31 @@ const bulkRecordAttendance = asyncHandler(async (req, res) => {
   const result = await supabaseService.bulkUpsert(COLLECTIONS.ATTENDANCE, formattedRecords, { 
     onConflict: 'student_id,date,period' 
   });
+
+  // Automated Phone Push Notification (SMS) for Absent/Late students in bulk
+  const flagged = formattedRecords.filter(r => ['absent', 'late'].includes(String(r.status || '').toLowerCase()));
+  if (flagged.length > 0) {
+    const studentIds = flagged.map(r => r.student_id);
+    supabase.from(COLLECTIONS.STUDENTS)
+      .select('id, first_name, last_name, phone, guardian_phone, parent:parent_id(phone)')
+      .in('id', studentIds)
+      .then(({ data: stList }) => {
+        (stList || []).forEach(st => {
+          const parentPhone = st.guardian_phone || st.phone || st.parent?.phone;
+          const rec = flagged.find(r => r.student_id === st.id);
+          if (rec && parentPhone) {
+            const studentName = `${st.first_name || ''} ${st.last_name || ''}`.trim();
+            smsService.sendAttendanceAlert({
+              studentName,
+              parentPhone,
+              status: rec.status,
+              date: rec.date,
+              schoolName: settings.school_name
+            }).catch(e => console.warn('[SMS BULK ATTENDANCE ERROR]', e.message));
+          }
+        });
+      }).catch(e => console.warn('[SMS BULK LOOKUP ERROR]', e.message));
+  }
 
   res.status(200).json({ success: true, data: result });
 });

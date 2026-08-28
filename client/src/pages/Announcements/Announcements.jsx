@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { parentAPI } from '../../services/api';
+import { useAlert } from '../../context/AlertContext';
+import { parentAPI, smsAPI, classAPI } from '../../services/api';
 import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 
@@ -19,6 +20,7 @@ const Icons = {
 const Announcements = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { showAlert } = useAlert();
   const [activeMenu, setActiveMenu] = useState('Announcements');
   const [announcements, setAnnouncements] = useState([]);
   const [linkedStudents, setLinkedStudents] = useState([]);
@@ -27,11 +29,54 @@ const Announcements = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
 
+  // SMS Broadcast State
+  const [showSMSModal, setShowSMSModal] = useState(false);
+  const [smsTargetGrade, setSmsTargetGrade] = useState('all');
+  const [smsTitle, setSmsTitle] = useState('');
+  const [smsMessage, setSmsMessage] = useState('');
+  const [smsSending, setSmsSending] = useState(false);
+  const [classesList, setClassesList] = useState([]);
+
   const isParent = user?.role === 'parent';
 
   useEffect(() => {
     fetchData();
+    if (!isParent) {
+      classAPI.getAll().then(res => {
+        setClassesList(res.data?.data || []);
+      }).catch(() => {});
+    }
   }, []);
+
+  const handleBroadcastSMS = async (e) => {
+    e.preventDefault();
+    if (!smsMessage.trim()) {
+      showAlert('warning', 'Missing Content', 'Please provide a message body for the SMS broadcast.');
+      return;
+    }
+
+    try {
+      setSmsSending(true);
+      const res = await smsAPI.broadcastSMS({
+        grade: smsTargetGrade,
+        title: smsTitle || 'School Announcement',
+        message: smsMessage
+      });
+
+      if (res.data?.success) {
+        showAlert('success', 'SMS Broadcast Sent', `Notification successfully dispatched to ${res.data.recipientsCount || 'all'} parents' phones.`);
+        setShowSMSModal(false);
+        setSmsTitle('');
+        setSmsMessage('');
+      } else {
+        showAlert('error', 'Broadcast Failed', res.data?.message || 'Could not send broadcast.');
+      }
+    } catch (err) {
+      showAlert('error', 'Dispatch Error', err.response?.data?.message || err.message);
+    } finally {
+      setSmsSending(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -86,7 +131,7 @@ const Announcements = () => {
               <h1 style={{ fontSize: '42px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-1.5px' }}>Official <span style={{ color: 'var(--brand-green)' }}>Announcements</span></h1>
               <p style={{ fontSize: '16px', color: '#64748b', marginTop: '12px', fontWeight: '500' }}>Stay updated with the latest institutional news and targeted notifications.</p>
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <div style={{ position: 'relative' }}>
                 <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><Icons.Search /></div>
                 <input 
@@ -94,11 +139,22 @@ const Announcements = () => {
                   placeholder="Search communications..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ padding: '14px 16px 14px 44px', border: '1px solid #e2e8f0', borderRadius: '14px', fontSize: '14px', outline: 'none', width: '280px', backgroundColor: '#f8fafc', transition: 'all 0.3s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }} 
+                  style={{ padding: '14px 16px 14px 44px', border: '1px solid #e2e8f0', borderRadius: '14px', fontSize: '14px', outline: 'none', width: '240px', backgroundColor: '#f8fafc', transition: 'all 0.3s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }} 
                   onFocus={(e) => { e.target.style.backgroundColor = 'white'; e.target.style.borderColor = '#00843e'; e.target.style.boxShadow = '0 0 0 4px rgba(0, 132, 62, 0.1)'; }}
                   onBlur={(e) => { e.target.style.backgroundColor = '#f8fafc'; e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.02)'; }}
                 />
               </div>
+
+              {!isParent && (
+                <button
+                  onClick={() => setShowSMSModal(true)}
+                  className="premium-btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 20px', backgroundColor: 'var(--brand-green)', color: 'white', borderRadius: '14px', border: 'none', fontWeight: '800', fontSize: '14px', cursor: 'pointer' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  Broadcast Phone SMS
+                </button>
+              )}
             </div>
           </div>
 
@@ -168,6 +224,83 @@ const Announcements = () => {
               ))
             )}
           </div>
+
+          {/* SMS Broadcast Modal */}
+          {showSMSModal && (
+            <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', animation: 'fadeIn 0.2s ease-out' }}>
+              <div className="glass-card" style={{ width: '100%', maxWidth: '520px', backgroundColor: '#ffffff', borderRadius: '24px', padding: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(0, 132, 62, 0.1)', color: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    </div>
+                    <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Broadcast Phone SMS</h3>
+                  </div>
+                  <button onClick={() => setShowSMSModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '24px', lineHeight: 1 }}>&times;</button>
+                </div>
+
+                <form onSubmit={handleBroadcastSMS} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label className="premium-label" style={{ marginBottom: '6px', display: 'block' }}>Target Audience</label>
+                    <select
+                      value={smsTargetGrade}
+                      onChange={(e) => setSmsTargetGrade(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                    >
+                      <option value="all">Entire School (All Parents & Guardians)</option>
+                      {classesList.map(c => (
+                        <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="premium-label" style={{ marginBottom: '6px', display: 'block' }}>Notice Title / Topic</label>
+                    <input
+                      type="text"
+                      value={smsTitle}
+                      onChange={(e) => setSmsTitle(e.target.value)}
+                      placeholder="e.g. Mid-Term PTA Meeting / School Resumption"
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="premium-label" style={{ marginBottom: '6px', display: 'block' }}>SMS Message Body</label>
+                    <textarea
+                      rows={4}
+                      value={smsMessage}
+                      onChange={(e) => setSmsMessage(e.target.value)}
+                      placeholder="Type the message to be sent as an SMS alert to parents' phones..."
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', resize: 'vertical' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                      <span>Standard SMS character limit: 160 per credit</span>
+                      <span>{smsMessage.length} characters</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowSMSModal(false)}
+                      style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', fontWeight: '700', fontSize: '14px', cursor: 'pointer', color: '#64748b' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={smsSending || !smsMessage.trim()}
+                      className="premium-btn-primary"
+                      style={{ flex: 2, padding: '14px', borderRadius: '12px' }}
+                    >
+                      {smsSending ? 'Dispatching SMS...' : 'Dispatch Broadcast SMS'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </main>
       <style>{`
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }

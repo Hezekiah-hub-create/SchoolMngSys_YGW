@@ -154,6 +154,7 @@ export const academicClassesAPI = {
   delete: (id) => api.delete(`/api/classes/${id}`),
   assignSubjects: (id, subjectIds) => api.post(`/api/classes/${id}/subjects`, { subjectIds })
 };
+export const classAPI = academicClassesAPI;
 
 export const academicSectionsAPI = {
   getAll: () => api.get('/api/sections'),
@@ -279,6 +280,14 @@ export const examAPI = {
   updateSchedule: (id, data) => api.put(`/api/exams/schedule/${id}`, data),
   deleteSchedule: (id) => api.delete(`/api/exams/schedule/${id}`),
   getResults: (params) => api.get('/api/exams/results', { params })
+};
+
+// ==================== SMS & NOTIFICATION API ====================
+export const smsAPI = {
+  getConfig: () => api.get('/api/sms/config'),
+  testSMS: (data) => api.post('/api/sms/test', data),
+  sendSMS: (data) => api.post('/api/sms/send', data),
+  broadcastSMS: (data) => api.post('/api/sms/broadcast', data)
 };
 
 export default api;

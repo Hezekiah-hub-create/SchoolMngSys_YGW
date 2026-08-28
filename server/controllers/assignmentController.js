@@ -1,6 +1,7 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
+const smsService = require('../services/smsService');
 
 // Get all assignments
 const getAllAssignments = asyncHandler(async (req, res) => {
@@ -214,9 +215,33 @@ const createAssignment = asyncHandler(async (req, res) => {
     attachments: attachments || [],
     submissions: [],
     is_published: true
-  };
-
   const assignment = await supabaseService.create(COLLECTIONS.ASSIGNMENTS, assignmentData);
+
+  // Automated Phone Push Notification (SMS) to parents
+  if (grade) {
+    let studentQuery = supabase.from(COLLECTIONS.STUDENTS).select('phone, guardian_phone, parent:parent_id(phone)').eq('grade', grade);
+    if (section && section !== 'All') studentQuery = studentQuery.eq('section', section);
+    
+    studentQuery.then(({ data: stList }) => {
+      const phones = new Set();
+      (stList || []).forEach(st => {
+        if (st.guardian_phone) phones.add(st.guardian_phone);
+        if (st.phone) phones.add(st.phone);
+        if (st.parent?.phone) phones.add(st.parent.phone);
+      });
+      const uniquePhones = Array.from(phones).filter(Boolean);
+      if (uniquePhones.length > 0) {
+        smsService.sendAssignmentAlert({
+          taskTitle: title,
+          courseName: grade + (section ? ` ${section}` : ''),
+          dueDate,
+          parentPhones: uniquePhones,
+          schoolName: settings.school_name
+        }).catch(e => console.warn('[SMS ASSIGNMENT ERROR]', e.message));
+      }
+    }).catch(e => console.warn('[SMS ASSIGNMENT LOOKUP ERROR]', e.message));
+  }
+
   res.status(201).json({ success: true, data: assignment });
 });
 

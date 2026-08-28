@@ -27,6 +27,7 @@ const sectionRoutes = require('./routes/sectionRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const academicCalendarRoutes = require('./routes/academicCalendarRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const smsRoutes = require('./routes/smsRoutes');
 
 
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
@@ -96,6 +97,7 @@ app.use('/api/sections', sectionRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/academic-calendar', academicCalendarRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/sms', smsRoutes);
 
 
 
