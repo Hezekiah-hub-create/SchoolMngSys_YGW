@@ -1,4 +1,3 @@
-const axios = require('axios');
 const supabase = require('../config/supabase');
 const { COLLECTIONS } = require('./supabaseService');
 
@@ -57,7 +56,7 @@ const getSMSConfig = async () => {
 };
 
 /**
- * Dispatches an SMS using the selected gateway provider
+ * Dispatches an SMS using native fetch (zero external dependencies)
  */
 const sendRawSMS = async ({ recipients, message, senderId, config }) => {
   const cfg = config || (await getSMSConfig());
@@ -90,67 +89,61 @@ const sendRawSMS = async ({ recipients, message, senderId, config }) => {
 
     if (provider === 'arkesel') {
       // Arkesel SMS API v2
-      const response = await axios.post(
-        'https://sms.arkesel.com/api/v2/sms/send',
-        {
+      const res = await fetch('https://sms.arkesel.com/api/v2/sms/send', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           sender: sender.substring(0, 11),
           message,
           recipients: phoneList
-        },
-        {
-          headers: {
-            'api-key': apiKey,
-            'Content-Type': 'application/json'
-          },
-          timeout: 10000
-        }
-      );
-      return { success: true, data: response.data };
+        })
+      });
+      const data = await res.json();
+      return { success: res.ok, data };
     } 
     
     if (provider === 'mnotify') {
       // mNotify SMS API v2
-      const response = await axios.post(
-        `https://api.mnotify.com/api/sms/quick?key=${apiKey}`,
-        {
+      const res = await fetch(`https://api.mnotify.com/api/sms/quick?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           recipient: phoneList,
           sender: sender.substring(0, 11),
           message,
           is_schedule: false
-        },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 10000
-        }
-      );
-      return { success: true, data: response.data };
+        })
+      });
+      const data = await res.json();
+      return { success: res.ok, data };
     } 
     
     if (provider === 'hubtel') {
       // Hubtel Quick SMS API
-      const response = await axios.post(
-        'https://api.hubtel.com/v1/messages/send',
-        {
-          From: sender.substring(0, 11),
-          To: phoneList[0], // Hubtel sends individually or comma separated
-          Content: message
+      const authHeader = 'Basic ' + Buffer.from(apiKey).toString('base64');
+      const res = await fetch('https://api.hubtel.com/v1/messages/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
         },
-        {
-          headers: {
-            'Authorization': `Basic ${Buffer.from(apiKey).toString('base64')}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 10000
-        }
-      );
-      return { success: true, data: response.data };
+        body: JSON.stringify({
+          From: sender.substring(0, 11),
+          To: phoneList[0],
+          Content: message
+        })
+      });
+      const data = await res.json();
+      return { success: res.ok, data };
     }
 
     throw new Error(`Unsupported SMS provider: ${provider}`);
   } catch (error) {
-    const errMsg = error.response?.data?.message || error.response?.data || error.message;
-    console.error(`[SMS ERROR] Failed to send SMS via ${provider}:`, errMsg);
-    return { success: false, error: errMsg };
+    console.error(`[SMS ERROR] Failed to send SMS via ${provider}:`, error.message);
+    return { success: false, error: error.message };
   }
 };
 

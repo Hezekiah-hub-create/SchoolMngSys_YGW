@@ -215,6 +215,8 @@ const createAssignment = asyncHandler(async (req, res) => {
     attachments: attachments || [],
     submissions: [],
     is_published: true
+  };
+
   const assignment = await supabaseService.create(COLLECTIONS.ASSIGNMENTS, assignmentData);
 
   // Automated Phone Push Notification (SMS) to parents
