@@ -254,13 +254,20 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
   }
 
   // 4. Fetch Student Grades for this term...
+  const yearVariants = academicYear ? [
+    academicYear,
+    academicYear.replace('/', '-'),
+    academicYear.replace('-', '/')
+  ] : null;
 
   let gradesQuery = supabase.from(COLLECTIONS.GRADES)
     .select('*')
     .eq('student_id', student.id)
     .in('term', termVariants);
   
-  if (academicYear) gradesQuery = gradesQuery.eq('academic_year', academicYear);
+  if (yearVariants) {
+    gradesQuery = gradesQuery.in('academic_year', yearVariants);
+  }
   
   let gradesData = options.allGrades ? options.allGrades.filter(g => g.student_id === student.id) : (await gradesQuery).data;
   const grades = gradesData || [];
@@ -318,37 +325,55 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
 
   const mergedSubjects = [];
   for (const sInfo of subjectMap.values()) {
-    const grade = grades.find(g => 
-      (g.course_id && String(g.course_id) === String(sInfo.id)) || 
-      (g.course_name === sInfo.name) || (g.subject_name === sInfo.name) ||
-      (gradeSubjectNames.find(gs => String(gs.id) === String(g.course_id))?.subject?.name === sInfo.name)
-    );
+    const sNameNorm = String(sInfo.name || '').toLowerCase().trim();
+    const grade = grades.find(g => {
+      const gCourseId = String(g.course_id || g.course || '');
+      const gCourseName = String(g.course_name || g.subject_name || g.course || '').toLowerCase().trim();
+      const gsName = String(gradeSubjectNames.find(gs => String(gs.id) === gCourseId)?.subject?.name || '').toLowerCase().trim();
+      
+      return (gCourseId && gCourseId === String(sInfo.id)) ||
+             gCourseName === sNameNorm ||
+             gsName === sNameNorm ||
+             (sNameNorm.length > 3 && (gCourseName.includes(sNameNorm) || sNameNorm.includes(gCourseName)));
+    });
     
-    let classScore = grade?.class_score ?? 0;
-    let examScore = grade?.exam_score ?? 0;
+    let classScore = Number(grade?.class_score ?? 0);
+    let examScore = Number(grade?.exam_score ?? 0);
     
-    // Support assessments object or array (Dynamic Extraction)
-    if (grade?.assessments && typeof grade.assessments === 'object') {
+    // 1. Check direct columns from MarksEntry
+    if (grade?.cat1 !== undefined || grade?.gw !== undefined || grade?.exam !== undefined) {
+      const c1 = Number(grade.cat1 || 0);
+      const gw = Number(grade.gw || 0);
+      const c2 = Number(grade.cat2 || 0);
+      const pw = Number(grade.pw || 0);
+      const ex = Number(grade.exam || 0);
+      classScore = Math.round((c1 + gw + c2 + pw) / 2);
+      examScore = Math.round(ex / 2);
+    } else if (grade?.assessments && typeof grade.assessments === 'object') {
       if (Array.isArray(grade.assessments)) {
-        // Handle Array format: [{ name: "Class Score", score: 20 }, ...]
         let cs = 0;
         let es = 0;
+        let isCatStructure = false;
         grade.assessments.forEach(a => {
           const name = String(a.name || '').toLowerCase();
           const score = Number(a.score || 0);
-          if (name.includes('class') || name.includes('homework') || name.includes('midterm') || name.includes('test')) {
+          if (name.includes('cat') || name.includes('gw') || name.includes('pw')) {
+            cs += score;
+            isCatStructure = true;
+          } else if (name.includes('class') || name.includes('homework') || name.includes('midterm') || name.includes('test') || name.includes('project')) {
             cs += score;
           } else if (name.includes('exam') || name.includes('final')) {
             es += score;
           }
         });
-        // Only override if we found actual data
-        if (cs > 0 || es > 0) {
+        if (isCatStructure) {
+          classScore = Math.round(cs / 2);
+          examScore = Math.round(es / 2);
+        } else if (cs > 0 || es > 0) {
           classScore = cs;
           examScore = es;
         }
       } else {
-        // Handle Legacy Object format: { classwork: 10, homework: 5, ... }
         const a = grade.assessments;
         const cs = (Number(a.classwork || 0) + Number(a.homework || 0) + Number(a.midterm || 0));
         const es = Number(a.finalExam || a.final || 0);
@@ -375,6 +400,35 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     });
   }
 
+  // Also include any subjects with recorded grades that were not caught by subjectMap
+  grades.forEach(g => {
+    const gName = g.course_name || g.subject_name || gradeSubjectNames.find(gs => String(gs.id) === String(g.course_id))?.subject?.name;
+    if (gName && !mergedSubjects.some(ms => ms.name.toLowerCase().trim() === gName.toLowerCase().trim())) {
+      let cs = 0;
+      let es = 0;
+      if (g.cat1 !== undefined || g.exam !== undefined) {
+        cs = Math.round((Number(g.cat1 || 0) + Number(g.gw || 0) + Number(g.cat2 || 0) + Number(g.pw || 0)) / 2);
+        es = Math.round(Number(g.exam || 0) / 2);
+      } else if (g.class_score !== undefined || g.exam_score !== undefined) {
+        cs = Number(g.class_score || 0);
+        es = Number(g.exam_score || 0);
+      }
+      const tot = Number(g.total_score ?? (cs + es));
+      mergedSubjects.push({
+        name: gName,
+        category: 'CORE',
+        assessments: g.assessments || [],
+        classScore: cs,
+        examScore: es,
+        total: tot,
+        position: toOrdinal(g.position),
+        grade: g.letter_grade || (tot > 0 ? fallbackGradeBand(tot, settings) : '--'),
+        gradeValue: tot > 0 ? getGradeValue(tot, settings) : '--',
+        interpretation: tot > 0 ? getInterpretation(tot, settings) : '--'
+      });
+    }
+  });
+
   // 6. Fetch Attendance
   let attendanceData = [];
   if (options.allAttendance) {
@@ -384,7 +438,7 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       .select('status')
       .eq('student_id', student.id)
       .in('term', termVariants);
-    if (academicYear) attendanceQuery = attendanceQuery.eq('academic_year', academicYear);
+    if (yearVariants) attendanceQuery = attendanceQuery.in('academic_year', yearVariants);
     const { data } = await attendanceQuery;
     attendanceData = data || [];
   }
@@ -407,7 +461,9 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     const { data: sectionStudents } = await supabase.from(COLLECTIONS.STUDENTS).select('id').eq('grade', effectiveGrade).eq('section', effectiveSection);
     if (sectionStudents?.length > 0) {
       const studentIds = sectionStudents.map(s => s.id);
-      const { data: allGrades } = await supabase.from(COLLECTIONS.GRADES).select('student_id, total_score').in('student_id', studentIds).in('term', termVariants).eq('academic_year', academicYear);
+      let query = supabase.from(COLLECTIONS.GRADES).select('student_id, total_score').in('student_id', studentIds).in('term', termVariants);
+      if (yearVariants) query = query.in('academic_year', yearVariants);
+      const { data: allGrades } = await query;
       const aggregates = {};
       allGrades?.forEach(g => aggregates[g.student_id] = (aggregates[g.student_id] || 0) + Number(g.total_score || 0));
       const sorted = Object.entries(aggregates).map(([id, agg]) => ({ id, agg })).sort((a, b) => b.agg - a.agg);

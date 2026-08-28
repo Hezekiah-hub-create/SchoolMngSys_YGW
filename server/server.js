@@ -99,17 +99,38 @@ app.use('/api/ai', aiRoutes);
 
 
 
-// List all system users — Admin only
-const { auth: authMiddleware, adminOnly } = require('./middleware/authMiddleware');
-app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
+// List all system users — Admin & Staff only
+const { auth: authMiddleware } = require('./middleware/authMiddleware');
+app.get('/api/users', authMiddleware, async (req, res) => {
   try {
+    const userRole = String(req.user?.role || '').toLowerCase();
+    if (!['admin', 'administrator', 'itsupport', 'staff'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Access denied. Administrator clearance required.' });
+    }
+
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, first_name, last_name, role, is_active, created_at, last_login')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json({ success: true, data: data || [] });
+      .select('*');
+    
+    if (error) {
+      console.error('[ERROR] Supabase users query failed:', error);
+      throw error;
+    }
+
+    const sanitized = (data || []).map(u => ({
+      id: u.id,
+      email: u.email || '',
+      first_name: u.first_name || u.firstName || u.name?.split(' ')[0] || '',
+      last_name: u.last_name || u.lastName || u.name?.split(' ').slice(1).join(' ') || '',
+      role: u.role || 'User',
+      is_active: u.is_active !== false && u.isActive !== false,
+      created_at: u.created_at || u.createdAt || null,
+      last_login: u.last_login || u.lastLogin || null
+    }));
+
+    res.json({ success: true, data: sanitized });
   } catch (err) {
+    console.error('[ERROR] /api/users endpoint failed:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
