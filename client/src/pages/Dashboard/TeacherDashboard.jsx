@@ -181,22 +181,19 @@ const TeacherDashboard = () => {
         setMasterClasses(masterData);
         setStats(prev => ({ ...prev, classes: data.length }));
 
-        // Calculate unique student count across taught courses and master classes
+        // Calculate unique student count across taught courses and master classes (by class grade levels)
         let totalUniqueStudentsCount = 0;
         try {
-          const uniqueCombos = new Set([
-            ...data.filter(c => c.grade && c.section).map(c => `${normalizeGrade(c.grade)}|${normalizeSection(c.section)}`),
-            ...masterData.filter(c => c.name && c.section).map(c => `${normalizeGrade(c.name)}|${normalizeSection(c.section)}`)
+          const uniqueGrades = new Set([
+            ...data.filter(c => c.grade).map(c => normalizeGrade(c.grade)),
+            ...masterData.filter(c => c.name).map(c => normalizeGrade(c.name))
           ]);
           
-          if (uniqueCombos.size > 0) {
+          if (uniqueGrades.size > 0) {
             const studentsRes = await studentAPI.getAll({ limit: 2000 });
             const allStudents = studentsRes.data?.data || studentsRes.data || [];
             const filtered = allStudents.filter(s => {
-              return Array.from(uniqueCombos).some(combo => {
-                const [g, sec] = combo.split('|');
-                return normalizeGrade(s.grade) === g && normalizeSection(s.section) === sec;
-              });
+              return uniqueGrades.has(normalizeGrade(s.grade));
             });
             totalUniqueStudentsCount = filtered.length;
           }

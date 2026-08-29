@@ -31,6 +31,148 @@ const displayGrade = (g) => {
   return str;
 };
 
+const GES_TOPICS = {
+  'mathematics': [
+    'Numbers and Number Operations',
+    'Fractions, Decimals and Percentages',
+    'Algebra (Expressions and Equations)',
+    'Patterns and Relationships',
+    'Geometry (Shapes and Space)',
+    'Measurement (Length, Area, Volume)',
+    'Handling Data and Probability',
+    'Ratio and Proportion'
+  ],
+  'science': [
+    'Living and Non-Living Things',
+    'Plants and Animals',
+    'Human Body and Hygiene',
+    'Matter and Materials',
+    'Energy and Its Sources',
+    'Light, Sound and Heat',
+    'Forces and Motion',
+    'The Earth and the Solar System',
+    'Ecosystems and Environment'
+  ],
+  'integrated science': [
+    'Living and Non-Living Things',
+    'Plants and Animals',
+    'Human Body and Hygiene',
+    'Matter and Materials',
+    'Energy and Its Sources',
+    'Light, Sound and Heat',
+    'Forces and Motion',
+    'The Earth and the Solar System',
+    'Ecosystems and Environment'
+  ],
+  'english language': [
+    'Phonics and Spelling',
+    'Grammar and Parts of Speech',
+    'Reading and Comprehension',
+    'Vocabulary Development',
+    'Creative Writing and Essays',
+    'Listening and Speaking Skills',
+    'Literature (Stories and Poetry)'
+  ],
+  'computing': [
+    'Introduction to Computers',
+    'Hardware and Software Components',
+    'Word Processing (MS Word)',
+    'Spreadsheets (MS Excel)',
+    'Internet and Web Browsing',
+    'Computer Safety and Ethics',
+    'Basic Programming Concepts'
+  ],
+  'computing (ict)': [
+    'Introduction to Computers',
+    'Hardware and Software Components',
+    'Word Processing (MS Word)',
+    'Spreadsheets (MS Excel)',
+    'Internet and Web Browsing',
+    'Computer Safety and Ethics',
+    'Basic Programming Concepts'
+  ],
+  'history': [
+    'Family and Community History',
+    'Major Historical Events in Ghana',
+    'Ghanaian Heroes and Heroines',
+    'Colonization and Independence',
+    'Traditional Kingdoms and States',
+    'History of Festivals in Ghana'
+  ],
+  'our world and our people': [
+    'My Community and My Country',
+    'Interpersonal Relationships',
+    'Cultural Diversity and Heritage',
+    'Civic Rights and Responsibilities',
+    'Protecting Our Natural Resources',
+    'National Pride and Citizenship'
+  ],
+  'our world our people': [
+    'My Community and My Country',
+    'Interpersonal Relationships',
+    'Cultural Diversity and Heritage',
+    'Civic Rights and Responsibilities',
+    'Protecting Our Natural Resources',
+    'National Pride and Citizenship'
+  ],
+  'creative arts': [
+    'Drawing and Shading Techniques',
+    'Color Theory and Painting',
+    'Paper Craft and Modeling',
+    'Traditional Dance and Music',
+    'Drama and Performing Arts',
+    'Exhibition and Art Appreciation'
+  ],
+  'creative arts & design': [
+    'Drawing and Shading Techniques',
+    'Color Theory and Painting',
+    'Paper Craft and Modeling',
+    'Traditional Dance and Music',
+    'Drama and Performing Arts',
+    'Exhibition and Art Appreciation'
+  ],
+  'creative arts and design': [
+    'Drawing and Shading Techniques',
+    'Color Theory and Painting',
+    'Paper Craft and Modeling',
+    'Traditional Dance and Music',
+    'Drama and Performing Arts',
+    'Exhibition and Art Appreciation'
+  ],
+  'physical education and health': [
+    'Fundamental Movement Skills',
+    'Athletics and Track Events',
+    'Team Games (Football, Netball)',
+    'Fitness and Health Activities',
+    'Safety in Physical Activities',
+    'Nutrition and Balanced Diets'
+  ],
+  'physical education': [
+    'Fundamental Movement Skills',
+    'Athletics and Track Events',
+    'Team Games (Football, Netball)',
+    'Fitness and Health Activities',
+    'Safety in Physical Activities',
+    'Nutrition and Balanced Diets'
+  ],
+  'religious and moral education': [
+    'God the Creator and Creation',
+    'Religious Leaders and Teachers',
+    'Moral Values (Honesty, Respect)',
+    'Religious Festivals and Worship',
+    'Authority and Obedience',
+    'Responsibility and Good Conduct'
+  ],
+  'religious & moral education': [
+    'God the Creator and Creation',
+    'Religious Leaders and Teachers',
+    'Moral Values (Honesty, Respect)',
+    'Religious Festivals and Worship',
+    'Authority and Obedience',
+    'Responsibility and Good Conduct'
+  ]
+};
+
 const Courses = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
@@ -71,6 +213,7 @@ const Courses = () => {
   // AI Lesson Generator State
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
+  const [aiTopicOption, setAiTopicOption] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResult, setAiResult] = useState('');
   const [selectedAiCourse, setSelectedAiCourse] = useState(null);
@@ -125,9 +268,9 @@ const Courses = () => {
       const selectedChild = linkedStudents.find(s => s.id === selectedChildId);
       
       if (isStudent && user?.grade) response = await courseAPI.getByGrade(user.grade);
-      else if (isTeacher) response = await courseAPI.getAll({ teacher: user?.id || user?.uid });
+      else if (isTeacher) response = await courseAPI.getAll({ teacher: user?.id || user?.uid, limit: 5000 });
       else if (isParent && selectedChild) response = await courseAPI.getByGrade(selectedChild.grade);
-      else response = await courseAPI.getAll();
+      else response = await courseAPI.getAll({ limit: 5000 });
       
       let fetched = Array.isArray(response.data) ? response.data : (response.data?.data || []);
 
@@ -224,10 +367,16 @@ const Courses = () => {
     e.preventDefault();
     try {
       setSaving(true);
-      const sectionsForGrade = allSections.filter(s => normalizeGrade(s.class_name || s.grade) === normalizeGrade(formData.grade));
+      const academicYear = formData.academicYear || currentSession || '2024/2025';
+      let sectionsToAllocate = allSections.filter(s => normalizeGrade(s.class_name || s.grade) === normalizeGrade(formData.grade));
+      
+      // Fallback to default section 'A' if no divisions/sections are defined in database for this grade
+      if (sectionsToAllocate.length === 0) {
+        sectionsToAllocate = [{ name: 'A' }];
+      }
       
       // For each section, update or create allocation
-      const promises = sectionsForGrade.map(section => {
+      const promises = sectionsToAllocate.map(section => {
         const teacherId = formData.sectionAssignments[section.name] || null;
         const payload = {
           name: formData.name,
@@ -235,6 +384,7 @@ const Courses = () => {
           grade: formData.grade,
           section: section.name,
           teacherId: teacherId,
+          academicYear: academicYear,
           credits: formData.credits,
           hoursPerWeek: formData.hoursPerWeek,
           room: formData.room
@@ -325,8 +475,17 @@ const Courses = () => {
 
   const openAiModal = (course) => {
     setSelectedAiCourse(course);
-    setAiTopic('');
     setAiResult('');
+    
+    const subjectNameLower = (course?.name || '').toLowerCase().trim();
+    const defaultTopics = GES_TOPICS[subjectNameLower] || [];
+    if (defaultTopics.length > 0) {
+      setAiTopicOption(defaultTopics[0]);
+      setAiTopic(defaultTopics[0]);
+    } else {
+      setAiTopicOption('__custom__');
+      setAiTopic('');
+    }
     setShowAiModal(true);
   };
 
@@ -498,7 +657,7 @@ const Courses = () => {
                             fontSize: '11px',
                             fontWeight: '900'
                           }}>
-                            {a.teacher ? `${a.teacher.firstName?.[0]}${a.teacher.lastName?.[0]}` : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
+                            {a.teacher ? `${(a.teacher.firstName || a.teacher.first_name || '')?.[0] || ''}${(a.teacher.lastName || a.teacher.last_name || '')?.[0] || ''}` : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
                           </div>
                         </div>
                       ))}
@@ -679,16 +838,41 @@ const Courses = () => {
             {!aiResult ? (
               <form onSubmit={handleGenerateLesson} style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' }}>
                 <div>
-                  <label className="premium-label">Lesson Topic</label>
-                  <input 
-                    type="text" 
-                    className="premium-input" 
-                    placeholder="e.g. Fractions and Decimals" 
-                    value={aiTopic} 
-                    onChange={e => setAiTopic(e.target.value)} 
-                    required 
+                  <PremiumSelect 
+                    label="Select Lesson Topic (GES Syllabus)"
+                    value={aiTopicOption}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setAiTopicOption(val);
+                      if (val !== '__custom__') {
+                        setAiTopic(val);
+                      } else {
+                        setAiTopic('');
+                      }
+                    }}
+                    options={[
+                      ...(GES_TOPICS[(selectedAiCourse?.name || '').toLowerCase().trim()] || []).map(topic => ({
+                        value: topic,
+                        label: topic
+                      })),
+                      { value: '__custom__', label: 'Custom Topic (Write-in)...' }
+                    ]}
                   />
                 </div>
+
+                {aiTopicOption === '__custom__' && (
+                  <div>
+                    <label className="premium-label">Custom Topic Description</label>
+                    <input 
+                      type="text" 
+                      className="premium-input" 
+                      placeholder="e.g. Fractions and Decimals" 
+                      value={aiTopic} 
+                      onChange={e => setAiTopic(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '16px', marginTop: '20px' }}>
                   <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={aiGenerating}>
                     {aiGenerating ? 'Generating...' : 'Generate Plan'}

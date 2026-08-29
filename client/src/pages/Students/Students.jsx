@@ -5,6 +5,21 @@ import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { mapSectionName } from '../../utils/sectionHelper';
 
+const normalizeSection = (sec) => {
+  if (!sec) return '';
+  const upper = String(sec).toUpperCase().trim();
+  if (upper === 'A' || upper === 'Y' || upper === 'YELLOW' || upper === 'YELLOW (Y)') return 'yellow';
+  if (upper === 'B' || upper === 'G' || upper === 'GREEN' || upper === 'GREEN (G)') return 'green';
+  if (upper === 'C' || upper === 'R' || upper === 'RED' || upper === 'RED (R)') return 'red';
+  if (upper === 'D' || upper === 'BL' || upper === 'BLUE' || upper === 'BLUE (B)') return 'blue';
+  return upper.toLowerCase();
+};
+
+const normalizeGrade = (gName) => {
+  if (!gName) return '';
+  return String(gName).toLowerCase().replace(/\s/g, '');
+};
+
 const Students = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated, loading: authLoading, user } = useAuth();
@@ -66,21 +81,18 @@ const Students = () => {
         const myCourses = coursesRes?.data?.data || coursesRes?.data || [];
         const myMasterClasses = coursesRes?.data?.masterClasses || [];
         
-        // Build unique grade+section combos the teacher is assigned to
-        const teacherClassCombos = [
-          ...myCourses.filter(c => c.grade && c.section).map(c => `${normalizeGrade(c.grade)}|${normalizeSection(c.section)}`),
-          ...myMasterClasses.filter(c => c.name && c.section).map(c => `${normalizeGrade(c.name)}|${normalizeSection(c.section)}`)
+        // Build unique grade levels the teacher is assigned to
+        const teacherGrades = [
+          ...myCourses.filter(c => c.grade).map(c => normalizeGrade(c.grade)),
+          ...myMasterClasses.filter(c => c.name).map(c => normalizeGrade(c.name))
         ];
-        const uniqueCombos = [...new Set(teacherClassCombos)];
+        const uniqueGrades = [...new Set(teacherGrades)];
 
         // Fetch all students and filter client-side by teacher's classes
         const response = await studentAPI.getAll({ limit: 2000, search: searchTerm, grade: gradeFilter });
         const allStudents = response?.data?.data || response?.data || [];
-        const myStudents = uniqueCombos.length > 0
-          ? allStudents.filter(s => uniqueCombos.some(combo => {
-              const [g, sec] = combo.split('|');
-              return normalizeGrade(s.grade) === g && normalizeSection(s.section) === sec;
-            }))
+        const myStudents = uniqueGrades.length > 0
+          ? allStudents.filter(s => uniqueGrades.includes(normalizeGrade(s.grade)))
           : allStudents;
         setStudents(myStudents);
       } else {

@@ -8,14 +8,16 @@ const supabase = createClient(
 
 async function run() {
   try {
+    const classId = '19af6c13-b5c5-465c-a73e-2932dfeb1bf1';
     const { data: allocations, error: aError } = await supabase
       .from('class_subjects')
-      .select('*, class:class_id(*), subject:subject_id(*), teacher:teacher_id(*)');
+      .select('*, subject:subject_id(*)')
+      .eq('class_id', classId);
     if (aError) throw aError;
-    const assigned = allocations.filter(a => a.teacher_id !== null);
-    console.log(`=== ASSIGNED ALLOCATIONS (Total: ${assigned.length}) ===`);
-    assigned.forEach(alloc => {
-      console.log(`ID: ${alloc.id} | Grade: ${alloc.class?.name} | Section: ${alloc.section} | Subject: ${alloc.subject?.name} | Teacher: ${alloc.teacher ? (alloc.teacher.first_name + ' ' + alloc.teacher.last_name) : 'UNKNOWN'}`);
+    
+    console.log(`=== ALLOCATIONS FOR BASIC 1 (Total: ${allocations.length}) ===`);
+    allocations.forEach(a => {
+      console.log(`ID: ${a.id} | Section: ${a.section} | Subject: ${a.subject?.name} (${a.subject?.code}) | TeacherID: ${a.teacher_id} | Academic Year: ${a.academic_year}`);
     });
   } catch (error) {
     console.error('Inspection failed:', error);

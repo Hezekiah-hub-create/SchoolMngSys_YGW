@@ -176,21 +176,6 @@ const getAllCourses = asyncHandler(async (req, res) => {
     const teacherProfile = await supabaseService.getTeacherProfile(req.user);
     if (teacherProfile) {
       teacher = teacherProfile.id;
-      
-      // Get sections where they are Class Master
-      const { data: masteredSections } = await supabase
-        .from(COLLECTIONS.SECTIONS)
-        .select('class_id, name')
-        .eq('class_master_id', teacher);
-      
-      const masteredFilters = (masteredSections || []).map(s => `and(class_id.eq.${s.class_id},section.eq."${s.name}")`);
-      
-      if (masteredFilters.length > 0) {
-        // Teacher sees: subjects they teach OR subjects in sections they master
-        const orFilter = `teacher_id.eq.${teacher},${masteredFilters.join(',')}`;
-        query = query.or(orFilter);
-        teacher = null; // Clear to avoid redundant eq('teacher_id') later
-      }
     } else {
       return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
     }
@@ -409,20 +394,20 @@ const getCoursesByGradeQuery = asyncHandler(async (req, res) => {
 
 // @desc    Create course
 const createCourse = asyncHandler(async (req, res) => {
-  const { name, grade, section, academicYear, teacherId, teacher, room, credits, hoursPerWeek } = req.body;
+  const { name, code, grade, section, academicYear, teacherId, teacher, room, credits, hoursPerWeek } = req.body;
   const tId = teacherId || teacher || null;
   const finalTeacherId = tId === '' ? null : tId;
   
   if (!name || !grade) {
     return res.status(400).json({ success: false, message: 'Subject name and Grade are required' });
   }
-
+ 
   // 1. Subject
   let subject = await supabaseService.getByField(COLLECTIONS.SUBJECTS, 'name', name);
   if (!subject) {
     subject = await supabaseService.create(COLLECTIONS.SUBJECTS, {
       name,
-      code: name.substring(0, 3).toUpperCase() + Math.floor(Math.random() * 1000),
+      code: code || name.substring(0, 3).toUpperCase() + Math.floor(Math.random() * 1000),
       category: 'Core'
     });
   }

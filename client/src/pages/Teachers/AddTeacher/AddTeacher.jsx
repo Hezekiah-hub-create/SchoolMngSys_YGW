@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { teacherAPI } from '../../../services/api';
+import { teacherAPI, academicSubjectsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
 import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
@@ -60,6 +60,13 @@ const AddTeacher = () => {
     employeeId: '', subject: '', position: '', qualifications: '', specialization: '',
     experience: '', dateOfEmployment: '', salary: '', subjects: [], coordinatorBlock: ''
   });
+  const [dbSubjects, setDbSubjects] = useState([]);
+
+  React.useEffect(() => {
+    academicSubjectsAPI.getAll().then(res => {
+      if (res.data?.success) setDbSubjects(res.data.data);
+    }).catch(() => {});
+  }, []);
 
   const subjectOptions = [
     { value: 'English Language', label: 'English Language' },
@@ -153,7 +160,7 @@ const AddTeacher = () => {
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <SectionHeader title="Professional Information" />
           <div className="form-grid-3">
-            <FormInput label="Subject" name="subject" value={formData.subject} onChange={handleChange} required options={subjectOptions} />
+            <FormInput label="Subject" name="subject" value={formData.subject} onChange={handleChange} required options={dbSubjects.length > 0 ? dbSubjects.map(s => ({ value: s.name, label: s.name })) : subjectOptions} />
             <FormInput label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} required options={qualificationOptions} />
             <FormInput label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} options={coordinatorOptions} />
             <FormInput label="Salary" name="salary" type="number" value={formData.salary} onChange={handleChange} />
