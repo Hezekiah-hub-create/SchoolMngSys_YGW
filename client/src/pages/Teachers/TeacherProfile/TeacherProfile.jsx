@@ -117,43 +117,159 @@ const FormGroup = ({ label, name, value, onChange, type = 'text', options = [] }
   </div>
 );
 
-const MultiSelect = ({ label, name, value = [], onChange, options = [] }) => {
-  const handleToggle = (optValue) => {
-    const newValue = value.includes(optValue)
-      ? value.filter(v => v !== optValue)
-      : [...value, optValue];
-    onChange(newValue);
+const AllocationSelector = ({ allocations, selectedIds, onChange }) => {
+  const [activeClasses, setActiveClasses] = React.useState([]);
+
+  // Group allocations by class name
+  const grouped = allocations.reduce((acc, alloc) => {
+    const className = alloc.grade || alloc.class?.name || 'Unmapped Class';
+    if (!acc[className]) acc[className] = [];
+    acc[className].push(alloc);
+    return acc;
+  }, {});
+
+  // Sync activeClasses with selectedIds on mount or selection changes
+  React.useEffect(() => {
+    const classesOfSelected = selectedIds.map(id => {
+      const alloc = allocations.find(a => a.id === id);
+      return alloc ? (alloc.grade || alloc.class?.name) : null;
+    }).filter(Boolean);
+    
+    if (classesOfSelected.length > 0) {
+      setActiveClasses(prev => [...new Set([...prev, ...classesOfSelected])]);
+    }
+  }, [selectedIds, allocations]);
+
+  const handleToggleAlloc = (id) => {
+    const newSelected = selectedIds.includes(id)
+      ? selectedIds.filter(x => x !== id)
+      : [...selectedIds, id];
+    onChange(newSelected);
   };
+
+  const handleToggleClass = (className) => {
+    if (activeClasses.includes(className)) {
+      setActiveClasses(activeClasses.filter(c => c !== className));
+      const classAllocIds = (grouped[className] || []).map(a => a.id);
+      const newSelected = selectedIds.filter(id => !classAllocIds.includes(id));
+      onChange(newSelected);
+    } else {
+      setActiveClasses([...activeClasses, className]);
+    }
+  };
+
+  if (allocations.length === 0) {
+    return <div style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>Loading active curriculum nodes...</div>;
+  }
+
+  const availableClasses = Object.keys(grouped).sort();
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>{label}</label>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-        {options.map((opt, idx) => {
-          const optValue = opt.v || opt.value || '';
-          const isSelected = value.includes(optValue);
-          return (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleToggle(optValue)}
-              style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
-                border: '1px solid',
-                borderColor: isSelected ? 'var(--brand-green)' : '#e2e8f0',
-                backgroundColor: isSelected ? 'var(--brand-green-light)' : 'white',
-                color: isSelected ? 'var(--brand-green)' : '#64748b',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {opt.l || opt.label || ''}
-            </button>
-          );
-        })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Select Classes to Dispatch
+        </label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {availableClasses.map(className => {
+            const isActive = activeClasses.includes(className);
+            return (
+              <button
+                key={className}
+                type="button"
+                onClick={() => handleToggleClass(className)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: isActive ? 'var(--brand-green)' : '#e2e8f0',
+                  backgroundColor: isActive ? 'var(--brand-green)' : 'white',
+                  color: isActive ? 'white' : '#64748b',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: isActive ? '0 2px 4px rgba(0, 132, 62, 0.15)' : 'none'
+                }}
+              >
+                {className}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {activeClasses.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Configure Class Subjects
+          </label>
+          {activeClasses.sort().map(className => (
+            <div key={className} style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{className}</h4>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    const classAllocIds = (grouped[className] || []).map(a => a.id);
+                    const allSelected = classAllocIds.every(id => selectedIds.includes(id));
+                    let newSelected;
+                    if (allSelected) {
+                      newSelected = selectedIds.filter(id => !classAllocIds.includes(id));
+                    } else {
+                      newSelected = [...new Set([...selectedIds, ...classAllocIds])];
+                    }
+                    onChange(newSelected);
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--brand-green)', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  {(grouped[className] || []).map(a => a.id).every(id => selectedIds.includes(id)) ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+                {(grouped[className] || []).map(alloc => {
+                  const isSelected = selectedIds.includes(alloc.id);
+                  const currentTeacher = alloc.teacher ? `${alloc.teacher.first_name || alloc.teacher.firstName || '' } ${alloc.teacher.last_name || alloc.teacher.lastName || ''}`.trim() : null;
+                  
+                  return (
+                    <div 
+                      key={alloc.id}
+                      onClick={() => handleToggleAlloc(alloc.id)}
+                      style={{
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        borderColor: isSelected ? 'var(--brand-green)' : '#e2e8f0',
+                        backgroundColor: isSelected ? 'rgba(0, 132, 62, 0.04)' : 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        transition: 'all 0.2s',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => {}} 
+                        style={{ accentColor: 'var(--brand-green)', cursor: 'pointer' }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{alloc.name || alloc.subject?.name || 'Unmapped Subject'}</span>
+                        <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--brand-green)' }}>Section {alloc.section}</span>
+                        {currentTeacher && (
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Currently: {currentTeacher}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -186,6 +302,8 @@ const TeacherProfile = () => {
   const [teacherCourses, setTeacherCourses] = useState([]);
   const [dbGrades, setDbGrades] = useState([]);
   const [dbSubjects, setDbSubjects] = useState([]);
+  const [allAllocations, setAllAllocations] = useState([]);
+  const [selectedAllocations, setSelectedAllocations] = useState([]);
 
   useEffect(() => { 
     fetchTeacherData(); 
@@ -194,12 +312,16 @@ const TeacherProfile = () => {
 
   const fetchAcademicMetadata = async () => {
     try {
-      const [gradesRes, subjectsRes] = await Promise.all([
+      const [gradesRes, subjectsRes, allocsRes] = await Promise.all([
         academicClassesAPI.getAll(),
-        academicSubjectsAPI.getAll()
+        academicSubjectsAPI.getAll(),
+        courseAPI.getAll({ limit: 5000 })
       ]);
       if (gradesRes.data?.success) setDbGrades(gradesRes.data.data);
       if (subjectsRes.data?.success) setDbSubjects(subjectsRes.data.data);
+      if (allocsRes.data?.success || allocsRes.data) {
+        setAllAllocations(allocsRes.data?.data || allocsRes.data || []);
+      }
     } catch (err) {
       console.warn('Failed to fetch academic metadata', err);
     }
@@ -229,9 +351,9 @@ const TeacherProfile = () => {
         setTeacher(data);
         try {
           const coursesRes = await courseAPI.getByTeacher(id);
-          if (coursesRes.data?.success) {
-            setTeacherCourses(coursesRes.data.data);
-          }
+          const teacherAllocs = coursesRes.data?.data || coursesRes.data || [];
+          setTeacherCourses(teacherAllocs);
+          setSelectedAllocations(teacherAllocs.map(a => a.id));
         } catch (e) {
           console.warn('Failed to fetch teacher courses', e);
         }
@@ -289,7 +411,10 @@ const TeacherProfile = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const teacherData = { ...formData };
+      const teacherData = { 
+        ...formData,
+        selectedAllocations: selectedAllocations
+      };
       if (isStaff) {
         await staffAPI.update(id, formData);
       } else {
@@ -492,26 +617,19 @@ const TeacherProfile = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                       <SectionTitle title="Professional Details" />
                       <div className="responsive-grid-3">
-                        <MultiSelect 
-                          label="Assigned Subjects" 
-                          name="subjects" 
-                          value={formData.subjects || (formData.subject ? [formData.subject] : [])} 
-                          onChange={(val) => setFormData(p => ({ ...p, subjects: val }))} 
-                          options={dbSubjects.length > 0 ? dbSubjects.map(s => ({ value: s.name, label: s.name })) : subjectOptions} 
-                        />
-                        <MultiSelect 
-                          label="Assigned Grades" 
-                          name="grades" 
-                          value={formData.grades || []} 
-                          onChange={(val) => setFormData(p => ({ ...p, grades: val }))} 
-                          options={dbGrades.length > 0 ? dbGrades.map(g => ({ value: g.name, label: g.name })) : gradeOptions} 
-                        />
                         <FormGroup label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} />
                         <FormGroup label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} type="select" options={coordinatorOptions} />
                         <FormGroup label="Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
                         <FormGroup label="Position" name="position" value={formData.position} onChange={handleChange} />
                         <FormGroup label="Experience (Years)" name="experience" value={formData.experience} onChange={handleChange} type="number" />
                         <FormGroup label="Employment Date" name="dateOfEmployment" value={formData.dateOfEmployment} onChange={handleChange} type="date" />
+                      </div>
+                      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+                        <AllocationSelector 
+                          allocations={allAllocations} 
+                          selectedIds={selectedAllocations} 
+                          onChange={setSelectedAllocations} 
+                        />
                       </div>
                     </div>
                   </div>

@@ -52,9 +52,156 @@ const mapTeacherToFrontend = (t) => {
     },
     socialSecurity: t.social_security,
     bio: t.bio,
-    createdAt: t.created_at,
-    updatedAt: t.updated_at
   };
+};
+
+const normalizeGrade = (g) => {
+  if (!g) return '';
+  let str = g.toString().toLowerCase().trim();
+  if (str.includes('basic 7') || str === 'basic7') return 'jhs1';
+  if (str.includes('basic 8') || str === 'basic8') return 'jhs2';
+  if (str.includes('basic 9') || str === 'basic9') return 'jhs3';
+  if (str.startsWith('basic')) {
+    const num = str.replace('basic', '').trim();
+    if (['1', '2', '3', '4', '5', '6'].includes(num)) return `primary${num}`;
+  }
+  return str.replace(/\s+/g, '');
+};
+
+const syncTeacherAllocations = async (teacherId, grades = [], subjects = [], selectedAllocations = null) => {
+  try {
+    if (selectedAllocations && Array.isArray(selectedAllocations)) {
+      // 1. Clear teacher_id from existing allocations that are not in the list
+      await supabase
+        .from(COLLECTIONS.CLASS_SUBJECTS)
+        .update({ teacher_id: null })
+        .eq('teacher_id', teacherId)
+        .not('id', 'in', `(${selectedAllocations.length > 0 ? selectedAllocations.join(',') : '00000000-0000-0000-0000-000000000000'})`);
+
+      // 2. Set teacher_id for the selected allocations
+      if (selectedAllocations.length > 0) {
+        await supabase
+          .from(COLLECTIONS.CLASS_SUBJECTS)
+          .update({ teacher_id: teacherId })
+          .in('id', selectedAllocations);
+      }
+
+      // 3. Recalculate unique grades and subjects to update the teacher's profile
+      const { data: updatedAllocs } = await supabase
+        .from(COLLECTIONS.CLASS_SUBJECTS)
+        .select('*, class:class_id(name), subject:subject_id(name)')
+        .eq('teacher_id', teacherId);
+
+      const computedGrades = [...new Set((updatedAllocs || []).map(a => a.class?.name).filter(Boolean))];
+      const computedSubjects = [...new Set((updatedAllocs || []).map(a => a.subject?.name).filter(Boolean))];
+
+      await supabase
+        .from(COLLECTIONS.TEACHERS)
+        .update({
+          grades: computedGrades,
+          subjects: computedSubjects,
+          subject: computedSubjects[0] || ''
+        })
+        .eq('id', teacherId);
+      
+      return;
+    }
+
+    // 1. Resolve class IDs from grade names
+    let classIds = [];
+    if (grades && grades.length > 0) {
+      const { data: classes } = await supabase
+        .from(COLLECTIONS.ACADEMIC_CLASSES)
+        .select('id, name');
+      
+      const getGradeVariations = (gName) => {
+        const lower = String(gName || '').toLowerCase();
+        const num = lower.replace(/basic|primary|kindergarten|kg|jhs|nursery/g, '').trim();
+        const base = [lower, lower.replace('primary', 'basic'), lower.replace('basic', 'primary'), num];
+        const toTitleCase = (str) => str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        const expanded = new Set();
+        base.forEach(n => { if (n) { expanded.add(n); expanded.add(n.toUpperCase()); expanded.add(toTitleCase(n)); }});
+        return Array.from(expanded);
+      };
+
+      const matchedClasses = (classes || []).filter(c => {
+        const variations = getGradeVariations(c.name);
+        return grades.some(g => variations.includes(g));
+      });
+      classIds = matchedClasses.map(c => c.id);
+    }
+
+    // 2. Resolve subject IDs from subject names
+    let subjectIds = [];
+    if (subjects && subjects.length > 0) {
+      const { data: dbSubjects } = await supabase
+        .from(COLLECTIONS.SUBJECTS)
+        .select('id, name');
+      
+      const normalizeSubName = (name) => {
+        if (!name) return '';
+        let str = name.toLowerCase().trim();
+        if (str === 'ict' || str.includes('ict') || str.includes('computing')) return 'computing';
+        if (str === 'english' || str.includes('english')) return 'english language';
+        if (str === 'creative arts & design' || str.includes('creative arts')) return 'creative arts';
+        if (str === 'physical education and health' || str.includes('physical education')) return 'physical education';
+        if (str.includes('religious')) return 'religious & moral education';
+        return str;
+      };
+
+      const matchedSubjects = (dbSubjects || []).filter(s => 
+        subjects.some(sub => normalizeSubName(sub) === normalizeSubName(s.name))
+      );
+      subjectIds = matchedSubjects.map(s => s.id);
+    }
+
+    // 3. Clear existing allocations of this teacher that are no longer in the list
+    let queryToClear = supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .update({ teacher_id: null })
+      .eq('teacher_id', teacherId);
+
+    if (classIds.length > 0 && subjectIds.length > 0) {
+      // Supabase not.in is not directly supported via dot notation, but we can do a filter
+      const { data: existingAllocs } = await supabase
+        .from(COLLECTIONS.CLASS_SUBJECTS)
+        .select('id, class_id, subject_id')
+        .eq('teacher_id', teacherId);
+      
+      const toRemove = (existingAllocs || []).filter(a => 
+        !classIds.includes(a.class_id) || !subjectIds.includes(a.subject_id)
+      ).map(a => a.id);
+
+      if (toRemove.length > 0) {
+        await supabase
+          .from(COLLECTIONS.CLASS_SUBJECTS)
+          .update({ teacher_id: null })
+          .in('id', toRemove);
+      }
+    } else {
+      await queryToClear;
+    }
+
+    // 4. Assign this teacher to any matching unassigned allocations
+    if (classIds.length > 0 && subjectIds.length > 0) {
+      // Find matching allocations that are unassigned
+      const { data: toAssign } = await supabase
+        .from(COLLECTIONS.CLASS_SUBJECTS)
+        .select('id')
+        .in('class_id', classIds)
+        .in('subject_id', subjectIds);
+
+      if (toAssign && toAssign.length > 0) {
+        const idsToAssign = toAssign.map(a => a.id);
+        await supabase
+          .from(COLLECTIONS.CLASS_SUBJECTS)
+          .update({ teacher_id: teacherId })
+          .in('id', idsToAssign);
+      }
+    }
+  } catch (error) {
+    console.error('[ERROR] syncTeacherAllocations failed:', error);
+  }
 };
 
 // @desc    Get all teachers
@@ -410,6 +557,10 @@ const createTeacher = asyncHandler(async (req, res) => {
     }
   }
 
+  if (teacher) {
+    await syncTeacherAllocations(teacher.id, teacher.grades, teacher.subjects, req.body.selectedAllocations);
+  }
+
   res.status(201).json({
     success: true,
     data: mapTeacherToFrontend(teacher),
@@ -504,6 +655,10 @@ const updateTeacher = asyncHandler(async (req, res) => {
         first_name: updatedTeacher.first_name,
         last_name: updatedTeacher.last_name
       }).eq('id', updatedTeacher.user_id);
+    }
+
+    if (updatedTeacher) {
+      await syncTeacherAllocations(updatedTeacher.id, updatedTeacher.grades, updatedTeacher.subjects, req.body.selectedAllocations);
     }
 
     res.json({

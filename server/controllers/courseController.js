@@ -438,6 +438,9 @@ const createCourse = asyncHandler(async (req, res) => {
       onConflict: 'class_id,subject_id,section'
     });
     const assignment = assignments[0];
+    if (finalTeacherId) {
+      await syncTeacherProfileFromAllocations(finalTeacherId);
+    }
     res.status(201).json({
       success: true,
       data: { ...assignment, name: subject.name, grade: academicClass.name }
@@ -514,7 +517,14 @@ const updateCourse = asyncHandler(async (req, res) => {
   };
 
   try {
+    const previousTeacherId = assignment.teacher_id;
     const updated = await supabaseService.update(COLLECTIONS.CLASS_SUBJECTS, req.params.id, updates);
+    if (previousTeacherId) {
+      await syncTeacherProfileFromAllocations(previousTeacherId);
+    }
+    if (updates.teacher_id && updates.teacher_id !== previousTeacherId) {
+      await syncTeacherProfileFromAllocations(updates.teacher_id);
+    }
     res.json({ success: true, data: updated });
   } catch (err) {
     // Graceful handling for missing columns (e.g., section, academic_year)
@@ -544,7 +554,19 @@ const updateCourse = asyncHandler(async (req, res) => {
 
 // @desc    Delete course
 const deleteCourse = asyncHandler(async (req, res) => {
+  const { data: allocation } = await supabase
+    .from(COLLECTIONS.CLASS_SUBJECTS)
+    .select('teacher_id')
+    .eq('id', req.params.id)
+    .maybeSingle();
+  const teacherId = allocation?.teacher_id;
+
   await supabaseService.delete(COLLECTIONS.CLASS_SUBJECTS, req.params.id);
+  
+  if (teacherId) {
+    await syncTeacherProfileFromAllocations(teacherId);
+  }
+
   res.json({ success: true, message: 'Course assignment deleted successfully' });
 });
 
@@ -675,6 +697,30 @@ const autoAllocateCourses = asyncHandler(async (req, res) => {
     allocatedCount: created.length
   });
 });
+
+const syncTeacherProfileFromAllocations = async (teacherId) => {
+  if (!teacherId) return;
+  try {
+    const { data: allocations } = await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('*, class:class_id(name), subject:subject_id(name)')
+      .eq('teacher_id', teacherId);
+
+    const grades = [...new Set((allocations || []).map(a => a.class?.name).filter(Boolean))];
+    const subjects = [...new Set((allocations || []).map(a => a.subject?.name).filter(Boolean))];
+
+    await supabase
+      .from(COLLECTIONS.TEACHERS)
+      .update({
+        grades,
+        subjects,
+        subject: subjects[0] || ''
+      })
+      .eq('id', teacherId);
+  } catch (error) {
+    console.error('[ERROR] syncTeacherProfileFromAllocations failed:', error);
+  }
+};
 
 module.exports = {
   getAllCourses,

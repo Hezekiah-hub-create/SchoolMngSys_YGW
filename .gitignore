@@ -1,7 +1,34 @@
+# Dependencies
 node_modules/
+*/node_modules/
+
+# Environment Variables & Secrets
 .env
-.DS_Store
+.env.*
+*/.env
+*/.env.*
+*.local
+
+# Production Build Output
 dist/
-.expo/
+build/
+*/dist/
+*/build/
+
+# Logs & Temporary debug files
 *.log
-Doc$/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+request_logs.txt
+*/request_logs.txt
+
+# OS & Editor metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

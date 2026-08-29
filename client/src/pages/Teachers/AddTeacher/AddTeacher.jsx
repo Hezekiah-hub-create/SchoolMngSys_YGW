@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { teacherAPI, academicSubjectsAPI } from '../../../services/api';
+import { teacherAPI, academicSubjectsAPI, courseAPI, academicClassesAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
 import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
@@ -40,11 +40,209 @@ const FormInput = ({ label, name, type = 'text', value, onChange, required = fal
   </div>
 );
 
+const MultiSelect = ({ label, name, value = [], onChange, options = [] }) => {
+  const handleToggle = (optValue) => {
+    const newValue = value.includes(optValue)
+      ? value.filter(v => v !== optValue)
+      : [...value, optValue];
+    onChange(newValue);
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>{label}</label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        {options.map((opt, idx) => {
+          const optValue = opt.value || '';
+          const isSelected = value.includes(optValue);
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleToggle(optValue)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid',
+                borderColor: isSelected ? 'var(--brand-green)' : '#e2e8f0',
+                backgroundColor: isSelected ? 'rgba(0, 132, 62, 0.08)' : 'white',
+                color: isSelected ? 'var(--brand-green)' : '#64748b',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {opt.label || ''}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const SectionHeader = ({ title, icon }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
     <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{title}</h3>
   </div>
 );
+
+const AllocationSelector = ({ allocations, selectedIds, onChange }) => {
+  const [activeClasses, setActiveClasses] = React.useState([]);
+
+  // Group allocations by class name
+  const grouped = allocations.reduce((acc, alloc) => {
+    const className = alloc.grade || alloc.class?.name || 'Unmapped Class';
+    if (!acc[className]) acc[className] = [];
+    acc[className].push(alloc);
+    return acc;
+  }, {});
+
+  // Sync activeClasses with selectedIds on mount or selection changes
+  React.useEffect(() => {
+    const classesOfSelected = selectedIds.map(id => {
+      const alloc = allocations.find(a => a.id === id);
+      return alloc ? (alloc.grade || alloc.class?.name) : null;
+    }).filter(Boolean);
+    
+    if (classesOfSelected.length > 0) {
+      setActiveClasses(prev => [...new Set([...prev, ...classesOfSelected])]);
+    }
+  }, [selectedIds, allocations]);
+
+  const handleToggleAlloc = (id) => {
+    const newSelected = selectedIds.includes(id)
+      ? selectedIds.filter(x => x !== id)
+      : [...selectedIds, id];
+    onChange(newSelected);
+  };
+
+  const handleToggleClass = (className) => {
+    if (activeClasses.includes(className)) {
+      setActiveClasses(activeClasses.filter(c => c !== className));
+      const classAllocIds = (grouped[className] || []).map(a => a.id);
+      const newSelected = selectedIds.filter(id => !classAllocIds.includes(id));
+      onChange(newSelected);
+    } else {
+      setActiveClasses([...activeClasses, className]);
+    }
+  };
+
+  if (allocations.length === 0) {
+    return <div style={{ color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>Loading active curriculum nodes...</div>;
+  }
+
+  const availableClasses = Object.keys(grouped).sort();
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Select Classes to Dispatch
+        </label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {availableClasses.map(className => {
+            const isActive = activeClasses.includes(className);
+            return (
+              <button
+                key={className}
+                type="button"
+                onClick={() => handleToggleClass(className)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  border: '1px solid',
+                  borderColor: isActive ? 'var(--brand-green)' : '#e2e8f0',
+                  backgroundColor: isActive ? 'var(--brand-green)' : 'white',
+                  color: isActive ? 'white' : '#64748b',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: isActive ? '0 2px 4px rgba(0, 132, 62, 0.15)' : 'none'
+                }}
+              >
+                {className}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {activeClasses.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Configure Class Subjects
+          </label>
+          {activeClasses.sort().map(className => (
+            <div key={className} style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{className}</h4>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    const classAllocIds = (grouped[className] || []).map(a => a.id);
+                    const allSelected = classAllocIds.every(id => selectedIds.includes(id));
+                    let newSelected;
+                    if (allSelected) {
+                      newSelected = selectedIds.filter(id => !classAllocIds.includes(id));
+                    } else {
+                      newSelected = [...new Set([...selectedIds, ...classAllocIds])];
+                    }
+                    onChange(newSelected);
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--brand-green)', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  {(grouped[className] || []).map(a => a.id).every(id => selectedIds.includes(id)) ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+                {(grouped[className] || []).map(alloc => {
+                  const isSelected = selectedIds.includes(alloc.id);
+                  const currentTeacher = alloc.teacher ? `${alloc.teacher.first_name || alloc.teacher.firstName || '' } ${alloc.teacher.last_name || alloc.teacher.lastName || ''}`.trim() : null;
+                  
+                  return (
+                    <div 
+                      key={alloc.id}
+                      onClick={() => handleToggleAlloc(alloc.id)}
+                      style={{
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        borderColor: isSelected ? 'var(--brand-green)' : '#e2e8f0',
+                        backgroundColor: isSelected ? 'rgba(0, 132, 62, 0.04)' : 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        transition: 'all 0.2s',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => {}} 
+                        style={{ accentColor: 'var(--brand-green)', cursor: 'pointer' }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{alloc.name || alloc.subject?.name || 'Unmapped Subject'}</span>
+                        <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--brand-green)' }}>Section {alloc.section}</span>
+                        {currentTeacher && (
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>Currently: {currentTeacher}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AddTeacher = () => {
   const navigate = useNavigate();
@@ -58,13 +256,23 @@ const AddTeacher = () => {
     firstName: '', lastName: '', gender: '', dateOfBirth: '', nationality: '', religion: '',
     email: '', phone: '', street: '', city: '', state: '',
     employeeId: '', subject: '', position: '', qualifications: '', specialization: '',
-    experience: '', dateOfEmployment: '', salary: '', subjects: [], coordinatorBlock: ''
+    experience: '', dateOfEmployment: '', salary: '', subjects: [], grades: [], coordinatorBlock: ''
   });
   const [dbSubjects, setDbSubjects] = useState([]);
+  const [dbGrades, setDbGrades] = useState([]);
+  const [allAllocations, setAllAllocations] = useState([]);
+  const [selectedAllocations, setSelectedAllocations] = useState([]);
 
   React.useEffect(() => {
     academicSubjectsAPI.getAll().then(res => {
       if (res.data?.success) setDbSubjects(res.data.data);
+    }).catch(() => {});
+    academicClassesAPI.getAll().then(res => {
+      if (res.data?.success) setDbGrades(res.data.data);
+    }).catch(() => {});
+    courseAPI.getAll({ limit: 5000 }).then(res => {
+      const data = res.data?.data || res.data || [];
+      setAllAllocations(data);
     }).catch(() => {});
   }, []);
 
@@ -89,6 +297,21 @@ const AddTeacher = () => {
     { value: 'Bachelor Degree', label: 'Bachelor Degree' },
     { value: 'Master Degree', label: 'Master Degree' },
     { value: 'PhD', label: 'PhD' },
+  ];
+
+  const gradeOptions = [
+    { value: 'KG 1', label: 'KG 1' },
+    { value: 'KG 2', label: 'KG 2' },
+    { value: 'KG 3', label: 'KG 3' },
+    { value: 'Basic 1', label: 'Basic 1' },
+    { value: 'Basic 2', label: 'Basic 2' },
+    { value: 'Basic 3', label: 'Basic 3' },
+    { value: 'Basic 4', label: 'Basic 4' },
+    { value: 'Basic 5', label: 'Basic 5' },
+    { value: 'Basic 6', label: 'Basic 6' },
+    { value: 'Basic 7', label: 'Basic 7' },
+    { value: 'Basic 8', label: 'Basic 8' },
+    { value: 'Basic 9', label: 'Basic 9' }
   ];
 
   const coordinatorOptions = [
@@ -117,7 +340,9 @@ const AddTeacher = () => {
           state: formData.state,
           country: 'Ghana'
         },
-        subjects: formData.subject ? [formData.subject] : []
+        subjects: formData.subjects.length > 0 ? formData.subjects : (formData.subject ? [formData.subject] : []),
+        grades: formData.grades || [],
+        selectedAllocations: selectedAllocations
       };
       
       const response = await teacherAPI.create(teacherData);
@@ -159,13 +384,38 @@ const AddTeacher = () => {
 
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <SectionHeader title="Professional Information" />
-          <div className="form-grid-3">
-            <FormInput label="Subject" name="subject" value={formData.subject} onChange={handleChange} required options={dbSubjects.length > 0 ? dbSubjects.map(s => ({ value: s.name, label: s.name })) : subjectOptions} />
+          <div className="form-grid-3" style={{ marginBottom: '20px' }}>
+            <FormInput label="Subject Specialty" name="subject" value={formData.subject} onChange={handleChange} required options={dbSubjects.length > 0 ? dbSubjects.map(s => ({ value: s.name, label: s.name })) : subjectOptions} />
             <FormInput label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} required options={qualificationOptions} />
             <FormInput label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} options={coordinatorOptions} />
             <FormInput label="Salary" name="salary" type="number" value={formData.salary} onChange={handleChange} />
             <FormInput label="Join Date" name="dateOfEmployment" type="date" value={formData.dateOfEmployment} onChange={handleChange} />
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+            <MultiSelect 
+              label="Assigned Subjects (Syllabus Classes)" 
+              name="subjects" 
+              value={formData.subjects || []} 
+              onChange={(val) => setFormData(p => ({ ...p, subjects: val }))} 
+              options={dbSubjects.length > 0 ? dbSubjects.map(s => ({ value: s.name, label: s.name })) : subjectOptions} 
+            />
+            <MultiSelect 
+              label="Assigned Grades/Classes" 
+              name="grades" 
+              value={formData.grades || []} 
+              onChange={(val) => setFormData(p => ({ ...p, grades: val }))} 
+              options={dbGrades.length > 0 ? dbGrades.map(g => ({ value: g.name, label: g.name })) : gradeOptions} 
+            />
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <SectionHeader title="Curriculum Assignments Dispatch" />
+          <AllocationSelector 
+            allocations={allAllocations} 
+            selectedIds={selectedAllocations} 
+            onChange={setSelectedAllocations} 
+          />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
