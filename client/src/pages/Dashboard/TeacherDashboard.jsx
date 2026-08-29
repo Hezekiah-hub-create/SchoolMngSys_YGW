@@ -126,6 +126,21 @@ const QuickAction = ({ icon, label, onClick, color }) => (
 );
 
 
+const normalizeSection = (sec) => {
+  if (!sec) return '';
+  const upper = String(sec).toUpperCase().trim();
+  if (upper === 'A' || upper === 'Y' || upper === 'YELLOW' || upper === 'YELLOW (Y)') return 'yellow';
+  if (upper === 'B' || upper === 'G' || upper === 'GREEN' || upper === 'GREEN (G)') return 'green';
+  if (upper === 'C' || upper === 'R' || upper === 'RED' || upper === 'RED (R)') return 'red';
+  if (upper === 'D' || upper === 'BL' || upper === 'BLUE' || upper === 'BLUE (B)') return 'blue';
+  return upper.toLowerCase();
+};
+
+const normalizeGrade = (gName) => {
+  if (!gName) return '';
+  return String(gName).toLowerCase().replace(/\s/g, '');
+};
+
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated, loading: authLoading, user } = useAuth();
@@ -165,8 +180,31 @@ const TeacherDashboard = () => {
         setClasses(data);
         setMasterClasses(masterData);
         setStats(prev => ({ ...prev, classes: data.length }));
-        const totalStudents = data.reduce((sum, c) => sum + (c.studentCount || 0), 0);
-        setStats(prev => ({ ...prev, students: totalStudents }));
+
+        // Calculate unique student count across taught courses and master classes
+        let totalUniqueStudentsCount = 0;
+        try {
+          const uniqueCombos = new Set([
+            ...data.filter(c => c.grade && c.section).map(c => `${normalizeGrade(c.grade)}|${normalizeSection(c.section)}`),
+            ...masterData.filter(c => c.name && c.section).map(c => `${normalizeGrade(c.name)}|${normalizeSection(c.section)}`)
+          ]);
+          
+          if (uniqueCombos.size > 0) {
+            const studentsRes = await studentAPI.getAll({ limit: 2000 });
+            const allStudents = studentsRes.data?.data || studentsRes.data || [];
+            const filtered = allStudents.filter(s => {
+              return Array.from(uniqueCombos).some(combo => {
+                const [g, sec] = combo.split('|');
+                return normalizeGrade(s.grade) === g && normalizeSection(s.section) === sec;
+              });
+            });
+            totalUniqueStudentsCount = filtered.length;
+          }
+        } catch (e) {
+          console.error('Error calculating unique student stats:', e);
+          totalUniqueStudentsCount = data.reduce((sum, c) => sum + (c.studentCount || 0), 0);
+        }
+        setStats(prev => ({ ...prev, students: totalUniqueStudentsCount }));
 
         // Fetch performance for these courses
         if (data.length > 0) {

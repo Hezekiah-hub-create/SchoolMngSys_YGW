@@ -61,13 +61,16 @@ const Students = () => {
         
         setStudents(myChildren);
       } else if (isTeacher) {
-        // Teachers see only students in their assigned classes/sections
+        // Teachers see students in their assigned classes/sections AND master classes
         const coursesRes = await teacherAPI.getMyCourses();
         const myCourses = coursesRes?.data?.data || coursesRes?.data || [];
+        const myMasterClasses = coursesRes?.data?.masterClasses || [];
+        
         // Build unique grade+section combos the teacher is assigned to
-        const teacherClassCombos = myCourses
-          .filter(c => c.grade && c.section)
-          .map(c => `${c.grade}|${c.section}`);
+        const teacherClassCombos = [
+          ...myCourses.filter(c => c.grade && c.section).map(c => `${normalizeGrade(c.grade)}|${normalizeSection(c.section)}`),
+          ...myMasterClasses.filter(c => c.name && c.section).map(c => `${normalizeGrade(c.name)}|${normalizeSection(c.section)}`)
+        ];
         const uniqueCombos = [...new Set(teacherClassCombos)];
 
         // Fetch all students and filter client-side by teacher's classes
@@ -76,7 +79,7 @@ const Students = () => {
         const myStudents = uniqueCombos.length > 0
           ? allStudents.filter(s => uniqueCombos.some(combo => {
               const [g, sec] = combo.split('|');
-              return s.grade === g && s.section === sec;
+              return normalizeGrade(s.grade) === g && normalizeSection(s.section) === sec;
             }))
           : allStudents;
         setStudents(myStudents);

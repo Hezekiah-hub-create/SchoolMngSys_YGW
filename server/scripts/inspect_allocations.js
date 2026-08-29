@@ -8,11 +8,14 @@ const supabase = createClient(
 
 async function run() {
   try {
-    const { data: tt, error: sError } = await supabase.from('timetable').select('*').limit(50);
-    if (sError) throw sError;
-    console.log(`=== TIMETABLE ENTRIES (Total: ${tt.length}) ===`);
-    tt.forEach(row => {
-      console.log(`ID: ${row.id} | Grade: ${row.grade} | Section: ${row.section} | AcadYear: ${row.academic_year}`);
+    const { data: allocations, error: aError } = await supabase
+      .from('class_subjects')
+      .select('*, class:class_id(*), subject:subject_id(*), teacher:teacher_id(*)');
+    if (aError) throw aError;
+    const assigned = allocations.filter(a => a.teacher_id !== null);
+    console.log(`=== ASSIGNED ALLOCATIONS (Total: ${assigned.length}) ===`);
+    assigned.forEach(alloc => {
+      console.log(`ID: ${alloc.id} | Grade: ${alloc.class?.name} | Section: ${alloc.section} | Subject: ${alloc.subject?.name} | Teacher: ${alloc.teacher ? (alloc.teacher.first_name + ' ' + alloc.teacher.last_name) : 'UNKNOWN'}`);
     });
   } catch (error) {
     console.error('Inspection failed:', error);
