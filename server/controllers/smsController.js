@@ -35,7 +35,12 @@ const testSMS = asyncHandler(async (req, res) => {
 
   const testMessage = `[TEST] This is a test notification from UHAS Basic School Management System. Your SMS Gateway is successfully connected.`;
   
-  const result = await smsService.sendSMS(recipient, testMessage, testConfig.senderId);
+  const result = await smsService.sendRawSMS({
+    recipients: recipient,
+    message: testMessage,
+    senderId: testConfig.senderId,
+    config: testConfig
+  });
   res.json({ success: true, ...result });
 });
 

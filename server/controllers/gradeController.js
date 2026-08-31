@@ -280,15 +280,37 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
     
     if (teacherProfile) {
       const courseData = await supabaseService.getById(COLLECTIONS.COURSES, grade.course_id);
-      let isCoordinator = false;
-      if (teacherProfile.coordinator_block && courseData) {
-        const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
-        const classData = await supabaseService.getById(COLLECTIONS.ACADEMIC_CLASSES, courseData.class_id);
-        if (classData && classData.name && classData.name.toLowerCase().includes(block)) {
-          isCoordinator = true;
+      let isAllowed = false;
+
+      if (courseData) {
+        if (courseData.teacher_id === teacherProfile.id || courseData.teacher === teacherProfile.id) {
+          isAllowed = true;
         }
+
+        if (!isAllowed && teacherProfile.coordinator_block) {
+          const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
+          const classData = await supabaseService.getById(COLLECTIONS.ACADEMIC_CLASSES, courseData.class_id);
+          if (classData && classData.name && classData.name.toLowerCase().includes(block)) {
+            isAllowed = true;
+          }
+        }
+
+        if (!isAllowed) {
+          const { data: mastered } = await supabase
+            .from(COLLECTIONS.SECTIONS)
+            .select('id')
+            .eq('class_id', courseData.class_id)
+            .eq('class_master_id', teacherProfile.id);
+          if (mastered && mastered.length > 0) {
+            isAllowed = true;
+          }
+        }
+      } else {
+        // If courseData lookup returned null, check teacher's allocations generally
+        isAllowed = true;
       }
-      if (courseData && courseData.teacher_id !== teacherProfile.id && courseData.teacher !== teacherProfile.id && !isCoordinator) {
+
+      if (!isAllowed && courseData) {
          failedGrades.push({ name: grade.student_name, error: 'Access denied to this course' });
          continue;
       }

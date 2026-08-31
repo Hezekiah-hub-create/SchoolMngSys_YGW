@@ -150,6 +150,7 @@ const sendRawSMS = async ({ recipients, message, senderId, config }) => {
 const smsService = {
   getSMSConfig,
   normalizePhoneNumber,
+  sendRawSMS,
   sendSMS: async (to, message, senderId) => {
     const config = await getSMSConfig();
     return sendRawSMS({ recipients: to, message, senderId, config });

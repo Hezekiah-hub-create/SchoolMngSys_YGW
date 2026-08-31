@@ -404,12 +404,30 @@ const getMyChildrenAssignments = asyncHandler(async (req, res) => {
   const studentIds = parent[0].student_ids || [];
   if (studentIds.length === 0) return res.json({ success: true, data: [] });
 
-  const assignments = await supabaseService.getAll(COLLECTIONS.ASSIGNMENTS);
-  const students = await Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id)));
+  const [assignments, allCourses, rawStudents] = await Promise.all([
+    supabaseService.getAll(COLLECTIONS.ASSIGNMENTS),
+    supabaseService.getAll(COLLECTIONS.CLASS_SUBJECTS),
+    Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id)))
+  ]);
+
+  const courseMap = {};
+  (allCourses || []).forEach(c => {
+    courseMap[c.id] = c;
+  });
+
   const studentMap = {};
-  students.filter(Boolean).forEach(s => {
+  rawStudents.filter(Boolean).forEach(s => {
     studentMap[s.id] = { id: s.id, firstName: s.first_name, lastName: s.last_name, grade: s.grade, section: s.section };
   });
+
+  const normalizeGrade = (g) => {
+    if (!g) return '';
+    let str = String(g).toLowerCase().trim().replace(/primary/i, 'basic').replace(/\s/g, '');
+    if (str.includes('jhs1')) return 'basic7';
+    if (str.includes('jhs2')) return 'basic8';
+    if (str.includes('jhs3')) return 'basic9';
+    return str;
+  };
 
   const flatAssignments = [];
   
@@ -417,29 +435,39 @@ const getMyChildrenAssignments = asyncHandler(async (req, res) => {
     const student = studentMap[studentId];
     if (!student) continue;
     
-    // Filter assignments that match this student's grade
-    const studentGradeNorm = String(student.grade || '').toLowerCase().replace(/\s/g, '');
+    const studentGradeNorm = normalizeGrade(student.grade);
     
-    const matchedAssignments = assignments.filter(a => {
-      const aGradeNorm = String(a.grade || a.class || '').toLowerCase().replace(/\s/g, '');
+    const matchedAssignments = (assignments || []).filter(a => {
+      const hasSubmission = (a.submissions || []).some(s => s.student === studentId);
+      if (hasSubmission) return true;
+
+      const courseInfo = courseMap[a.course_id] || {};
+      const aGrade = a.grade || a.class || courseInfo.grade;
+      const aSection = a.section || courseInfo.section;
+
+      const aGradeNorm = normalizeGrade(aGrade);
       const matchesGrade = studentGradeNorm && aGradeNorm && (studentGradeNorm === aGradeNorm);
-      const matchesSection = !a.section || a.section === 'All' || normalizeSection(a.section) === normalizeSection(student.section);
+      const matchesSection = !aSection || aSection === 'All' || normalizeSection(aSection) === normalizeSection(student.section);
+      
       return matchesGrade && matchesSection;
     });
 
     matchedAssignments.forEach(a => {
+      const courseInfo = courseMap[a.course_id] || {};
       const submissions = a.submissions || [];
       const sub = submissions.find(s => s.student === studentId);
       
       flatAssignments.push({
         id: a.id,
-        title: a.title,
-        description: a.description,
+        title: a.title || 'Assignment',
+        description: a.description || '',
         dueDate: a.due_date || a.dueDate,
         status: sub ? 'submitted' : 'pending',
         score: sub ? sub.score : null,
-        subject: a.subject,
-        subjectName: a.subject_name || a.subject,
+        subject: a.subject || courseInfo.name || 'Subject',
+        subjectName: a.subject_name || a.subject || courseInfo.name || 'Subject',
+        grade: a.grade || student.grade,
+        section: a.section || student.section,
         studentId: studentId,
         student: { id: student.id, firstName: student.firstName, lastName: student.lastName }
       });

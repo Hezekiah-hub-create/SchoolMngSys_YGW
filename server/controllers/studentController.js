@@ -12,6 +12,7 @@ const mapStudentToFrontend = (s) => {
     userId: s.user_id,
     admissionNumber: s.admission_number,
     firstName: s.first_name,
+    otherNames: s.other_names || s.otherNames || '',
     lastName: s.last_name,
     email: s.email,
     phone: s.phone,
@@ -292,6 +293,7 @@ const createStudent = asyncHandler(async (req, res) => {
     const studentData = {
       admission_number: admission_number,
       first_name: firstName,
+      other_names: req.body.otherNames || req.body.other_names || '',
       last_name: lastName,
       email: userEmail,
       date_of_birth: dateOfBirth && dateOfBirth !== '' ? dateOfBirth : null,
@@ -406,6 +408,7 @@ const updateStudent = asyncHandler(async (req, res) => {
 
   const fieldMapping = {
     firstName: 'first_name',
+    otherNames: 'other_names',
     lastName: 'last_name',
     email: 'email',
     phone: 'phone',
@@ -510,26 +513,63 @@ const updateStudent = asyncHandler(async (req, res) => {
 // @route   DELETE /api/students/:id
 // @access  Private (Admin)
 const deleteStudent = asyncHandler(async (req, res) => {
-  const student = await supabaseService.getById(COLLECTIONS.STUDENTS, req.params.id);
+  const studentId = req.params.id;
+  const student = await supabaseService.getById(COLLECTIONS.STUDENTS, studentId);
 
   if (!student) {
     return res.status(404).json({ message: 'Student not found' });
   }
 
-  // Delete user account as well
+  // 1. Cascade cleanup related records to prevent foreign key constraint violations
+  try {
+    await supabase.from(COLLECTIONS.ATTENDANCE).delete().eq('student_id', studentId);
+  } catch (err) {
+    console.warn('[DELETE STUDENT] Error removing attendance:', err.message);
+  }
+
+  try {
+    await supabase.from(COLLECTIONS.GRADES).delete().eq('student_id', studentId);
+  } catch (err) {
+    console.warn('[DELETE STUDENT] Error removing grades:', err.message);
+  }
+
+  try {
+    await supabase.from('exam_results').delete().eq('student_id', studentId);
+  } catch (err) {}
+
+  try {
+    await supabase.from('reports').delete().eq('student_id', studentId);
+  } catch (err) {}
+
+  try {
+    const { data: parents } = await supabase.from(COLLECTIONS.PARENTS).select('id, student_ids');
+    if (parents && parents.length > 0) {
+      for (const p of parents) {
+        if (Array.isArray(p.student_ids) && p.student_ids.includes(studentId)) {
+          const updatedIds = p.student_ids.filter(sid => sid !== studentId);
+          await supabase.from(COLLECTIONS.PARENTS).update({ student_ids: updatedIds }).eq('id', p.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[DELETE STUDENT] Error unlinking from parents:', err.message);
+  }
+
+  // 2. Delete the student record
+  await supabaseService.delete(COLLECTIONS.STUDENTS, studentId);
+
+  // 3. Delete user account
   if (student.user_id) {
     try {
       await supabaseService.delete(COLLECTIONS.USERS, student.user_id);
     } catch (error) {
-      console.error('Error deleting associated user:', error.message);
+      console.warn('[DELETE STUDENT] Error deleting user account:', error.message);
     }
   }
 
-  await supabaseService.delete(COLLECTIONS.STUDENTS, req.params.id);
-
   res.json({
     success: true,
-    message: 'Student deleted successfully'
+    message: 'Student and related records deleted successfully'
   });
 });
 
@@ -549,10 +589,21 @@ const getStudentStats = asyncHandler(async (req, res) => {
     statusDistribution[status] = (statusDistribution[status] || 0) + 1;
   });
 
+  // Grade normalization helper
+  const normalizeGradeName = (g) => {
+    if (!g) return 'Unknown';
+    let str = String(g).trim();
+    const primaryMatch = str.match(/^Primary\s*([1-6])$/i);
+    if (primaryMatch) return `Basic ${primaryMatch[1]}`;
+    const jhsMatch = str.match(/^JHS\s*([1-3])$/i);
+    if (jhsMatch) return `Basic ${parseInt(jhsMatch[1]) + 6}`;
+    return str;
+  };
+
   // Grade distribution
   const gradeDistribution = {};
   students.forEach(student => {
-    const grade = student.grade || 'Unknown';
+    const grade = normalizeGradeName(student.grade);
     gradeDistribution[grade] = (gradeDistribution[grade] || 0) + 1;
   });
 

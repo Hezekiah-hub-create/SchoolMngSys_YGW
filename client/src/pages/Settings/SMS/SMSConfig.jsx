@@ -32,8 +32,8 @@ const SMSConfig = () => {
     try {
       setLoading(true);
       const res = await settingsAPI.getSettings();
-      if (res.data?.data) {
-        const s = res.data.data;
+      const s = res.data?.settings || res.data?.data || res.data;
+      if (s) {
         setFormData({
           sms_provider: s.sms_provider || 'arkesel',
           sms_api_key: s.sms_api_key || '',
@@ -56,9 +56,17 @@ const SMSConfig = () => {
     try {
       setSaving(true);
       await settingsAPI.updateSettings(formData);
-      showAlert('success', 'SMS Settings Updated', 'Phone push notification & SMS gateway configuration saved successfully.');
+      showAlert({
+        type: 'success',
+        title: 'SMS Settings Updated',
+        message: 'Phone push notification & SMS gateway configuration saved successfully.'
+      });
     } catch (err) {
-      showAlert('error', 'Update Failed', err.response?.data?.message || err.message);
+      showAlert({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.response?.data?.message || err.message
+      });
     } finally {
       setSaving(false);
     }
@@ -66,7 +74,11 @@ const SMSConfig = () => {
 
   const handleSendTestSMS = async () => {
     if (!testRecipient) {
-      showAlert('warning', 'Missing Phone Number', 'Please enter a test recipient phone number (e.g. 024XXXXXXX).');
+      showAlert({
+        type: 'warning',
+        title: 'Missing Phone Number',
+        message: 'Please enter a test recipient phone number (e.g. 024XXXXXXX).'
+      });
       return;
     }
 
@@ -80,12 +92,24 @@ const SMSConfig = () => {
       });
 
       if (res.data?.success) {
-        showAlert('success', 'Test SMS Dispatched', res.data.message || `Test message dispatched to ${testRecipient}`);
+        showAlert({
+          type: 'success',
+          title: 'Test SMS Dispatched',
+          message: res.data.message || `Test message dispatched to ${testRecipient}`
+        });
       } else {
-        showAlert('error', 'Test Failed', res.data?.error || res.data?.message || 'Could not send test SMS');
+        showAlert({
+          type: 'error',
+          title: 'Test Failed',
+          message: res.data?.error || res.data?.message || 'Could not send test SMS'
+        });
       }
     } catch (err) {
-      showAlert('error', 'Gateway Error', err.response?.data?.error || err.response?.data?.message || err.message);
+      showAlert({
+        type: 'error',
+        title: 'Gateway Error',
+        message: err.response?.data?.error || err.response?.data?.message || err.message
+      });
     } finally {
       setTesting(false);
     }

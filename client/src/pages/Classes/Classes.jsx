@@ -35,7 +35,8 @@ const Classes = () => {
   const [saving, setSaving] = useState(false);
   
   const [classFormData, setClassFormData] = useState({ name: '', class_master_id: '', academic_year: '2024/2025' });
-  const [sectionFormData, setSectionFormData] = useState({ name: '', class_id: '', class_master_id: '' });
+  const [sectionFormData, setSectionFormData] = useState({ name: 'A', class_id: '', class_master_id: '' });
+  const [editingSectionId, setEditingSectionId] = useState(null);
   const [subjectFormData, setSubjectFormData] = useState({ subjectIds: [] });
   const [masterFormData, setMasterFormData] = useState({ class_master_id: '' });
   const { showAlert } = useAlert();
@@ -98,14 +99,19 @@ const Classes = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      await academicSectionsAPI.create({ ...sectionFormData, class_id: selectedClass.id });
+      if (editingSectionId) {
+        await academicSectionsAPI.update(editingSectionId, sectionFormData);
+      } else {
+        await academicSectionsAPI.create({ ...sectionFormData, class_id: selectedClass.id });
+      }
       setShowSectionModal(false);
-      setSectionFormData({ name: '', class_id: '' });
+      setEditingSectionId(null);
+      setSectionFormData({ name: 'A', class_id: '', class_master_id: '' });
       fetchData();
     } catch (error) {
       showAlert({
         title: 'Section Error',
-        message: 'Failed to create section.',
+        message: 'Failed to save section.',
         type: 'error'
       });
     } finally {
@@ -366,9 +372,11 @@ const Classes = () => {
                           style={{ cursor: isAdmin ? 'pointer' : 'default' }}
                           onClick={() => {
                             if (isAdmin) {
+                              setSelectedClass(cls);
                               setSelectedSection(sec);
-                              setMasterFormData({ class_master_id: sec.class_master_id || '' });
-                              setShowSectionMasterModal(true);
+                              setEditingSectionId(sec.id);
+                              setSectionFormData({ name: sec.name || 'A', class_id: cls.id, class_master_id: sec.class_master_id || '' });
+                              setShowSectionModal(true);
                             }
                           }}
                         >
@@ -494,19 +502,48 @@ const Classes = () => {
           <div className="premium-modal-content" style={{ width: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
               <div>
-                <h3 className="modal-title">Create Section</h3>
-                <p className="modal-subtitle">Add a new division to {selectedClass?.name}</p>
+                <h3 className="modal-title">{editingSectionId ? 'Edit Section' : 'Create Section'}</h3>
+                <p className="modal-subtitle">{editingSectionId ? 'Update division settings' : 'Add a new division to'} {selectedClass?.name}</p>
               </div>
-              <button onClick={() => setShowSectionModal(false)} className="premium-close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+              <button onClick={() => { setShowSectionModal(false); setEditingSectionId(null); }} className="premium-close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             </div>
             <form onSubmit={handleSectionSubmit}>
-              <div style={{ marginBottom: '24px' }}>
-                <label className="premium-label">Section Identifier</label>
-                <input className="premium-input" value={sectionFormData.name} onChange={e => setSectionFormData({...sectionFormData, name: e.target.value})} placeholder="e.g. A, Gold, etc." required />
+              <div style={{ marginBottom: '20px' }}>
+                <label className="premium-label">Section Identifier / Division</label>
+                <PremiumSelect
+                  value={sectionFormData.name}
+                  onChange={e => setSectionFormData({ ...sectionFormData, name: e.target.value })}
+                  options={[
+                    { value: 'A', label: 'Section A (Yellow)' },
+                    { value: 'B', label: 'Section B (Green)' },
+                    { value: 'C', label: 'Section C (Red)' },
+                    { value: 'D', label: 'Section D (Blue)' },
+                    { value: 'Yellow', label: 'Yellow' },
+                    { value: 'Green', label: 'Green' },
+                    { value: 'Red', label: 'Red' },
+                    { value: 'Blue', label: 'Blue' }
+                  ]}
+                  placeholder="Select Section..."
+                  required
+                />
               </div>
+
+              <div style={{ marginBottom: '28px' }}>
+                <label className="premium-label">Faculty Lead / Class Master</label>
+                <PremiumSelect
+                  options={[
+                    { value: '', label: 'None (Unassigned)' },
+                    ...teachers.map(t => ({ value: t.id, label: `${t.firstName || t.first_name || ''} ${t.lastName || t.last_name || ''}`.trim() }))
+                  ]}
+                  value={sectionFormData.class_master_id || ''}
+                  onChange={(e) => setSectionFormData({ ...sectionFormData, class_master_id: e.target.value })}
+                  placeholder="Designate Section Master..."
+                />
+              </div>
+
               <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" onClick={() => setShowSectionModal(false)} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
-                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Creating...' : 'Finalize Section'}</button>
+                <button type="button" onClick={() => { setShowSectionModal(false); setEditingSectionId(null); }} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
+                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Saving...' : (editingSectionId ? 'Save Changes' : 'Finalize Section')}</button>
               </div>
             </form>
           </div>

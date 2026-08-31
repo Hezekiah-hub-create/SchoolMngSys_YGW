@@ -11,6 +11,7 @@ const mapTeacherToFrontend = (t) => {
     id: t.id,
     userId: t.user_id,
     firstName: t.first_name,
+    otherNames: t.other_names || t.otherNames || '',
     lastName: t.last_name,
     email: t.email,
     phone: t.phone,
@@ -503,6 +504,7 @@ const createTeacher = asyncHandler(async (req, res) => {
   const teacherData = {
     employee_id: employeeId.trim(),
     first_name: firstName,
+    other_names: req.body.otherNames || req.body.other_names || '',
     last_name: lastName,
     email: userEmail,
     phone: phone,
@@ -584,6 +586,7 @@ const updateTeacher = asyncHandler(async (req, res) => {
   const updates = {};
   const fieldMapping = {
     firstName: 'first_name',
+    otherNames: 'other_names',
     lastName: 'last_name',
     phone: 'phone',
     gender: 'gender',

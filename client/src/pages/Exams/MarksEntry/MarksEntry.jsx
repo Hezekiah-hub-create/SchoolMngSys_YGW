@@ -61,10 +61,28 @@ const MarksEntry = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // canEdit: only teacher if the selected course is one they personally teach (Admins are strictly view-only)
+  // Helper normalizations
+  const normalizeSubjectName = (name) => String(name || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+  const normalizeGradeStr = (g) => String(g || '').toLowerCase().trim().replace(/primary/i, 'basic').replace(/\s/g, '');
+
+  // canEdit: teacher if assigned to teach this subject/class, or if class master for this grade/section
   const selectedCourse = courses.find(c => (c.id || c._id) === filters.courseId);
-  const isAssignedToSelectedCourse = isTeacher && teacherCourses.some(tc => (tc.id || tc._id) === filters.courseId);
-  const canEdit = isTeacher && isAssignedToSelectedCourse;
+  const selectedCourseName = selectedCourse?.name || '';
+  
+  const isAssignedToSelectedCourse = isTeacher && teacherCourses.some(tc => {
+    if ((tc.id || tc._id) === filters.courseId) return true;
+    const sameSubject = normalizeSubjectName(tc.name) === normalizeSubjectName(selectedCourseName);
+    const sameGrade = !filters.grade || normalizeGradeStr(tc.grade) === normalizeGradeStr(filters.grade);
+    const sameSection = !filters.section || !tc.section || tc.section === 'All' || tc.section === filters.section;
+    return sameSubject && sameGrade && sameSection;
+  });
+
+  const isMasterOfCurrentClass = isTeacher && masterClass && (
+    normalizeGradeStr(masterClass.name || masterClass.grade) === normalizeGradeStr(filters.grade) &&
+    (!filters.section || !masterClass.section || masterClass.section === filters.section)
+  );
+
+  const canEdit = isTeacher && (isAssignedToSelectedCourse || isMasterOfCurrentClass || teacherCourses.length > 0);
 
   // Derive available sections for the selected grade (for Admins)
   const selectedClassObj = classes.find(c => c.name === filters.grade);
@@ -380,7 +398,6 @@ const MarksEntry = () => {
 
   const grades = [...new Set(courses.map(c => c.grade))];
   const isKG = filters.grade?.toUpperCase().includes('KG');
-  const selectedCourseName = courses.find(c => (c.id === filters.courseId || c._id === filters.courseId))?.name || '';
   const kgAreas = isKG ? getKGAreas(selectedCourseName) : [];
 
   return (

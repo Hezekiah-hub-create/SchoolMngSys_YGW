@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { studentAPI, attendanceAPI, gradeAPI, assignmentAPI, academicClassesAPI, academicSectionsAPI, parentAPI, courseAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
+import { useAlert } from '../../../context/AlertContext';
 import PremiumSelect from '../../../components/common/PremiumSelect';
 import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
 import { mapSectionName } from '../../../utils/sectionHelper';
@@ -14,6 +15,7 @@ const Icons = {
   Phone: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
   Heart: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
   Edit: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  Trash: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
   ArrowLeft: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
   Check: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   X: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
@@ -36,6 +38,8 @@ const StudentProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { logout, user } = useAuth();
+  const { showAlert } = useAlert();
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'ITSupport';
   const [activeTab, setActiveTab] = useState('personal');
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState(null);
@@ -154,24 +158,43 @@ const StudentProfile = () => {
   };
 
   const startEdit = () => {
+    const rawAddress = student?.address || {};
+    const rawEmergency = student?.emergencyContact || student?.emergency_contact || {};
+    const rawMedical = student?.medicalInfo || student?.medical_info || {};
+
     setEditFormData({
-      firstName: student?.firstName || '',
-      lastName: student?.lastName || '',
-      dateOfBirth: student?.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '',
+      firstName: student?.firstName || student?.first_name || '',
+      otherNames: student?.otherNames || student?.other_names || '',
+      lastName: student?.lastName || student?.last_name || '',
+      dateOfBirth: student?.dateOfBirth || student?.date_of_birth ? (student.dateOfBirth || student.date_of_birth).split('T')[0] : '',
       gender: student?.gender || '',
       grade: student?.grade || '',
       section: student?.section || 'A',
       status: student?.status || 'active',
-      fatherName: student?.fatherName || student?.father_name || '',
-      fatherPhone: student?.fatherPhone || student?.father_phone || '',
+      fatherName: student?.fatherName || student?.father_name || student?.parentName || '',
+      fatherPhone: student?.fatherPhone || student?.father_phone || student?.parentPhone || student?.guardian_phone || student?.phone || '',
       motherName: student?.motherName || student?.mother_name || '',
       motherPhone: student?.motherPhone || student?.mother_phone || '',
-      parentEmail: student?.parentEmail || student?.parent_email || student?.email || '',
+      parentEmail: student?.parentEmail || student?.parent_email || student?.guardianEmail || student?.guardian_email || student?.email || '',
       guardianEmail: student?.guardianEmail || student?.guardian_email || '',
-      guardianStreet: student?.guardianStreet || student?.guardian_street || '',
-      address: student?.address || { street: '', city: '', region: '', country: 'Ghana' },
-      emergencyContact: student?.emergencyContact || { name: '', relationship: '', phone: '', email: '' },
-      medicalInfo: student?.medicalInfo || { bloodType: '', allergies: '', medicalConditions: '' }
+      guardianStreet: student?.guardianStreet || student?.guardian_street || rawAddress.street || '',
+      address: {
+        street: rawAddress.street || student?.street || '',
+        city: rawAddress.city || student?.city || '',
+        region: rawAddress.region || rawAddress.state || student?.state || '',
+        country: rawAddress.country || 'Ghana'
+      },
+      emergencyContact: {
+        name: rawEmergency.name || '',
+        relationship: rawEmergency.relationship || '',
+        phone: rawEmergency.phone || '',
+        email: rawEmergency.email || ''
+      },
+      medicalInfo: {
+        bloodType: rawMedical.bloodType || rawMedical.blood_type || student?.bloodGroup || student?.blood_group || '',
+        allergies: rawMedical.allergies || '',
+        medicalConditions: rawMedical.medicalConditions || rawMedical.medical_conditions || ''
+      }
     });
     setIsEditing(true);
 
@@ -310,7 +333,7 @@ const StudentProfile = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               {isEditing ? (
                 <>
                   <button onClick={() => setIsEditing(false)} className="premium-btn-secondary" style={{ backgroundColor: 'white', border: '1px solid var(--brand-slate-200)', boxShadow: 'none' }}>
@@ -321,9 +344,37 @@ const StudentProfile = () => {
                   </button>
                 </>
               ) : (
-                <button onClick={startEdit} className="premium-btn-primary">
-                  <Icons.Edit /> Edit Profile
-                </button>
+                <>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => {
+                        showAlert({
+                          title: 'Delete Student Record',
+                          message: `Are you sure you want to permanently delete ${student?.firstName} ${student?.lastName}? All associated academic records and credentials will be removed.`,
+                          type: 'confirm',
+                          confirmText: 'Delete Permanently',
+                          onConfirm: async () => {
+                            try {
+                              setLoading(true);
+                              await studentAPI.delete(id);
+                              navigate('/students');
+                            } catch (err) {
+                              setError(err.response?.data?.message || 'Failed to delete student.');
+                              setLoading(false);
+                            }
+                          }
+                        });
+                      }} 
+                      className="premium-btn-secondary" 
+                      style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#dc2626', boxShadow: 'none' }}
+                    >
+                      <Icons.Trash /> Delete Student
+                    </button>
+                  )}
+                  <button onClick={startEdit} className="premium-btn-primary">
+                    <Icons.Edit /> Edit Profile
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -435,6 +486,7 @@ const StudentProfile = () => {
                     <div className="responsive-grid-2" style={{ gap: '32px' }}>
                       <div style={{ gridColumn: 'span 2' }}><SectionTitle title="Basic Information" /></div>
                       <FormGroup label="First Name" name="firstName" value={editFormData.firstName} onChange={handleEditChange} />
+                      <FormGroup label="Other Names" name="otherNames" value={editFormData.otherNames} onChange={handleEditChange} placeholder="Middle / Other Names" />
                       <FormGroup label="Last Name" name="lastName" value={editFormData.lastName} onChange={handleEditChange} />
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -470,7 +522,15 @@ const StudentProfile = () => {
                         <PremiumSelect 
                           value={editFormData.section}
                           onChange={(e) => handleEditChange({ target: { name: 'section', value: e.target.value } })}
-                          options={availableSections.map(s => ({ value: s.name, label: s.name }))}
+                          options={availableSections.length > 0 
+                            ? availableSections.map(s => ({ value: s.name, label: `Section ${mapSectionName(s.name)}` }))
+                            : [
+                                { value: 'A', label: `Section ${mapSectionName('A')}` },
+                                { value: 'B', label: `Section ${mapSectionName('B')}` },
+                                { value: 'C', label: `Section ${mapSectionName('C')}` },
+                                { value: 'D', label: `Section ${mapSectionName('D')}` }
+                              ]
+                          }
                           placeholder="Select Section"
                         />
                       </div>

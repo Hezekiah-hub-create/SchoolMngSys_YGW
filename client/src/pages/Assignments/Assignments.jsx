@@ -17,7 +17,7 @@ import {
   Upload,
   ArrowRight
 } from 'lucide-react';
-import { assignmentAPI, courseAPI } from '../../services/api';
+import { assignmentAPI, courseAPI, parentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
 
@@ -33,6 +33,7 @@ const Assignments = () => {
 
   const isTeacher = user?.role === 'teacher';
   const isStudent = user?.role === 'student';
+  const isParent = user?.role === 'parent';
   const studentId = user?.studentId || user?.id;
 
   useEffect(() => {
@@ -42,10 +43,21 @@ const Assignments = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [asgRes, courseRes] = await Promise.all([
-        isTeacher ? assignmentAPI.getByTeacher(user.id) : assignmentAPI.getByStudent(studentId),
-        isTeacher ? courseAPI.getByTeacher(user.id) : courseAPI.getAll({ grade: user.grade })
-      ]);
+      let asgPromise;
+      let coursePromise;
+
+      if (isTeacher) {
+        asgPromise = assignmentAPI.getByTeacher(user.id);
+        coursePromise = courseAPI.getByTeacher(user.id);
+      } else if (isParent) {
+        asgPromise = parentAPI.getMyChildrenAssignments();
+        coursePromise = courseAPI.getAll({ limit: 100 });
+      } else {
+        asgPromise = assignmentAPI.getByStudent(studentId);
+        coursePromise = courseAPI.getAll({ grade: user.grade });
+      }
+
+      const [asgRes, courseRes] = await Promise.all([asgPromise, coursePromise]);
 
       setAssignments(asgRes.data?.data || []);
       setCourses(courseRes.data?.data || []);

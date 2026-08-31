@@ -368,29 +368,43 @@ const TeacherProfile = () => {
   const handleLogout = async () => { try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); } };
 
   const startEdit = () => {
+    const rawAddress = teacher?.address || {};
+    const rawEmergency = teacher?.emergencyContact || teacher?.emergency_contact || {};
     setFormData({
-      firstName: teacher?.firstName || '',
-      lastName: teacher?.lastName || '',
+      firstName: teacher?.firstName || teacher?.first_name || '',
+      otherNames: teacher?.otherNames || teacher?.other_names || '',
+      lastName: teacher?.lastName || teacher?.last_name || '',
       gender: teacher?.gender || '',
-      dateOfBirth: teacher?.dateOfBirth || '',
+      dateOfBirth: teacher?.dateOfBirth || teacher?.date_of_birth ? (teacher.dateOfBirth || teacher.date_of_birth).split('T')[0] : '',
       nationality: teacher?.nationality || 'Ghanaian',
+      religion: teacher?.religion || '',
       email: teacher?.email || '',
       phone: teacher?.phone || '',
-      address: teacher?.address || { street: '', city: '', region: '', country: 'Ghana' },
-      emergencyContact: teacher?.emergencyContact || { name: '', relationship: '', phone: '', email: '' },
+      address: {
+        street: rawAddress.street || teacher?.street || '',
+        city: rawAddress.city || teacher?.city || '',
+        region: rawAddress.region || rawAddress.state || teacher?.state || '',
+        country: rawAddress.country || 'Ghana'
+      },
+      emergencyContact: {
+        name: rawEmergency.name || '',
+        relationship: rawEmergency.relationship || '',
+        phone: rawEmergency.phone || '',
+        email: rawEmergency.email || ''
+      },
       subject: teacher?.subject || '',
       subjects: teacher?.subjects || [],
       grades: teacher?.grades || [],
       qualifications: Array.isArray(teacher?.qualifications) ? teacher.qualifications[0] : (teacher?.qualifications || ''),
       specialization: teacher?.specialization || '',
-      experience: teacher?.experience || 0,
-      salary: teacher?.salary || '',
-      dateOfEmployment: teacher?.dateOfEmployment || '',
-      contractType: teacher?.contractType || 'permanent',
+      experience: teacher?.experience ?? 0,
+      salary: teacher?.salary || 0,
+      dateOfEmployment: teacher?.dateOfEmployment || teacher?.date_of_employment ? (teacher.dateOfEmployment || teacher.date_of_employment).split('T')[0] : '',
+      contractType: teacher?.contractType || teacher?.contract_type || 'permanent',
       position: teacher?.position || 'Teacher',
-      socialSecurity: teacher?.socialSecurity || '',
+      socialSecurity: teacher?.socialSecurity || teacher?.social_security || teacher?.ssnit || '',
       status: teacher?.status || 'active',
-      coordinatorBlock: teacher?.coordinatorBlock || ''
+      coordinatorBlock: teacher?.coordinatorBlock || teacher?.coordinator_block || ''
     });
     setEditing(true);
   };
@@ -590,6 +604,7 @@ const TeacherProfile = () => {
                     <div className="responsive-grid-3">
                       <div style={{ gridColumn: 'span 3' }}><SectionTitle title="Identity & Personal" /></div>
                       <FormGroup label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} />
+                      <FormGroup label="Other Names" name="otherNames" value={formData.otherNames} onChange={handleChange} placeholder="Middle / Other Names" />
                       <FormGroup label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <label className="premium-label">Gender</label>

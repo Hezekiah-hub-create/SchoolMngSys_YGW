@@ -133,10 +133,14 @@ const Timetable = () => {
       }
     }
 
+    if (isAdmin && !selectedGrade) {
+      setSelectedGrade('Basic 1');
+      setSelectedSection('A');
+    }
     if (user && viewMode === 'class' && isTeacher) {
       setViewMode('teacher');
     }
-  }, [isTeacher, isStudent, isParent, user, selectedChild]);
+  }, [isTeacher, isStudent, isParent, user, selectedChild, isAdmin]);
 
   const currentViewMode = viewMode;
   

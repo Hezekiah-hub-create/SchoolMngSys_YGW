@@ -253,10 +253,10 @@ const AddTeacher = () => {
   const [activeMenu, setActiveMenu] = useState('Staff');
 
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', gender: '', dateOfBirth: '', nationality: '', religion: '',
+    firstName: '', otherNames: '', lastName: '', gender: '', dateOfBirth: '', nationality: '', religion: '',
     email: '', phone: '', street: '', city: '', state: '',
     employeeId: '', subject: '', position: '', qualifications: '', specialization: '',
-    experience: '', dateOfEmployment: '', salary: '', subjects: [], grades: [], coordinatorBlock: ''
+    experience: '', dateOfEmployment: '', subjects: [], grades: [], coordinatorBlock: ''
   });
   const [dbSubjects, setDbSubjects] = useState([]);
   const [dbGrades, setDbGrades] = useState([]);
@@ -374,6 +374,7 @@ const AddTeacher = () => {
           <SectionHeader title="Personal Information" />
           <div className="form-grid-3">
             <FormInput label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} required />
+            <FormInput label="Other Names" name="otherNames" value={formData.otherNames} onChange={handleChange} placeholder="Middle / Other Names" />
             <FormInput label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} required />
             <FormInput label="Gender" name="gender" value={formData.gender} onChange={handleChange} required options={[{value:'male',label:'Male'},{value:'female',label:'Female'}]} />
             <FormInput label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required placeholder="e.g. teacher@uhasbasic.edu.gh" />
@@ -388,7 +389,6 @@ const AddTeacher = () => {
             <FormInput label="Subject Specialty" name="subject" value={formData.subject} onChange={handleChange} required options={dbSubjects.length > 0 ? dbSubjects.map(s => ({ value: s.name, label: s.name })) : subjectOptions} />
             <FormInput label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} required options={qualificationOptions} />
             <FormInput label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} options={coordinatorOptions} />
-            <FormInput label="Salary" name="salary" type="number" value={formData.salary} onChange={handleChange} />
             <FormInput label="Join Date" name="dateOfEmployment" type="date" value={formData.dateOfEmployment} onChange={handleChange} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>

@@ -121,7 +121,7 @@ const AddStudent = () => {
   }, [parentSearch, selectedParent]);
   
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', gender: '', dateOfBirth: '', bloodGroup: '', nationality: 'Ghanaian', religion: '',
+    firstName: '', otherNames: '', lastName: '', gender: '', dateOfBirth: '', bloodGroup: '', nationality: 'Ghanaian', religion: '',
     email: '', phone: '', street: '', city: '', state: '', postalCode: '',
     admissionNumber: '', admissionDate: new Date().toISOString().split('T')[0], grade: '', section: '', rollNumber: '',
     fatherName: '', fatherPhone: '', fatherOccupation: '', motherName: '', motherPhone: '', motherOccupation: '', parentEmail: '',
@@ -254,6 +254,7 @@ const AddStudent = () => {
                 <SectionHeader title="Student Profile" icon="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8" />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
                   <FormInput label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} required placeholder="John" />
+                  <FormInput label="Other Names" name="otherNames" value={formData.otherNames} onChange={handleChange} placeholder="Middle / Other Names" />
                   <FormInput label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} required placeholder="Doe" />
                   <FormInput label="Gender" name="gender" value={formData.gender} onChange={handleChange} required options={genderOptions} />
                   <FormInput label="Date of Birth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleChange} required />
