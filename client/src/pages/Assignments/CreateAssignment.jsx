@@ -15,6 +15,7 @@ import {
 import { assignmentAPI, teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
+import PremiumDatePicker from '../../components/common/PremiumDatePicker';
 
 const CreateAssignment = () => {
   const navigate = useNavigate();
@@ -178,7 +179,10 @@ const CreateAssignment = () => {
                       <PremiumSelect 
                         value={formData.course}
                         onChange={e => setFormData({...formData, course: e.target.value})}
-                        options={courses.map(c => ({ value: c.id, label: `${c.name} (${c.grade}${c.section})` }))}
+                        options={courses.map(c => ({ 
+                          value: c.id, 
+                          label: `${c.name} (${c.grade}${c.section ? ` - ${c.section}` : ''})` 
+                        }))}
                         placeholder="Select course"
                         icon={<BookOpen size={18} />}
                       />
@@ -200,11 +204,10 @@ const CreateAssignment = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                     <div>
                       <label style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Due Date</label>
-                      <input 
-                        type="date"
-                        style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '1.5px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '15px', fontWeight: '600', outline: 'none' }}
+                      <PremiumDatePicker 
                         value={formData.dueDate}
-                        onChange={e => setFormData({...formData, dueDate: e.target.value})}
+                        onChange={(val) => setFormData(prev => ({ ...prev, dueDate: val }))}
+                        placeholder="Select Due Date"
                       />
                       {errors.dueDate && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px', fontWeight: '700' }}>{errors.dueDate}</p>}
                     </div>

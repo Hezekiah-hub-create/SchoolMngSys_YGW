@@ -48,7 +48,6 @@ const subjectOptions = [
 const gradeOptions = [
   { value: 'KG 1', label: 'KG 1' },
   { value: 'KG 2', label: 'KG 2' },
-  { value: 'KG 3', label: 'KG 3' },
   { value: 'Basic 1', label: 'Basic 1' },
   { value: 'Basic 2', label: 'Basic 2' },
   { value: 'Basic 3', label: 'Basic 3' },
@@ -62,7 +61,7 @@ const gradeOptions = [
 
 const coordinatorOptions = [
   { value: '', label: 'None (Regular Teacher)' },
-  { value: 'KG', label: 'Kindergarten (KG 1-3)' },
+  { value: 'KG', label: 'Kindergarten (KG 1-2)' },
   { value: 'Basic 1-3', label: 'Lower Basic (Basic 1-3)' },
   { value: 'Basic 4-6', label: 'Upper Basic (Basic 4-6)' },
   { value: 'JHS', label: 'Basic 7-9 (JHS)' },

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const timetableController = require('../controllers/timetableController');
-const { auth } = require('../middleware/authMiddleware');
+const { auth, adminOnly } = require('../middleware/authMiddleware');
 
 router.use(auth);
 
@@ -11,11 +11,14 @@ router.get('/class/:className', timetableController.getTimetableByClass);
 router.get('/grade/:grade', timetableController.getTimetablesByGrade);
 router.get('/teacher/:teacherId', timetableController.getTimetableByTeacher);
 router.get('/:id', timetableController.getTimetableById);
-router.post('/', timetableController.createTimetable);
-router.put('/:id', timetableController.updateTimetable);
-router.delete('/all', timetableController.deleteAllTimetables);
-router.delete('/:id', timetableController.deleteTimetable);
-router.post('/:id/period', timetableController.addPeriod);
-router.delete('/:id/period', timetableController.removePeriod);
+
+// Creation, generation, and modification strictly restricted to administrators
+router.post('/auto-generate', adminOnly, timetableController.autoGenerateTimetable);
+router.post('/', adminOnly, timetableController.createTimetable);
+router.put('/:id', adminOnly, timetableController.updateTimetable);
+router.delete('/all', adminOnly, timetableController.deleteAllTimetables);
+router.delete('/:id', adminOnly, timetableController.deleteTimetable);
+router.post('/:id/period', adminOnly, timetableController.addPeriod);
+router.delete('/:id/period', adminOnly, timetableController.removePeriod);
 
 module.exports = router;

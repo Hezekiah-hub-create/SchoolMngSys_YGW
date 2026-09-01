@@ -1,4 +1,5 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
+const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const bcrypt = require('bcryptjs');
 
@@ -341,25 +342,74 @@ const getMyChildrenGrades = asyncHandler(async (req, res) => {
   const studentIds = parent[0].student_ids || [];
   if (studentIds.length === 0) return res.json({ success: true, data: [] });
 
-  const grades = await supabaseService.getAll(COLLECTIONS.GRADES);
-  const students = await Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id)));
+  const [grades, assignments, students, { data: allCourses }] = await Promise.all([
+    supabaseService.getAll(COLLECTIONS.GRADES),
+    supabaseService.getAll(COLLECTIONS.ASSIGNMENTS),
+    Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id))),
+    supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('id, class_id, subject_id, class:class_id(name), subject:subject_id(name)')
+  ]);
+
+  const courseMap = {};
+  (allCourses || []).forEach(c => {
+    courseMap[c.id] = c.subject?.name || '';
+  });
+
   const studentMap = {};
   students.filter(Boolean).forEach(s => {
     studentMap[s.id] = { id: s.id, firstName: s.first_name, lastName: s.last_name, grade: s.grade };
   });
 
-  const flatGrades = grades
-    .filter(g => studentIds.includes(g.student_id))
-    .map(g => ({
-      id: g.id,
-      subject: g.subject_name || g.subject,
-      score: g.score || g.total_score,
-      grade: g.grade_level || g.grade,
-      term: g.term,
-      studentId: g.student_id,
-      student: studentMap[g.student_id]
-    }));
-  
+  const flatGrades = [];
+
+  // 1. Terminal Grades
+  (grades || []).forEach(g => {
+    if (studentIds.includes(g.student_id)) {
+      const numericScore = Number(g.score || g.total_score || 0);
+      const letterGrade = g.letter_grade || (numericScore >= 70 ? 'A' : numericScore >= 60 ? 'B' : numericScore >= 50 ? 'C' : 'F');
+      flatGrades.push({
+        id: g.id,
+        subject: g.subject_name || g.subject || courseMap[g.course_id] || 'Academic Subject',
+        score: numericScore,
+        rawScore: numericScore,
+        maxScore: 100,
+        grade: letterGrade,
+        term: g.term || '1st Term',
+        assessmentType: 'Terminal Exam',
+        studentId: g.student_id,
+        student: studentMap[g.student_id]
+      });
+    }
+  });
+
+  // 2. Graded Assignments & Course Deliverables
+  (assignments || []).forEach(a => {
+    const submissions = a.submissions || [];
+    submissions.forEach(s => {
+      const sId = s.student || s.student_id;
+      if (studentIds.includes(sId) && s.score !== undefined && s.score !== null) {
+        const rawScore = Number(s.score);
+        const maxScore = Number(a.max_score || a.maxScore || 100);
+        const percentageScore = maxScore > 0 ? Math.round((rawScore / maxScore) * 100) : rawScore;
+        const letterGrade = percentageScore >= 70 ? 'A' : percentageScore >= 60 ? 'B' : percentageScore >= 50 ? 'C' : 'F';
+        
+        flatGrades.push({
+          id: `asg-${a.id}-${sId}`,
+          subject: a.subject || a.subject_name || courseMap[a.course_id] || 'Academic Deliverable',
+          score: percentageScore,
+          rawScore: rawScore,
+          maxScore: maxScore,
+          grade: letterGrade,
+          term: a.term || '1st Term',
+          assessmentType: `${a.title || 'Assignment'} (Assessment)`,
+          studentId: sId,
+          student: studentMap[sId]
+        });
+      }
+    });
+  });
+
   res.json({ success: true, data: flatGrades });
 });
 
@@ -404,15 +454,21 @@ const getMyChildrenAssignments = asyncHandler(async (req, res) => {
   const studentIds = parent[0].student_ids || [];
   if (studentIds.length === 0) return res.json({ success: true, data: [] });
 
-  const [assignments, allCourses, rawStudents] = await Promise.all([
+  const [assignments, { data: allCourses }, rawStudents] = await Promise.all([
     supabaseService.getAll(COLLECTIONS.ASSIGNMENTS),
-    supabaseService.getAll(COLLECTIONS.CLASS_SUBJECTS),
+    supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('id, class_id, subject_id, class:class_id(name), subject:subject_id(name)'),
     Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id)))
   ]);
 
   const courseMap = {};
   (allCourses || []).forEach(c => {
-    courseMap[c.id] = c;
+    courseMap[c.id] = {
+      ...c,
+      name: c.subject?.name || '',
+      grade: c.class?.name || ''
+    };
   });
 
   const studentMap = {};
@@ -423,9 +479,9 @@ const getMyChildrenAssignments = asyncHandler(async (req, res) => {
   const normalizeGrade = (g) => {
     if (!g) return '';
     let str = String(g).toLowerCase().trim().replace(/primary/i, 'basic').replace(/\s/g, '');
-    if (str.includes('jhs1')) return 'basic7';
-    if (str.includes('jhs2')) return 'basic8';
-    if (str.includes('jhs3')) return 'basic9';
+    if (str.includes('jhs1') || str === 'jhs1') return 'basic7';
+    if (str.includes('jhs2') || str === 'jhs2') return 'basic8';
+    if (str.includes('jhs3') || str === 'jhs3') return 'basic9';
     return str;
   };
 
@@ -438,37 +494,38 @@ const getMyChildrenAssignments = asyncHandler(async (req, res) => {
     const studentGradeNorm = normalizeGrade(student.grade);
     
     const matchedAssignments = (assignments || []).filter(a => {
-      const hasSubmission = (a.submissions || []).some(s => s.student === studentId);
+      const hasSubmission = (a.submissions || []).some(s => s.student === studentId || s.student_id === studentId);
       if (hasSubmission) return true;
 
       const courseInfo = courseMap[a.course_id] || {};
       const aGrade = a.grade || a.class || courseInfo.grade;
-      const aSection = a.section || courseInfo.section;
-
       const aGradeNorm = normalizeGrade(aGrade);
-      const matchesGrade = studentGradeNorm && aGradeNorm && (studentGradeNorm === aGradeNorm);
-      
-      return matchesGrade;
+      return studentGradeNorm && aGradeNorm && (studentGradeNorm === aGradeNorm);
     });
 
     matchedAssignments.forEach(a => {
       const courseInfo = courseMap[a.course_id] || {};
       const submissions = a.submissions || [];
-      const sub = submissions.find(s => s.student === studentId);
+      const sub = submissions.find(s => s.student === studentId || s.student_id === studentId);
       
       flatAssignments.push({
         id: a.id,
         title: a.title || 'Assignment',
         description: a.description || '',
+        instructions: a.instructions || '',
+        attachments: a.attachments || [],
         dueDate: a.due_date || a.dueDate,
-        status: sub ? 'submitted' : 'pending',
+        status: sub ? (sub.status || 'submitted') : 'pending',
         score: sub ? sub.score : null,
         subject: a.subject || courseInfo.name || 'Subject',
         subjectName: a.subject_name || a.subject || courseInfo.name || 'Subject',
         grade: a.grade || student.grade,
         section: a.section || student.section,
+        maxScore: a.max_score || a.maxScore || 100,
         studentId: studentId,
-        student: { id: student.id, firstName: student.firstName, lastName: student.lastName }
+        student: { id: student.id, firstName: student.firstName, lastName: student.lastName },
+        submissions: a.submissions || [],
+        submission: sub || null
       });
     });
   }

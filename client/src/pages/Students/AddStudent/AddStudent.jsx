@@ -122,7 +122,7 @@ const AddStudent = () => {
   const [formData, setFormData] = useState({
     firstName: '', otherNames: '', lastName: '', gender: '', dateOfBirth: '', bloodGroup: '', nationality: 'Ghanaian', religion: '',
     email: '', phone: '', street: '', city: '', state: '', postalCode: '',
-    admissionNumber: '', admissionDate: new Date().toISOString().split('T')[0], grade: '', section: '', rollNumber: '',
+    admissionNumber: '', admissionDate: new Date().toISOString().split('T')[0], grade: '', rollNumber: '', house: '',
     fatherName: '', fatherPhone: '', fatherOccupation: '', motherName: '', motherPhone: '', motherOccupation: '', parentEmail: '',
     guardianEmail: '', guardianStreet: '',
     medicalConditions: '', allergies: '', emergencyContact: '',
@@ -146,14 +146,14 @@ const AddStudent = () => {
     { value: 'female', label: 'Female' },
   ];
 
-  const sectionOptions = availableSections.length > 0 
-    ? availableSections.map(s => ({ value: s.name, label: `` }))
-    : [
-        { value: 'A', label: `` },
-        { value: 'B', label: `` },
-        { value: 'C', label: `` },
-        { value: 'D', label: `` }
-      ];
+  const houseOptions = [
+    { value: 'Yellow House', label: 'Yellow House' },
+    { value: 'Green House', label: 'Green House' },
+    { value: 'Red House', label: 'Red House' },
+    { value: 'Blue House', label: 'Blue House' }
+  ];
+
+
 
   const handleChange = async (e) => {
     const { name, value } = e.target;
@@ -163,12 +163,6 @@ const AddStudent = () => {
     if (name === 'grade') {
       // Find the class ID for the selected grade name (or ID if we store ID)
       const selectedClass = dbGrades.find(g => g.name === value || g.id === value);
-      if (selectedClass) {
-        const filtered = dbSections.filter(s => s.class_id === selectedClass.id);
-        setAvailableSections(filtered);
-      } else {
-        setAvailableSections([]);
-      }
       
       // Auto-generate roll number based on number of students in the class
       try {
@@ -267,7 +261,7 @@ const AddStudent = () => {
                 <SectionHeader title="Academic Details" icon="M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
                   <FormInput label="Class / Grade" name="grade" value={formData.grade} onChange={handleChange} required options={gradeOptions} />
-                  <FormInput label="Section" name="section" value={formData.section} onChange={handleChange} required options={sectionOptions} />
+                  <FormInput label="School House" name="house" value={formData.house} onChange={handleChange} options={houseOptions} placeholder="Select House" />
                   <FormInput label="Admission Number" name="admissionNumber" value={formData.admissionNumber} onChange={handleChange} placeholder="Auto-generated if empty" />
                   <FormInput label="Admission Date" name="admissionDate" type="date" value={formData.admissionDate} onChange={handleChange} />
                   <FormInput label="Roll Number" name="rollNumber" value={formData.rollNumber} onChange={handleChange} placeholder="e.g. 01" />

@@ -195,7 +195,7 @@ const RoleBasedRoute = ({ children }) => {
   }
 
   if (user.role === 'parent') {
-    const isAllowed = parentAllowedPaths.has(location.pathname) || location.pathname.startsWith('/assignments/');
+    const isAllowed = parentAllowedPaths.has(location.pathname) || location.pathname.startsWith('/assignments/') || location.pathname.startsWith('/students/');
     if (!isAllowed) return <Navigate to="/unauthorized" replace />;
   }
   if (user.role === 'admission' && !admissionAllowedPaths.has(location.pathname)) {

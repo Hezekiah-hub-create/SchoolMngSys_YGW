@@ -15,7 +15,8 @@ import {
   Users,
   Download,
   Upload,
-  ArrowRight
+  ArrowRight,
+  User
 } from 'lucide-react';
 import { assignmentAPI, courseAPI, parentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -34,7 +35,11 @@ const Assignments = () => {
   const isTeacher = user?.role === 'teacher';
   const isStudent = user?.role === 'student';
   const isParent = user?.role === 'parent';
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'ITSupport';
   const studentId = user?.studentId || user?.id;
+
+  const [linkedStudents, setLinkedStudents] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState('all');
 
   useEffect(() => {
     fetchData();
@@ -52,6 +57,11 @@ const Assignments = () => {
       } else if (isParent) {
         asgPromise = parentAPI.getMyChildrenAssignments();
         coursePromise = courseAPI.getAll({ limit: 100 });
+        parentAPI.getMyChildren().then(res => {
+          if (res.data?.success && res.data.data) {
+            setLinkedStudents(res.data.data);
+          }
+        }).catch(err => console.error('Error fetching children:', err));
       } else {
         asgPromise = assignmentAPI.getByStudent(studentId);
         coursePromise = courseAPI.getAll({ grade: user.grade });
@@ -76,28 +86,60 @@ const Assignments = () => {
   const filteredAssignments = useMemo(() => {
     return assignments.filter(a => {
       const matchesSearch = a.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           a.subject?.toLowerCase().includes(searchTerm.toLowerCase());
+                           a.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           a.subjectName?.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // Filter by selected child for parents
+      if (isParent && selectedChildId && selectedChildId !== 'all') {
+        const childId = a.studentId || a.student?.id;
+        if (childId && childId !== selectedChildId) return false;
+      }
       
-      if (filter === 'All') return matchesSearch;
-      if (filter === 'Active') return matchesSearch && new Date(a.dueDate) > new Date();
-      if (filter === 'Submitted') {
-        const submission = a.submissions?.find(s => s.student === studentId);
-        return matchesSearch && !!submission;
+      const dueDate = new Date(a.dueDate || a.due_date);
+      const targetStudentId = a.studentId || a.student?.id;
+      const isSubmitted = isParent
+        ? (a.status === 'submitted' || a.status === 'graded' || !!a.submission || (a.submissions || []).some(s => s.student === targetStudentId || s.student_id === targetStudentId))
+        : (isStudent 
+            ? !!(a.submissions?.find(s => s.student === studentId || s.student_id === studentId)) 
+            : (a.submissions || []).length > 0);
+
+      if (filter === 'All') return true;
+      if (filter === 'Active') return dueDate > new Date();
+      if (filter === 'Submitted') return isSubmitted;
+      if (filter === 'Pending') return !isSubmitted;
+      if (filter === 'Graded') {
+        if (isParent) return a.score !== null && a.score !== undefined;
+        return (a.submissions || []).some(s => s.score !== null && s.score !== undefined);
       }
-      if (filter === 'Pending') {
-        const submission = a.submissions?.find(s => s.student === studentId);
-        return matchesSearch && !submission;
-      }
-      return matchesSearch;
+      return true;
     });
-  }, [assignments, searchTerm, filter, studentId]);
+  }, [assignments, searchTerm, filter, studentId, isParent, isStudent, selectedChildId]);
 
   const stats = useMemo(() => {
-    const total = assignments.length;
-    const submitted = assignments.filter(a => a.submissions?.some(s => s.student === studentId)).length;
+    const relevant = assignments.filter(a => {
+      if (isParent && selectedChildId && selectedChildId !== 'all') {
+        const childId = a.studentId || a.student?.id;
+        if (childId && childId !== selectedChildId) return false;
+      }
+      return true;
+    });
+
+    const total = relevant.length;
+    let submitted = 0;
+    if (isParent) {
+      submitted = relevant.filter(a => {
+        const targetStudentId = a.studentId || a.student?.id;
+        return a.status === 'submitted' || a.status === 'graded' || !!a.submission || (a.submissions || []).some(s => s.student === targetStudentId || s.student_id === targetStudentId);
+      }).length;
+    } else if (isStudent) {
+      submitted = relevant.filter(a => a.submissions?.some(s => s.student === studentId || s.student_id === studentId)).length;
+    } else {
+      submitted = relevant.filter(a => (a.submissions || []).length > 0).length;
+    }
     const pending = total - submitted;
     return { total, submitted, pending };
-  }, [assignments, studentId]);
+  }, [assignments, studentId, isParent, isStudent, selectedChildId]);
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -106,7 +148,7 @@ const Assignments = () => {
         <div style={{ position: 'fixed', bottom: '10%', left: '5%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(255, 184, 28, 0.05) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(50px)', zIndex: 0, animation: 'blobFloat 15s infinite alternate-reverse' }}></div>
 
         <main style={{ padding: '0', animation: 'fadeIn 0.5s ease-out' }}>
-          <header style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <header style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: 'var(--brand-green-soft)', color: 'var(--brand-green)', borderRadius: '20px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Academic Ledger</span>
@@ -117,19 +159,42 @@ const Assignments = () => {
                 Scholar <span style={{ color: 'var(--brand-green)' }}>Assignments</span>
               </h1>
               <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
-                Centralized dispatch and management of institutional deliverables.
+                {isParent 
+                  ? 'Audit academic deliverables, track deadlines, and submit student work.' 
+                  : 'Centralized dispatch and management of institutional deliverables.'}
               </p>
             </div>
 
-            {isTeacher && (
-              <button 
-                onClick={() => navigate('/assignments/create')}
-                className="premium-btn-primary" 
-                style={{ padding: '16px 28px' }}
-              >
-                <Plus size={20} /> Dispatch New Task
-              </button>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              {isParent && linkedStudents.length > 0 && (
+                <div style={{ minWidth: '260px' }}>
+                  <label className="premium-label" style={{ marginBottom: '8px', display: 'block', fontSize: '12px', fontWeight: '800', color: '#64748b' }}>
+                    Filter by Scholar
+                  </label>
+                  <PremiumSelect 
+                    value={selectedChildId}
+                    onChange={(e) => setSelectedChildId(e.target.value)}
+                    options={[
+                      { value: 'all', label: 'All Dependent Scholars' },
+                      ...linkedStudents.map(c => ({
+                        value: c.id,
+                        label: `${c.firstName} ${c.lastName} (${c.grade || 'Scholar'})`
+                      }))
+                    ]}
+                  />
+                </div>
+              )}
+
+              {isTeacher && (
+                <button 
+                  onClick={() => navigate('/assignments/create')}
+                  className="premium-btn-primary" 
+                  style={{ padding: '16px 28px' }}
+                >
+                  <Plus size={20} /> Dispatch New Task
+                </button>
+              )}
+            </div>
           </header>
 
           {/* Stats Dashboard */}
@@ -151,7 +216,7 @@ const Assignments = () => {
             ))}
           </div>
 
-          <div className="responsive-layout-wrapper" style={{ gap: '32px' }}>
+          <div className="assignments-layout-grid" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '32px', alignItems: 'start' }}>
             <aside>
               <div className="glass-card" style={{ padding: '24px', position: 'sticky', top: '100px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#0f172a', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -234,9 +299,27 @@ const Assignments = () => {
                     <p style={{ color: '#64748b', marginTop: '8px', fontWeight: '600' }}>Adjust your filters or check back later for new dispatches.</p>
                   </div>
                 ) : filteredAssignments.map(assignment => {
-                  const submission = assignment.submissions?.find(s => s.student === studentId);
-                  const isSubmitted = !!submission;
-                  const isOverdue = new Date(assignment.dueDate) < new Date() && !isSubmitted;
+                  const targetStudentId = assignment.studentId || assignment.student?.id;
+                  const childSub = (assignment.submissions || []).find(s => s.student === targetStudentId || s.student_id === targetStudentId) || assignment.submission;
+                  const studentSub = isStudent 
+                    ? assignment.submissions?.find(s => s.student === studentId || s.student_id === studentId)
+                    : null;
+
+                  const isSubmitted = isParent 
+                    ? (assignment.status === 'submitted' || assignment.status === 'graded' || !!childSub)
+                    : !!studentSub;
+
+                  const targetScore = isParent 
+                    ? (assignment.score ?? childSub?.score)
+                    : studentSub?.score;
+
+                  const isGraded = isParent
+                    ? (assignment.status === 'graded' || (targetScore !== null && targetScore !== undefined))
+                    : (studentSub?.status === 'graded' || (targetScore !== null && targetScore !== undefined));
+
+                  const isOverdue = new Date(assignment.dueDate || assignment.due_date) < new Date() && !isSubmitted;
+                  const submissionCount = (assignment.submissions || []).length;
+                  const maxScore = assignment.maxScore || assignment.max_score || 100;
 
                   return (
                     <div key={assignment.id} className="assignment-card-nexus" style={{
@@ -256,26 +339,35 @@ const Assignments = () => {
                           width: '64px', 
                           height: '64px', 
                           borderRadius: '18px', 
-                          background: isSubmitted ? 'var(--brand-green-soft)' : isOverdue ? '#fef2f2' : '#ffffff', 
+                          background: (isTeacher || isAdmin || isSubmitted || isGraded) 
+                            ? 'var(--brand-green-soft)' 
+                            : (isOverdue ? '#fef2f2' : '#ffffff'), 
                           display: 'flex', 
                           alignItems: 'center', 
-                          justifyContent: 'center',
-                          color: isSubmitted ? 'var(--brand-green)' : isOverdue ? '#ef4444' : '#64748b',
-                          boxShadow: '0 8px 16px rgba(0,0,0,0.02)'
+                          justifyContent: 'center', 
+                          color: (isTeacher || isAdmin || isSubmitted || isGraded) 
+                            ? 'var(--brand-green)' 
+                            : (isOverdue ? '#ef4444' : '#64748b'), 
+                          boxShadow: '0 8px 16px rgba(0,0,0,0.02)' 
                         }}>
-                          {isSubmitted ? <CheckCircle2 size={28} /> : <FileText size={28} />}
+                          {(isTeacher || isAdmin || isSubmitted || isGraded) ? <CheckCircle2 size={28} /> : <FileText size={28} />}
                         </div>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                             <h4 style={{ fontSize: '19px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{assignment.title}</h4>
                             {isOverdue && <span style={{ padding: '2px 8px', backgroundColor: '#fef2f2', color: '#ef4444', fontSize: '10px', fontWeight: '900', borderRadius: '6px', textTransform: 'uppercase' }}>Overdue</span>}
                           </div>
-                          <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+                          <div style={{ display: 'flex', gap: '16px', marginTop: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {isParent && (assignment.student || linkedStudents.find(s => s.id === targetStudentId)) && (
+                              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-green)', display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--brand-green-soft)', padding: '2px 10px', borderRadius: '12px' }}>
+                                <User size={13} /> {assignment.student?.firstName || linkedStudents.find(s => s.id === targetStudentId)?.firstName} {assignment.student?.lastName || linkedStudents.find(s => s.id === targetStudentId)?.lastName}
+                              </span>
+                            )}
                             <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <BookOpen size={14} color="var(--brand-green)" /> {assignment.subject || courses.find(c => c.id === (assignment.course_id || assignment.course))?.name || 'Academic Node'}
+                              <BookOpen size={14} color="var(--brand-green)" /> {assignment.subject || assignment.subjectName || courses.find(c => c.id === (assignment.course_id || assignment.course))?.name || 'Academic Node'}
                             </span>
                             <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Users size={14} color="#8b5cf6" /> {`${assignment.grade || assignment.class || 'All Classes'} ${assignment.section || ''}`.trim()}
+                              <Users size={14} color="#8b5cf6" /> {assignment.grade || assignment.class || 'All Classes'}
                             </span>
                             <span style={{ fontSize: '13px', fontWeight: '700', color: isOverdue ? '#ef4444' : '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <Calendar size={14} color={isOverdue ? '#ef4444' : '#0284c7'} /> Due: {new Date(assignment.dueDate || assignment.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -290,31 +382,56 @@ const Assignments = () => {
                             fontSize: '11px', 
                             fontWeight: '900', 
                             padding: '4px 12px', 
-                            borderRadius: '20px',
-                            backgroundColor: assignment.priority === 'High' ? '#fef2f2' : '#ffffff',
-                            color: assignment.priority === 'High' ? '#ef4444' : '#64748b',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
+                            borderRadius: '20px', 
+                            backgroundColor: assignment.priority === 'High' ? '#fef2f2' : '#ffffff', 
+                            color: assignment.priority === 'High' ? '#ef4444' : '#64748b', 
+                            textTransform: 'uppercase', 
+                            letterSpacing: '0.5px' 
                           }}>
                             {assignment.priority || 'Normal'} Priority
                           </span>
-                          <div style={{ fontSize: '13px', fontWeight: '800', marginTop: '6px', color: isSubmitted ? 'var(--brand-green)' : '#0f172a' }}>
-                            {isSubmitted ? 'SUBMITTED' : 'NOT SUBMITTED'}
+                          <div style={{ 
+                            fontSize: '13px', 
+                            fontWeight: '800', 
+                            marginTop: '6px', 
+                            color: (isTeacher || isAdmin || isSubmitted || isGraded) 
+                              ? 'var(--brand-green)' 
+                              : (isOverdue ? '#ef4444' : '#0f172a') 
+                          }}>
+                            {(isTeacher || isAdmin) 
+                              ? `${submissionCount} ${submissionCount === 1 ? 'Submission' : 'Submissions'}` 
+                              : (isGraded
+                                  ? `GRADED (${targetScore}/${maxScore})`
+                                  : (isSubmitted
+                                      ? 'SUBMITTED'
+                                      : (isOverdue ? 'OVERDUE' : 'PENDING')))}
                           </div>
                         </div>
                         
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {assignment.fileUrl && (
-                            <button className="premium-btn-secondary" style={{ padding: '12px' }}>
+                            <a 
+                              href={assignment.fileUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              download 
+                              className="premium-btn-secondary" 
+                              style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
                               <Download size={18} />
-                            </button>
+                            </a>
                           )}
                           <button 
-                            className={isSubmitted ? "premium-btn-secondary" : "premium-btn-primary"}
+                            className={(isTeacher || isAdmin) ? "premium-btn-primary" : (isSubmitted ? "premium-btn-secondary" : "premium-btn-primary")}
                             style={{ padding: '12px 24px', fontSize: '14px' }}
-                            onClick={() => navigate(`/assignments/${assignment.id}`)}
+                            onClick={() => {
+                              const cParam = (isParent && targetStudentId) ? `?studentId=${targetStudentId}` : '';
+                              navigate(`/assignments/${assignment.id}${cParam}`);
+                            }}
                           >
-                            {isSubmitted ? 'View Details' : 'Resolve Task'} <ArrowRight size={16} style={{ marginLeft: '8px' }} />
+                            {(isTeacher || isAdmin) 
+                              ? 'View Submissions' 
+                              : (isSubmitted ? 'View Submission' : (isParent ? 'Submit Work' : 'Submit Task'))} <ArrowRight size={16} style={{ marginLeft: '8px' }} />
                           </button>
                         </div>
                       </div>
@@ -342,6 +459,12 @@ const Assignments = () => {
         .premium-input:focus {
           border-color: var(--brand-green) !important;
           box-shadow: 0 0 0 4px var(--brand-green-soft);
+        }
+
+        @media (max-width: 960px) {
+          .assignments-layout-grid {
+            grid-template-columns: 1fr !important;
+          }
         }
       `}</style>
     </div>

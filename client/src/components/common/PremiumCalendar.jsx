@@ -24,7 +24,10 @@ const PremiumCalendar = ({ value, onChange, onClose, style = {} }) => {
 
   const handleDateClick = (day) => {
     const selected = new Date(year, month, day);
-    const formatted = selected.toISOString().split('T')[0];
+    const y = selected.getFullYear();
+    const m = String(selected.getMonth() + 1).padStart(2, '0');
+    const dStr = String(selected.getDate()).padStart(2, '0');
+    const formatted = `${y}-${m}-${dStr}`;
     onChange(formatted);
     if (onClose) onClose();
   };

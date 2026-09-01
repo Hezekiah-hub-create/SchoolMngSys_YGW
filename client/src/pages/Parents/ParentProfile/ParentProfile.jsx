@@ -49,9 +49,12 @@ const ParentProfile = () => {
         setParent(normalizedParent);
         
         if (normalizedParent.studentIds.length > 0) {
-          const studentPromises = normalizedParent.studentIds.map(sid => studentAPI.getById(sid).catch(() => null));
+          const studentPromises = normalizedParent.studentIds.map(sid => {
+            const actualId = typeof sid === 'object' ? (sid?.id || sid?._id) : sid;
+            return actualId ? studentAPI.getById(actualId).catch(() => null) : null;
+          }).filter(Boolean);
           const studentRes = await Promise.all(studentPromises);
-          setLinkedStudents(studentRes.filter(r => r?.data?.success).map(r => r.data.data));
+          setLinkedStudents(studentRes.filter(r => r?.data?.success && r.data.data).map(r => r.data.data));
         }
       }
     } catch (err) { 
@@ -275,10 +278,14 @@ const ParentProfile = () => {
                       <div>
                         <SectionTitle title="Registered Dependent Scholars" />
                         <div className="responsive-grid-2" style={{ gap: '20px' }}>
-                          {linkedStudents.map(student => (
-                            <div 
-                              key={student._id} 
-                              onClick={() => navigate(`/students/${student._id}`)}
+                          {linkedStudents.map((student, idx) => {
+                            const studentId = student?.id || student?._id;
+                            return (
+                              <div 
+                                key={studentId || `scholar-node-${idx}`} 
+                                onClick={() => {
+                                  if (studentId) navigate(`/students/${studentId}`);
+                                }}
                               style={{ 
                                 padding: '24px', 
                                 backgroundColor: 'white', 
@@ -306,10 +313,11 @@ const ParentProfile = () => {
                               </div>
                               <div style={{ flex: 1 }}>
                                 <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--brand-slate-900)' }}>{student.firstName} {student.lastName}</h4>
-                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--brand-slate-500)', fontWeight: '600' }}>{student.grade} • </p>
+                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--brand-slate-500)', fontWeight: '600' }}>{student.grade || 'Scholar'}</p>
                               </div>
                             </div>
-                          ))}
+                          );
+                        })}
                           {linkedStudents.length === 0 && <p style={{ color: 'var(--brand-slate-400)', fontSize: '14px' }}>No linked scholars found.</p>}
                         </div>
                       </div>

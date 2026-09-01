@@ -218,25 +218,29 @@ const Courses = () => {
   const [selectedAiCourse, setSelectedAiCourse] = useState(null);
 
   useEffect(() => {
-    fetchCourses();
+    if (isParent) {
+      parentAPI.getMyChildren().then(res => {
+        if (res.data?.success && res.data.data.length > 0) {
+          setLinkedStudents(res.data.data);
+          const activeChild = (selectedChildId && res.data.data.find(s => s.id === selectedChildId)) || res.data.data[0];
+          if (!selectedChildId && activeChild) {
+            setSelectedChildId(activeChild.id);
+          }
+          if (activeChild?.grade) {
+            fetchCourses(false, activeChild.grade);
+          }
+        }
+      });
+    } else {
+      fetchCourses();
+    }
     if (isAdmin) {
       fetchTeachers();
       fetchAcademicMetadata();
       fetchAllSections();
       fetchSubjectsList();
     }
-  }, [user, selectedChildId]);
-
-  useEffect(() => {
-    if (isParent) {
-      parentAPI.getMyChildren().then(res => {
-        if (res.data?.success) {
-          setLinkedStudents(res.data.data);
-          if (res.data.data.length > 0 && !selectedChildId) setSelectedChildId(res.data.data[0].id);
-        }
-      });
-    }
-  }, [isParent]);
+  }, [user]);
 
   const fetchAcademicMetadata = async () => {
     try {
@@ -260,16 +264,26 @@ const Courses = () => {
     } catch (e) {}
   };
 
-  const fetchCourses = async (silent = false) => {
+  const fetchCourses = async (silent = false, gradeOverride = null) => {
     try {
       if (!silent) setLoading(true);
       let response;
       const selectedChild = linkedStudents.find(s => s.id === selectedChildId);
+      const targetGrade = gradeOverride || selectedChild?.grade;
       
-      if (isStudent && user?.grade) response = await courseAPI.getByGrade(user.grade);
-      else if (isTeacher) response = await courseAPI.getAll({ teacher: user?.id || user?.uid, limit: 5000 });
-      else if (isParent && selectedChild) response = await courseAPI.getByGrade(selectedChild.grade);
-      else response = await courseAPI.getAll({ limit: 5000 });
+      if (isStudent && user?.grade) {
+        response = await courseAPI.getByGrade(user.grade);
+      } else if (isTeacher) {
+        response = await courseAPI.getAll({ teacher: user?.id || user?.uid, limit: 5000 });
+      } else if (isParent) {
+        if (targetGrade) {
+          response = await courseAPI.getByGrade(targetGrade);
+        } else {
+          response = { data: { success: true, data: [] } };
+        }
+      } else {
+        response = await courseAPI.getAll({ limit: 5000 });
+      }
       
       let fetched = Array.isArray(response.data) ? response.data : (response.data?.data || []);
 
@@ -280,7 +294,7 @@ const Courses = () => {
         
         fetched = fetched.map(c => ({
           ...c,
-          studentCount: allStudents.filter(s => normalizeGrade(s.grade) === normalizeGrade(c.grade) && (c.section === 'All' || !c.section || s.section === c.section)).length
+          studentCount: allStudents.filter(s => displayGrade(s.grade) === displayGrade(c.grade)).length
         }));
       }
       setCourses(fetched);
@@ -304,21 +318,9 @@ const Courses = () => {
   };
 
   const filteredCourses = courses.filter(c => 
-    (c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.code.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    ((c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.code || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!filterGrade || c.grade === filterGrade)
-  ).filter(c => {
-    if (isAdmin || isTeacher) return true;
-    if (isParent) {
-      const child = linkedStudents.find(s => s.id === selectedChildId);
-      if (!child || !child.section) return true;
-      return !c.section || c.section === 'All' || c.section === child.section;
-    }
-    if (isStudent) {
-      if (!user?.section) return true;
-      return !c.section || c.section === 'All' || c.section === user.section;
-    }
-    return true;
-  });
+  );
 
   const stats = useMemo(() => {
     const uniqueSubjects = new Set(filteredCourses.map(c => `${c.name}-${c.grade}`));
@@ -574,7 +576,14 @@ const Courses = () => {
               <PremiumSelect 
                 label="selectedChildId"
                 value={selectedChildId}
-                onChange={(e) => setSelectedChildId(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedChildId(val);
+                  const child = linkedStudents.find(s => s.id === val);
+                  if (child?.grade) {
+                    fetchCourses(false, child.grade);
+                  }
+                }}
                 options={linkedStudents.map(c => ({
                   value: c.id,
                   label: `${c.firstName} ${c.lastName} (${displayGrade(c.grade)})`
@@ -605,6 +614,7 @@ const Courses = () => {
         ) : (
           <div className="courses-grid">
             {Object.values(filteredCourses.reduce((acc, c) => {
+              if (!c || !c.name) return acc;
               const key = `${c.name}-${c.grade}`;
               if (!acc[key]) acc[key] = { ...c, allocations: [c] };
               else acc[key].allocations.push(c);
@@ -612,9 +622,9 @@ const Courses = () => {
             }, {})).map((groupedCourse) => (
               <div key={groupedCourse._id || groupedCourse.id} className="course-node">
                 <div className="node-header">
-                  <div className="node-icon">{groupedCourse.name.charAt(0)}</div>
+                  <div className="node-icon">{(groupedCourse.name || 'S').charAt(0)}</div>
                   <div style={{ flex: 1 }}>
-                    <h3 className="node-title">{groupedCourse.name}</h3>
+                    <h3 className="node-title">{groupedCourse.name || 'Subject'}</h3>
                     <div className="node-tag">{groupedCourse.code} • {displayGrade(groupedCourse.grade)}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>

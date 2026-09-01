@@ -255,6 +255,7 @@ export const timetableAPI = {
   getByGrade: (grade) => api.get(`/api/timetable/grade/${encodeURIComponent(grade)}`),
   getByTeacher: (teacherId) => api.get(`/api/timetable/teacher/${teacherId}`),
   create: (data) => api.post('/api/timetable', data),
+  autoGenerate: (data) => api.post('/api/timetable/auto-generate', data),
   update: (id, data) => api.put(`/api/timetable/${id}`, data),
   delete: (id) => api.delete(`/api/timetable/${id}`),
   deleteAll: () => api.delete('/api/timetable/all'),

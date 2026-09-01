@@ -275,6 +275,33 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
     console.error('[BULK GRADES] Failed to fetch existing grades:', err.message);
   }
 
+  const allSettings = await supabaseService.getAll('settings');
+  const settings = allSettings?.[0] || {};
+  const gradingSystem = settings.grading_system || [];
+
+  const calculateGradeInfo = (rawTotal) => {
+    const percentage = Math.round(rawTotal / 2);
+    const s = percentage;
+    if (Array.isArray(gradingSystem) && gradingSystem.length > 0) {
+      const match = gradingSystem.find(g => s >= g.minScore && s <= g.maxScore);
+      if (match) {
+        return {
+          grade: match.grade || match.letter_grade || 'F',
+          gradePoint: match.gradePoint ?? match.value ?? 0,
+          remark: match.remark || match.interpretation || 'Fail'
+        };
+      }
+    }
+    if (s >= 90) return { grade: 'A+', gradePoint: 4.0, remark: 'Excellent' };
+    if (s >= 80) return { grade: 'A', gradePoint: 3.5, remark: 'Very Good' };
+    if (s >= 75) return { grade: 'B+', gradePoint: 3.3, remark: 'Good' };
+    if (s >= 70) return { grade: 'B', gradePoint: 3.0, remark: 'Good' };
+    if (s >= 65) return { grade: 'C+', gradePoint: 2.5, remark: 'Credit' };
+    if (s >= 60) return { grade: 'C', gradePoint: 2.0, remark: 'Credit' };
+    if (s >= 50) return { grade: 'D', gradePoint: 1.0, remark: 'Pass' };
+    return { grade: 'F', gradePoint: 0.0, remark: 'Fail' };
+  };
+
   for (const grade of grades) {
     if (!grade.student_id || !grade.course_id) continue;
     
@@ -312,7 +339,6 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
           }
         }
       } else {
-        // If courseData lookup returned null, check teacher's allocations generally
         isAllowed = true;
       }
 
@@ -323,31 +349,41 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
     }
     
     const finalTerm = mapTerm(grade.term);
-      const cat1 = parseInt(grade.cat1) || 0;
-      const gw = parseInt(grade.gw) || 0;
-      const cat2 = parseInt(grade.cat2) || 0;
-      const pw = parseInt(grade.pw) || 0;
-      const exam = parseInt(grade.exam) || 0;
-      const rawTotal = cat1 + gw + cat2 + pw + exam;
-      const percentage = Math.round(rawTotal / 2);
+    const cat1 = parseInt(grade.cat1) || 0;
+    const gw = parseInt(grade.gw) || 0;
+    const cat2 = parseInt(grade.cat2) || 0;
+    const pw = parseInt(grade.pw) || 0;
+    const exam = parseInt(grade.exam) || 0;
+    const rawTotal = cat1 + gw + cat2 + pw + exam;
+    const percentage = Math.round(rawTotal / 2);
 
-      const gradeData = {
-        student_id: grade.student_id,
-        course_id: grade.course_id,
-        academic_year: grade.academic_year,
-        term: finalTerm,
-        assessments: [
-          { name: 'Cat1', score: cat1, maxScore: 25 },
-          { name: 'GW', score: gw, maxScore: 25 },
-          { name: 'Cat2', score: cat2, maxScore: 25 },
-          { name: 'PW', score: pw, maxScore: 25 },
-          { name: 'Exam', score: exam, maxScore: 100 }
-        ],
-        total_score: rawTotal,
-        letter_grade: grade.grade || '9',
-        grade_point: parseInt(grade.grade) || 9,
-        remarks: grade.remarks || 'Satisfactory'
-      };
+    const gradeInfo = calculateGradeInfo(rawTotal);
+
+    const gradeData = {
+      student_id: grade.student_id,
+      course_id: grade.course_id,
+      academic_year: grade.academic_year,
+      term: finalTerm,
+      cat1,
+      gw,
+      cat2,
+      pw,
+      exam,
+      class_score: cat1 + gw + cat2 + pw,
+      exam_score: exam,
+      assessments: [
+        { name: 'Cat1', score: cat1, maxScore: 25 },
+        { name: 'GW', score: gw, maxScore: 25 },
+        { name: 'Cat2', score: cat2, maxScore: 25 },
+        { name: 'PW', score: pw, maxScore: 25 },
+        { name: 'Exam', score: exam, maxScore: 100 }
+      ],
+      total_score: rawTotal,
+      percentage,
+      letter_grade: gradeInfo.grade,
+      grade_point: gradeInfo.gradePoint,
+      remarks: gradeInfo.remark
+    };
 
     const existing = existingGrades.find(g => 
       (String(g.student_id) === String(grade.student_id) || String(g.student) === String(grade.student_id)) &&
@@ -411,6 +447,34 @@ const getStudentGrades = asyncHandler(async (req, res) => {
   }
   if (term) {
     grades = grades.filter(g => g.term === term);
+  }
+
+  // Include graded assignment deliverables for student
+  try {
+    const assignments = await supabaseService.getAll(COLLECTIONS.ASSIGNMENTS);
+    (assignments || []).forEach(a => {
+      const sub = (a.submissions || []).find(s => (s.student === queryStudentId || s.student_id === queryStudentId) && s.score !== undefined && s.score !== null);
+      if (sub) {
+        const rawScore = Number(sub.score);
+        const maxScore = Number(a.max_score || a.maxScore || 100);
+        const percentageScore = maxScore > 0 ? Math.round((rawScore / maxScore) * 100) : rawScore;
+        const letterGrade = percentageScore >= 70 ? 'A' : percentageScore >= 60 ? 'B' : percentageScore >= 50 ? 'C' : 'F';
+        grades.push({
+          id: `asg-${a.id}-${queryStudentId}`,
+          subject: a.subject || a.subject_name || 'Academic Deliverable',
+          courseName: a.subject || a.subject_name || 'Academic Deliverable',
+          score: percentageScore,
+          rawScore: rawScore,
+          maxScore: maxScore,
+          grade: letterGrade,
+          letter_grade: letterGrade,
+          term: a.term || '1st Term',
+          assessmentType: `${a.title || 'Assignment'} (Assessment)`
+        });
+      }
+    });
+  } catch (err) {
+    console.error('Error attaching student assignment grades:', err);
   }
 
   res.json({ success: true, data: grades });

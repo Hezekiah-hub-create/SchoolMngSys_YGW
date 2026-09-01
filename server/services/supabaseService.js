@@ -36,7 +36,8 @@ const COLLECTIONS = {
   CLASS_SUBJECTS: 'class_subjects',
   LOGIN_HISTORY: 'login_history',
   ACTIVITY_LOGS: 'activity_logs',
-  ACADEMIC_CALENDAR: 'academic_calendar'
+  ACADEMIC_CALENDAR: 'academic_calendar',
+  SECTIONS: 'sections'
 };
 
 const generateId = () => crypto.randomUUID();

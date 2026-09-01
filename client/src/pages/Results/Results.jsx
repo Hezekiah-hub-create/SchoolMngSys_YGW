@@ -225,6 +225,15 @@ const Results = () => {
     return { subjects: subjectsList, students: grouped };
   }, [generatedResults, selectedSection]);
 
+  const displayResults = useMemo(() => {
+    if (!isParent) return results;
+    if (!selectedChildId || selectedChildId === 'all') return results;
+    return results.filter(r => {
+      const sId = r.studentId || r.student?.id || r.student?._id;
+      return sId === selectedChildId;
+    });
+  }, [results, isParent, selectedChildId]);
+
   const handleSaveResult = async () => {
     try {
       if (!newResultData.class || !newResultData.subject) {
@@ -304,9 +313,9 @@ const Results = () => {
           {isParent || isStudent ? (
             <>
               {isParent && <StatCard title="Children" value={children.length} icon={<Icons.Award />} color="var(--brand-green)" />}
-              <StatCard title="Records" value={results.length} icon={<Icons.FileText />} color="var(--brand-yellow)" />
-              <StatCard title="Overall Avg" value={`${results.length > 0 ? Math.round(results.reduce((a, g) => a + (g.score || g.totalScore || 0), 0) / results.length) : 0}%`} icon={<Icons.TrendingUp />} color="#0ea5e9" />
-              <StatCard title="Status" value="On Track" icon={<Icons.Activity />} color="#8b5cf6" />
+              <StatCard title="Records" value={displayResults.length} icon={<Icons.FileText />} color="var(--brand-yellow)" />
+              <StatCard title="Overall Avg" value={`${displayResults.length > 0 ? Math.round(displayResults.reduce((a, g) => a + (Number(g.score) || Number(g.totalScore) || 0), 0) / displayResults.length) : 0}%`} icon={<Icons.TrendingUp />} color="#0ea5e9" />
+              <StatCard title="Status" value={displayResults.length > 0 ? (displayResults.reduce((a, g) => a + (Number(g.score) || 0), 0) / displayResults.length >= 50 ? 'On Track' : 'Needs Support') : 'No Records'} icon={<Icons.Activity />} color="#8b5cf6" />
             </>
           ) : (
             <>
@@ -350,13 +359,12 @@ const Results = () => {
                     />
                   </div>
                 )}
-                {(() => {
-                  const displayResults = results.filter(r => !isParent || selectedChildId === 'all' || (r.studentId || r.student?._id || r.student?.id) === selectedChildId);
-                  return displayResults.length > 0 ? displayResults.map((r, i) => {
-                    const student = children.find(c => (c.id || c._id) === (r.studentId || r.student?._id || r.student?.id));
-                    const score = r.score || r.totalScore || r.percentage || 0;
-                    return (
-                    <div key={i} style={{ padding: '20px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.borderColor = '#00843e'} onMouseOut={(e) => e.currentTarget.style.borderColor = '#f1f5f9'}>
+                {displayResults.length > 0 ? displayResults.map((r, i) => {
+                  const sId = r.studentId || r.student?._id || r.student?.id;
+                  const student = children.find(c => (c.id || c._id) === sId) || r.student;
+                  const score = Number(r.score || r.totalScore || r.percentage || 0);
+                  return (
+                    <div key={r.id || i} style={{ padding: '20px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.borderColor = '#00843e'} onMouseOut={(e) => e.currentTarget.style.borderColor = '#f1f5f9'}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#00843e10', color: '#00843e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>{student?.firstName?.[0] || 'S'}</div>
                         <div>
@@ -365,7 +373,9 @@ const Results = () => {
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: '18px', fontWeight: '800', color: score >= 70 ? '#00843e' : score >= 50 ? '#f59e0b' : '#ef4444', margin: 0 }}>{score}%</p>
+                        <p style={{ fontSize: '18px', fontWeight: '800', color: score >= 70 ? '#00843e' : score >= 50 ? '#f59e0b' : '#ef4444', margin: 0 }}>
+                          {r.rawScore !== undefined ? `${r.rawScore} / ${r.maxScore || 100} (${score}%)` : `${score}%`}
+                        </p>
                         <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>Grade: {r.grade || (score >= 70 ? 'A' : score >= 60 ? 'B' : score >= 50 ? 'C' : 'F')}</p>
                       </div>
                     </div>
@@ -376,7 +386,7 @@ const Results = () => {
                     <p style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginTop: '16px' }}>No results recorded yet</p>
                     <p style={{ fontSize: '14px', color: '#64748b' }}>Check back later once terminal results are published.</p>
                   </div>
-                ); })()}
+                )}
               </div>
             ) : activeTab === 'view' ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px dashed #cbd5e1' }}>

@@ -2,6 +2,7 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const smsService = require('../services/smsService');
+const fs = require('fs');
 
 
 // Get all assignments
@@ -15,35 +16,36 @@ const getAllAssignments = asyncHandler(async (req, res) => {
 
     // Data Isolation for Teachers
     let teacherCourseIds = null;
+    let teacherProfile = null;
     if (user.role === 'teacher' || user.role === 'staff') {
-      const teacherProfile = await supabaseService.getTeacherProfile(user);
+      teacherProfile = await supabaseService.getTeacherProfile(user);
       if (teacherProfile) {
         console.log(`[DEBUG] Found teacher profile: ${teacherProfile.id}`);
         // Fetch only relevant courses for this teacher
         const { data: teacherSubjects, error: tsError } = await supabase
           .from(COLLECTIONS.CLASS_SUBJECTS)
-          .select('id, class_id, section, teacher_id')
+          .select('id, class_id, teacher_id')
           .eq('teacher_id', teacherProfile.id);
           
         if (tsError) {
           console.error('[DEBUG] Error fetching teacherSubjects:', tsError);
         }
-        // If the above OR doesn't work (class_master_id might not be on class_subjects), use masteredSections
-        const { data: masteredSections } = await supabase
-          .from(COLLECTIONS.SECTIONS)
-          .select('class_id, name')
+        
+        // Check if teacher is class master for any classes
+        const { data: masteredClasses } = await supabase
+          .from(COLLECTIONS.ACADEMIC_CLASSES)
+          .select('id')
           .eq('class_master_id', teacherProfile.id);
-          
-        const masteredFilters = (masteredSections || []).map(s => `and(class_id.eq.${s.class_id},section.eq."${s.name}")`);
-        
+
         let allTeacherCourses = teacherSubjects || [];
-        
-        if (masteredFilters.length > 0) {
+
+        if (masteredClasses && masteredClasses.length > 0) {
+          const classIds = masteredClasses.map(c => c.id);
           const { data: extraCourses } = await supabase
             .from(COLLECTIONS.CLASS_SUBJECTS)
-            .select('id, class_id, section, teacher_id')
-            .or(masteredFilters.join(','));
-          
+            .select('id, class_id, teacher_id')
+            .in('class_id', classIds);
+
           if (extraCourses) allTeacherCourses = [...allTeacherCourses, ...extraCourses];
         }
 
@@ -77,7 +79,6 @@ const getAllAssignments = asyncHandler(async (req, res) => {
       const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', user.id);
       if (studentProfile) {
         const studentGrade = studentProfile.grade;
-        const studentSection = studentProfile.section;
         
         assignments = assignments.filter((a) => {
           const hasSubmission = (a.submissions || []).some((s) => s.student === studentProfile.id);
@@ -94,11 +95,26 @@ const getAllAssignments = asyncHandler(async (req, res) => {
       }
     }
 
-    // Filter by teacher's courses if applicable
-
-    // Filter by teacher's courses if applicable
+    // Filter by teacher's courses or teacher ownership
     if (teacherCourseIds) {
-      assignments = assignments.filter(a => teacherCourseIds.includes(a.course_id || a.course));
+      assignments = assignments.filter(a => {
+        const matchesCourse = teacherCourseIds.includes(a.course_id || a.course);
+        const matchesTeacher = teacherProfile && (
+          a.teacher_id === teacherProfile.id || 
+          a.teacher === teacherProfile.id || 
+          a.teacher_id === user.id
+        );
+        return matchesCourse || matchesTeacher;
+      });
+    }
+
+    if (req.query.teacher) {
+      const qTeacher = req.query.teacher;
+      assignments = assignments.filter(a => 
+        a.teacher_id === qTeacher || 
+        a.teacher === qTeacher || 
+        (teacherProfile && (a.teacher_id === teacherProfile.id || a.teacher === teacherProfile.id))
+      );
     }
 
     // Apply filters
@@ -310,6 +326,17 @@ const submitAssignment = asyncHandler(async (req, res) => {
     studentId = studentProfile.id;
   }
 
+  // Allow parents to submit on behalf of their children
+  if (user.role === 'parent') {
+    const parentProfile = await supabaseService.getByField(COLLECTIONS.PARENTS, 'user_id', user.id);
+    if (!parentProfile) return res.status(403).json({ message: 'Parent profile not found' });
+    if (!studentId && parentProfile.student_ids && parentProfile.student_ids.length > 0) {
+      studentId = parentProfile.student_ids[0];
+    } else if (studentId && (!parentProfile.student_ids || !parentProfile.student_ids.includes(studentId))) {
+      return res.status(403).json({ message: 'You are not authorized to submit for this student.' });
+    }
+  }
+
   if (!studentId) {
     return res.status(400).json({ message: 'Student ID is required' });
   }
@@ -424,14 +451,34 @@ const uploadFile = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'No file uploaded' });
   }
 
-  // In a real app, you might upload to Supabase Storage here.
-  // For now, we return the local path or a mock URL.
-  const fileUrl = `/uploads/${req.file.filename}`;
-  
+  let publicUrl = `/uploads/${req.file.filename}`;
+
+  try {
+    const fileContent = fs.readFileSync(req.file.path);
+    const storagePath = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('assignments')
+      .upload(storagePath, fileContent, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (!uploadError && uploadData) {
+      const { data: publicData } = supabase.storage
+        .from('assignments')
+        .getPublicUrl(storagePath);
+      if (publicData?.publicUrl) {
+        publicUrl = publicData.publicUrl;
+      }
+    }
+  } catch (storageErr) {
+    console.warn('[STORAGE UPLOAD FALLBACK]', storageErr.message);
+  }
+
   res.json({
     success: true,
     data: {
-      url: fileUrl,
+      url: publicUrl,
       filename: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size

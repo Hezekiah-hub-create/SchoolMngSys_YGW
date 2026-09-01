@@ -141,7 +141,7 @@ const Teachers = () => {
                   </div>
 
                   <div style={{ marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>{teacher.firstName || teacher.first_name} {teacher.lastName || teacher.last_name}</h3>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>{teacher.firstName || teacher.first_name} {teacher.otherNames ? `${teacher.otherNames} ` : ''}{teacher.lastName || teacher.last_name}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                       <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--brand-green)' }}>{teacher.position || 'Teacher'}</span>
                       <span style={{ color: '#cbd5e1' }}>•</span>

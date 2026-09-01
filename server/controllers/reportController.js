@@ -14,7 +14,7 @@ const toOrdinal = (num) => {
 };
 
 const getNextGrade = (currentGrade) => {
-  const gradeOptions = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+  const gradeOptions = ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
   if (!currentGrade) return '--';
   
   // Normalize currentGrade (e.g., Primary 1 -> Basic 1)
@@ -32,63 +32,60 @@ const getInterpretation = (score, settings) => {
   const s = Number(score);
   const gradingSystem = settings?.grading_system || [];
   
-  if (gradingSystem.length > 0) {
+  if (Array.isArray(gradingSystem) && gradingSystem.length > 0) {
     const match = gradingSystem.find(g => s >= g.minScore && s <= g.maxScore);
     if (match) return match.remark || match.interpretation || 'N/A';
   }
 
-  // Fallback
-  if (s >= 90) return 'Highest';
-  if (s >= 80) return 'Higher';
-  if (s >= 70) return 'High';
-  if (s >= 60) return 'High Avg';
-  if (s >= 55) return 'Average';
-  if (s >= 50) return 'Low Avg';
-  if (s >= 40) return 'Low';
-  if (s >= 35) return 'Lower';
-  return 'Lowest';
+  // Institutional standard scale fallback
+  if (s >= 90) return 'Excellent';
+  if (s >= 80) return 'Very Good';
+  if (s >= 75) return 'Good';
+  if (s >= 70) return 'Good';
+  if (s >= 65) return 'Credit';
+  if (s >= 60) return 'Credit';
+  if (s >= 50) return 'Pass';
+  return 'Fail';
 };
 
 const fallbackGradeBand = (score, settings) => {
   const s = Number(score);
   const gradingSystem = settings?.grading_system || [];
 
-  if (gradingSystem.length > 0) {
+  if (Array.isArray(gradingSystem) && gradingSystem.length > 0) {
     const match = gradingSystem.find(g => s >= g.minScore && s <= g.maxScore);
     if (match) return match.grade || match.letter_grade || '--';
   }
 
-  // Fallback
-  if (s >= 90) return '1';
-  if (s >= 80) return '2';
-  if (s >= 70) return '3';
-  if (s >= 60) return '4';
-  if (s >= 55) return '5';
-  if (s >= 50) return '6';
-  if (s >= 40) return '7';
-  if (s >= 35) return '8';
-  return '9';
+  // Institutional standard scale fallback
+  if (s >= 90) return 'A+';
+  if (s >= 80) return 'A';
+  if (s >= 75) return 'B+';
+  if (s >= 70) return 'B';
+  if (s >= 65) return 'C+';
+  if (s >= 60) return 'C';
+  if (s >= 50) return 'D';
+  return 'F';
 };
 
 const getGradeValue = (score, settings) => {
   const s = Number(score);
   const gradingSystem = settings?.grading_system || [];
 
-  if (gradingSystem.length > 0) {
+  if (Array.isArray(gradingSystem) && gradingSystem.length > 0) {
     const match = gradingSystem.find(g => s >= g.minScore && s <= g.maxScore);
-    if (match) return match.gradePoint || match.value || 1;
+    if (match) return match.gradePoint ?? match.value ?? 0;
   }
 
-  // Fallback
-  if (s >= 90) return 1;
-  if (s >= 80) return 2;
-  if (s >= 70) return 3;
-  if (s >= 60) return 4;
-  if (s >= 55) return 5;
-  if (s >= 50) return 6;
-  if (s >= 40) return 7;
-  if (s >= 35) return 8;
-  return 9;
+  // Institutional standard scale fallback
+  if (s >= 90) return 4.0;
+  if (s >= 80) return 3.5;
+  if (s >= 75) return 3.3;
+  if (s >= 70) return 3.0;
+  if (s >= 65) return 2.5;
+  if (s >= 60) return 2.0;
+  if (s >= 50) return 1.0;
+  return 0.0;
 };
 
 const aggregateYearlyGrades = (grades) => {
@@ -347,44 +344,42 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       const c2 = Number(grade.cat2 || 0);
       const pw = Number(grade.pw || 0);
       const ex = Number(grade.exam || 0);
-      classScore = Math.round((c1 + gw + c2 + pw) / 2);
-      examScore = Math.round(ex / 2);
+      classScore = c1 + gw + c2 + pw;
+      examScore = ex;
+    } else if (grade?.class_score !== undefined || grade?.exam_score !== undefined) {
+      classScore = Number(grade.class_score || 0);
+      examScore = Number(grade.exam_score || 0);
     } else if (grade?.assessments && typeof grade.assessments === 'object') {
       if (Array.isArray(grade.assessments)) {
         let cs = 0;
         let es = 0;
-        let isCatStructure = false;
         grade.assessments.forEach(a => {
           const name = String(a.name || '').toLowerCase();
           const score = Number(a.score || 0);
-          if (name.includes('cat') || name.includes('gw') || name.includes('pw')) {
-            cs += score;
-            isCatStructure = true;
-          } else if (name.includes('class') || name.includes('homework') || name.includes('midterm') || name.includes('test') || name.includes('project')) {
+          if (name.includes('cat') || name.includes('gw') || name.includes('pw') || name.includes('class') || name.includes('homework') || name.includes('midterm') || name.includes('test') || name.includes('project')) {
             cs += score;
           } else if (name.includes('exam') || name.includes('final')) {
             es += score;
           }
         });
-        if (isCatStructure) {
-          classScore = Math.round(cs / 2);
-          examScore = Math.round(es / 2);
-        } else if (cs > 0 || es > 0) {
-          classScore = cs;
-          examScore = es;
-        }
+        classScore = cs;
+        examScore = es;
       } else {
         const a = grade.assessments;
-        const cs = (Number(a.classwork || 0) + Number(a.homework || 0) + Number(a.midterm || 0));
-        const es = Number(a.finalExam || a.final || 0);
-        if (cs > 0 || es > 0) {
-          classScore = cs;
-          examScore = es;
-        }
+        classScore = Number(a.classwork || 0) + Number(a.homework || 0) + Number(a.midterm || 0);
+        examScore = Number(a.finalExam || a.final || 0);
       }
     }
 
-    const total = Number(grade?.total_score ?? (classScore + examScore));
+    // rawTotal is out of 200; grade on percentage (rawTotal/2)
+    const rawTotal = classScore + examScore;
+    const total = Number(grade?.total_score ?? rawTotal);
+    const percentage = Math.round(total / 2);
+
+    const isPlaceholderGrade = (g) => !g || String(g).trim() === '9' || String(g).trim() === '9.0' || String(g).trim() === '--';
+    const computedLetter = (!isPlaceholderGrade(grade?.letter_grade) && grade?.letter_grade) 
+      ? grade.letter_grade 
+      : fallbackGradeBand(percentage, settings);
 
     mergedSubjects.push({
       name: sInfo.name,
@@ -394,9 +389,9 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       examScore,
       total,
       position: toOrdinal(grade?.position),
-      grade: grade?.letter_grade || (total > 0 ? fallbackGradeBand(total, settings) : '--'),
-      gradeValue: total > 0 ? getGradeValue(total, settings) : '--',
-      interpretation: total > 0 ? getInterpretation(total, settings) : '--'
+      grade: computedLetter,
+      gradeValue: percentage > 0 ? getGradeValue(percentage, settings) : '--',
+      interpretation: percentage > 0 ? getInterpretation(percentage, settings) : '--'
     });
   }
 
@@ -407,13 +402,17 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       let cs = 0;
       let es = 0;
       if (g.cat1 !== undefined || g.exam !== undefined) {
-        cs = Math.round((Number(g.cat1 || 0) + Number(g.gw || 0) + Number(g.cat2 || 0) + Number(g.pw || 0)) / 2);
-        es = Math.round(Number(g.exam || 0) / 2);
+        cs = Number(g.cat1 || 0) + Number(g.gw || 0) + Number(g.cat2 || 0) + Number(g.pw || 0);
+        es = Number(g.exam || 0);
       } else if (g.class_score !== undefined || g.exam_score !== undefined) {
         cs = Number(g.class_score || 0);
         es = Number(g.exam_score || 0);
       }
       const tot = Number(g.total_score ?? (cs + es));
+      const totPct = Math.round(tot / 2);
+      const isPlaceholder = (lg) => !lg || String(lg).trim() === '9' || String(lg).trim() === '9.0' || String(lg).trim() === '--';
+      const letter = (!isPlaceholder(g.letter_grade) && g.letter_grade) ? g.letter_grade : fallbackGradeBand(totPct, settings);
+
       mergedSubjects.push({
         name: gName,
         category: 'CORE',
@@ -422,9 +421,9 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
         examScore: es,
         total: tot,
         position: toOrdinal(g.position),
-        grade: g.letter_grade || (tot > 0 ? fallbackGradeBand(tot, settings) : '--'),
-        gradeValue: tot > 0 ? getGradeValue(tot, settings) : '--',
-        interpretation: tot > 0 ? getInterpretation(tot, settings) : '--'
+        grade: letter,
+        gradeValue: totPct > 0 ? getGradeValue(totPct, settings) : '--',
+        interpretation: totPct > 0 ? getInterpretation(totPct, settings) : '--'
       });
     }
   });

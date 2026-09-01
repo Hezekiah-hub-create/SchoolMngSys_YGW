@@ -72,42 +72,28 @@ const MarksEntry = () => {
     if ((tc.id || tc._id) === filters.courseId) return true;
     const sameSubject = normalizeSubjectName(tc.name) === normalizeSubjectName(selectedCourseName);
     const sameGrade = !filters.grade || normalizeGradeStr(tc.grade) === normalizeGradeStr(filters.grade);
-    const sameSection = !filters.section || !tc.section || tc.section === 'All' || tc.section === filters.section;
-    return sameSubject && sameGrade && sameSection;
+    return sameSubject && sameGrade;
   });
 
   const isMasterOfCurrentClass = isTeacher && masterClass && (
-    normalizeGradeStr(masterClass.name || masterClass.grade) === normalizeGradeStr(filters.grade) &&
-    (!filters.section || !masterClass.section || masterClass.section === filters.section)
+    normalizeGradeStr(masterClass.name || masterClass.grade) === normalizeGradeStr(filters.grade)
   );
 
-  const canEdit = isTeacher && (isAssignedToSelectedCourse || isMasterOfCurrentClass || teacherCourses.length > 0);
+  const canEdit = isTeacher ? (isAssignedToSelectedCourse || isMasterOfCurrentClass || teacherCourses.length > 0) : isAdmin;
 
-  // Derive available sections for the selected grade (for Admins)
-  const selectedClassObj = classes.find(c => c.name === filters.grade);
-  const availableSections = selectedClassObj?.sections || [];
-
-  // Derive all unique class+section combos the teacher teaches
+  // Derive all unique classes the teacher teaches
   const teachingClasses = React.useMemo(() => {
     const seen = new Set();
     return teacherCourses
-      .filter(c => c.grade && c.section)
+      .filter(c => c.grade)
       .filter(c => {
-        const key = `${c.grade}|${c.section}`;
+        const key = c.grade;
         if (seen.has(key)) return false;
         seen.add(key); return true;
       })
-      .map(c => ({ grade: c.grade, section: c.section, label: `${displayGrade(c.grade)} — ` }))
-      .sort((a, b) => {
-        if (masterClass) {
-          const aIsMaster = a.grade === (masterClass.name || masterClass.grade) && a.section === masterClass.section;
-          const bIsMaster = b.grade === (masterClass.name || masterClass.grade) && b.section === masterClass.section;
-          if (aIsMaster) return -1;
-          if (bIsMaster) return 1;
-        }
-        return a.label.localeCompare(b.label);
-      });
-  }, [teacherCourses, masterClass]);
+      .map(c => ({ grade: c.grade, label: displayGrade(c.grade) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [teacherCourses]);
 
   useEffect(() => {
     fetchInitialData();
@@ -202,7 +188,6 @@ const MarksEntry = () => {
       console.log('[DEBUG] selectedCourse:', selectedCourse, 'matchingCourseIds:', matchingCourseIds);
 
       const studentParams = { grade: filters.grade, limit: 'none' };
-      if (filters.section) studentParams.section = filters.section;
 
       const promises = [studentAPI.getAll(studentParams)];
       if (matchingCourseIds.length > 0) {
@@ -212,17 +197,7 @@ const MarksEntry = () => {
       const [studentsRes, ...gradesResponses] = await Promise.all(promises);
 
       if (studentsRes.data.success) {
-        let studentsList = studentsRes.data.data;
-        
-        // Strict Section Filtering: if a section is selected, strictly enforce it.
-        if (filters.section && filters.section !== '') {
-          studentsList = studentsList.filter(s => {
-            const dbSec = String(s.section || '').toLowerCase().replace('section', '').trim();
-            const filterSec = String(filters.section).toLowerCase().replace('section', '').trim();
-            return dbSec.includes(filterSec) || filterSec.includes(dbSec);
-          });
-        }
-        
+        const studentsList = studentsRes.data.data;
         setStudents(studentsList);
         
         const allGrades = gradesResponses.flatMap(res => res.data?.data || []);
@@ -302,22 +277,21 @@ const MarksEntry = () => {
     return (m.cat1 || 0) + (m.gw || 0) + (m.cat2 || 0) + (m.pw || 0) + (m.exam || 0);
   };
 
-
-  const getGrade = (total) => {
-    const percentage = Math.round(total / 2);
-    if (!settings || !settings.gradingSystem || settings.gradingSystem.length === 0) {
-      if (percentage >= 90) return '1';
-      if (percentage >= 80) return '2';
-      if (percentage >= 70) return '3';
-      if (percentage >= 60) return '4';
-      if (percentage >= 55) return '5';
-      if (percentage >= 50) return '6';
-      if (percentage >= 40) return '7';
-      if (percentage >= 35) return '8';
-      return '9';
+  const getGrade = (rawTotal) => {
+    const percentage = Math.round(rawTotal / 2);
+    const gSys = settings?.gradingSystem || settings?.grading_system;
+    if (Array.isArray(gSys) && gSys.length > 0) {
+      const match = gSys.find(g => percentage >= g.minScore && percentage <= g.maxScore);
+      if (match) return match.grade || match.letter_grade;
     }
-    const gradeItem = settings.gradingSystem.find(g => percentage >= g.minScore && percentage <= g.maxScore);
-    return gradeItem ? gradeItem.grade : '9';
+    if (percentage >= 90) return 'A+';
+    if (percentage >= 80) return 'A';
+    if (percentage >= 75) return 'B+';
+    if (percentage >= 70) return 'B';
+    if (percentage >= 65) return 'C+';
+    if (percentage >= 60) return 'C';
+    if (percentage >= 50) return 'D';
+    return 'F';
   };
 
   const submitMarks = async () => {
@@ -524,53 +498,31 @@ const MarksEntry = () => {
 
           <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
 
-            {/* Class Selector — for teachers, choose from all classes they teach */}
+            {/* Class Selector */}
             {isTeacher ? (
               <div style={{ flex: '1 1 200px' }}>
                 <label className="premium-label">Target Class</label>
                 <PremiumSelect
                   name="teachingClass"
-                  value={`${filters.grade}|${filters.section}`}
+                  value={filters.grade}
                   onChange={(e) => {
-                    const [g, sec] = e.target.value.split('|');
-                    setFilters(prev => ({ ...prev, grade: g, section: sec, courseId: '' }));
+                    setFilters(prev => ({ ...prev, grade: e.target.value, courseId: '' }));
                     setStudents([]); setMarks({});
                   }}
-                  options={teachingClasses.map(tc => {
-                    const isHomeroom = masterClass && tc.grade === (masterClass.name || masterClass.grade) && tc.section === masterClass.section;
-                    return {
-                      value: `${tc.grade}|${tc.section}`,
-                      label: tc.label + (isHomeroom ? ' (Homeroom)' : '')
-                    };
-                  })}
+                  options={teachingClasses.map(tc => ({ value: tc.grade, label: tc.label }))}
                   placeholder="Select Class"
                 />
               </div>
             ) : (
-              <div className="responsive-grid-2" style={{ flex: '1 1 350px' }}>
-                <div>
-                  <label className="premium-label">Academic Grade</label>
-                  <PremiumSelect
-                    name="grade"
-                    value={filters.grade}
-                    onChange={(e) => setFilters(prev => ({ ...prev, grade: e.target.value, courseId: '' }))}
-                    options={classes.map(c => ({ value: c.name, label: displayGrade(c.name) }))}
-                    placeholder="Select Grade Level"
-                  />
-                </div>
-                <div>
-                  <label className="premium-label">Section / Color</label>
-                  <PremiumSelect
-                    name="section"
-                    value={filters.section}
-                    onChange={(e) => setFilters(prev => ({ ...prev, section: e.target.value, courseId: '' }))}
-                    options={[
-                      { value: '', label: 'All Sections' },
-                      ...availableSections.map(s => ({ value: s.name, label: s.name }))
-                    ]}
-                    placeholder="Select Section"
-                  />
-                </div>
+              <div style={{ flex: '1 1 250px' }}>
+                <label className="premium-label">Academic Grade</label>
+                <PremiumSelect
+                  name="grade"
+                  value={filters.grade}
+                  onChange={(e) => setFilters(prev => ({ ...prev, grade: e.target.value, courseId: '' }))}
+                  options={classes.map(c => ({ value: c.name, label: displayGrade(c.name) }))}
+                  placeholder="Select Grade Level"
+                />
               </div>
             )}
 
@@ -585,9 +537,7 @@ const MarksEntry = () => {
                   options={courses
                     .filter(c => {
                       if (!filters.grade) return true;
-                      const gradeMatch = c.grade === filters.grade || c.grade?.toLowerCase().includes(filters.grade?.toLowerCase());
-                      const sectionMatch = !filters.section || c.section === filters.section;
-                      return gradeMatch && sectionMatch;
+                      return c.grade === filters.grade || c.grade?.toLowerCase().includes(filters.grade?.toLowerCase());
                     })
                     .filter((c, index, self) => index === self.findIndex(t => t.name === c.name))
                     .map(c => ({ value: c.id || c._id, label: c.name }))}
@@ -680,8 +630,8 @@ const MarksEntry = () => {
                         <th className="premium-th">Cat2 (25)</th>
                         <th className="premium-th">PW (25)</th>
                         <th className="premium-th">Exam (100)</th>
-                        <th className="premium-th">Aggregate Score (200)</th>
-                        <th className="premium-th">Classification</th>
+                        <th className="premium-th">Total (200)</th>
+                        <th className="premium-th">Grade (%)</th>
                       </>
                     )}
                   </tr>
@@ -755,8 +705,8 @@ const MarksEntry = () => {
                             </td>
 
                             <td style={{ padding: '20px 24px' }}>
-                              <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{total}</p>
-                              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0', fontWeight: '600' }}>{Math.round(total / 2)}%</p>
+                              <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{total}<span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>/200</span></p>
+                              <p style={{ fontSize: '12px', color: 'var(--brand-green)', margin: '4px 0 0', fontWeight: '800' }}>{Math.round(total / 2)}%</p>
                             </td>
                             <td style={{ padding: '20px 24px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

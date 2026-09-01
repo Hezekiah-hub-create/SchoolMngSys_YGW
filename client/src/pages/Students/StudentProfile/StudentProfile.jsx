@@ -55,8 +55,13 @@ const StudentProfile = () => {
   const [curriculumCount, setCurriculumCount] = useState(0);
 
   useEffect(() => { 
-    fetchStudentData(); 
-    fetchAcademicMetadata();
+    if (id && id !== 'undefined') {
+      fetchStudentData(); 
+      fetchAcademicMetadata();
+    } else {
+      setLoading(false);
+      setError('Student ID is missing or invalid.');
+    }
   }, [id]);
 
   const fetchAcademicMetadata = async () => {
@@ -168,6 +173,7 @@ const StudentProfile = () => {
       dateOfBirth: student?.dateOfBirth || student?.date_of_birth ? (student.dateOfBirth || student.date_of_birth).split('T')[0] : '',
       gender: student?.gender || '',
       grade: student?.grade || '',
+      house: student?.house || '',
       section: student?.section || 'A',
       status: student?.status || 'active',
       fatherName: student?.fatherName || student?.father_name || student?.parentName || '',
@@ -370,9 +376,11 @@ const StudentProfile = () => {
                       <Icons.Trash /> Delete Student
                     </button>
                   )}
-                  <button onClick={startEdit} className="premium-btn-primary">
-                    <Icons.Edit /> Edit Profile
-                  </button>
+                  {user?.role !== 'parent' && user?.role !== 'student' && (
+                    <button onClick={startEdit} className="premium-btn-primary">
+                      <Icons.Edit /> Edit Profile
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -440,6 +448,7 @@ const StudentProfile = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderTop: '1px solid var(--brand-slate-100)', paddingTop: '32px' }}>
                 <QuickInfo icon={<Icons.Calendar />} label="Date of Birth" value={student?.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : 'N/A'} />
+                <QuickInfo icon={<Icons.Award />} label="School House" value={student?.house || 'Unassigned'} color={student?.house?.toLowerCase().includes('green') ? '#10b981' : student?.house?.toLowerCase().includes('yellow') ? '#f59e0b' : student?.house?.toLowerCase().includes('red') ? '#ef4444' : '#3b82f6'} />
                 <QuickInfo icon={<Icons.MapPin />} label="Location" value={student?.address?.city || 'N/A'} />
                 <QuickInfo icon={<Icons.User />} label="Guardian" value={student?.parentName || 'N/A'} />
                 <QuickInfo icon={<Icons.Activity />} label="Attendance" value="94%" color="#6366f1" />
@@ -517,20 +526,17 @@ const StudentProfile = () => {
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label className="premium-label">Section</label>
+                        <label className="premium-label">School House</label>
                         <PremiumSelect 
-                          value={editFormData.section}
-                          onChange={(e) => handleEditChange({ target: { name: 'section', value: e.target.value } })}
-                          options={availableSections.length > 0 
-                            ? availableSections.map(s => ({ value: s.name, label: `` }))
-                            : [
-                                { value: 'A', label: `` },
-                                { value: 'B', label: `` },
-                                { value: 'C', label: `` },
-                                { value: 'D', label: `` }
-                              ]
-                          }
-                          placeholder="Select Section"
+                          value={editFormData.house}
+                          onChange={(e) => handleEditChange({ target: { name: 'house', value: e.target.value } })}
+                          options={[
+                            { value: 'Yellow House', label: 'Yellow House' },
+                            { value: 'Green House', label: 'Green House' },
+                            { value: 'Red House', label: 'Red House' },
+                            { value: 'Blue House', label: 'Blue House' }
+                          ]}
+                          placeholder="Select School House"
                         />
                       </div>
                     </div>

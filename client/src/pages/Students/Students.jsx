@@ -42,7 +42,7 @@ const Students = () => {
     try {
       const res = await academicClassesAPI.getAll();
       if (res.data?.success) {
-        const allowedGrades = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+        const allowedGrades = ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
         const filtered = res.data.data.filter(g => allowedGrades.includes(g.name));
         setDbGrades(filtered);
       }
@@ -247,11 +247,17 @@ const Students = () => {
                 </div>
 
                 <div style={{ marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>{student.firstName} {student.lastName}</h3>
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>{student.firstName} {student.otherNames ? `${student.otherNames} ` : ''}{student.lastName}</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                     <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--brand-green)' }}>{displayGrade(student.grade)}</span>
-                    <span style={{ color: '#cbd5e1' }}>•</span>
-                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}></span>
+                    {student.house && (
+                      <>
+                        <span style={{ color: '#cbd5e1' }}>•</span>
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: student.house.toLowerCase().includes('green') ? '#059669' : student.house.toLowerCase().includes('yellow') ? '#d97706' : student.house.toLowerCase().includes('red') ? '#dc2626' : '#2563eb' }}>
+                          {student.house}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 

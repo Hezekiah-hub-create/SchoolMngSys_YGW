@@ -50,13 +50,13 @@ const Timetable = () => {
   const [selectedChild, setSelectedChild] = useState(null);
   const [allSubjects, setAllSubjects] = useState([]);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'ITSupport';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'ITSupport';
   const isTeacher = user?.role === 'teacher';
   const isStudent = user?.role === 'student';
   const isParent = user?.role === 'parent';
-  const canEdit = isAdmin || isTeacher;
+  const canEdit = isAdmin; // Only Admin can generate, allocate, or modify timetables
 
-  const grades = ['KG 1', 'KG 2', 'KG 3', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
+  const grades = ['KG 1', 'KG 2', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 7', 'Basic 8', 'Basic 9'];
   const sections = ['A', 'B', 'C', 'D'];
   
   const [selectedGrade, setSelectedGrade] = useState('');
@@ -281,20 +281,25 @@ const Timetable = () => {
 
   const getPeriodData = (day, periodNum) => {
     const daySchedule = timetable?.[day] || [];
-    return daySchedule.find(p => p.period === periodNum);
+    return daySchedule.find(p => parseInt(p.period) === parseInt(periodNum));
   };
 
   const openEditModal = (day, period) => {
     if (!canEdit) return;
     const existingData = getPeriodData(day, period);
+    const defaultTeacherId = viewMode === 'teacher' ? selectedTeacherId : (existingData?.teacherId || '');
+    const teacherObj = teachers.find(t => t.id === defaultTeacherId || t._id === defaultTeacherId);
+    const defaultTeacherName = teacherObj ? `${teacherObj.firstName || teacherObj.first_name || ''} ${teacherObj.lastName || teacherObj.last_name || ''}`.trim() : (existingData?.teacher || '');
+
     setEditingCell({ 
       day, 
       period, 
       existingData, 
       subject: existingData?.subjectId || existingData?.subject || '', 
-      teacherId: existingData?.teacherId || '', 
-      teacher: existingData?.teacher || '', 
-      room: existingData?.room || '' 
+      teacherId: defaultTeacherId, 
+      teacher: defaultTeacherName, 
+      room: existingData?.room || '',
+      grade: existingData?.grade || (viewMode === 'class' ? selectedGrade : 'Basic 1')
     });
     setEditModalOpen(true);
   };
@@ -303,9 +308,25 @@ const Timetable = () => {
     if (!editingCell?.subject) return;
     try {
       setSaving(true);
-      const currentTimetable = timetable || {
-        Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: []
-      };
+      const targetGrade = viewMode === 'teacher' ? (editingCell.grade || selectedGrade || 'Basic 1') : selectedGrade;
+      const targetClass = targetGrade;
+
+      let currentTimetable;
+      let targetTimetableId;
+
+      if (viewMode === 'teacher') {
+        const classRes = await timetableAPI.getByClass(targetClass);
+        currentTimetable = classRes.data?.data?.schedule || {
+          Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: []
+        };
+        targetTimetableId = classRes.data?.data?.id;
+      } else {
+        currentTimetable = timetable || {
+          Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: []
+        };
+        targetTimetableId = timetableId;
+      }
+
       const daySchedule = currentTimetable[editingCell.day] || [];
       const updatedSchedule = { ...currentTimetable };
       
@@ -330,7 +351,7 @@ const Timetable = () => {
       updatedSchedule[editingCell.day] = daySchedule;
 
       let finalPeriods = [...(updatedSchedule.Monday || []), ...(updatedSchedule.Periods || [])].sort((a, b) => a.period - b.period);
-      if (selectedClass === 'CONFIGURATION' && finalPeriods.length === 0) {
+      if (targetClass === 'CONFIGURATION' && finalPeriods.length === 0) {
         finalPeriods = DEFAULT_PERIODS.map(p => ({
           ...p,
           startTime: p.startTime || p.time?.split(' - ')[0] || '',
@@ -339,22 +360,32 @@ const Timetable = () => {
         }));
       }
 
-      if (timetableId) {
-        await timetableAPI.update(timetableId, { class: selectedClass, grade: selectedGrade, schedule: updatedSchedule });
+      if (targetTimetableId && targetTimetableId !== targetGrade) {
+        await timetableAPI.update(targetTimetableId, { class: targetClass, grade: targetGrade, schedule: updatedSchedule });
       } else {
-        const result = await timetableAPI.create({ class: selectedClass, grade: selectedGrade, schedule: updatedSchedule });
-        if (result.data?.data?.id) {
+        const result = await timetableAPI.create({ class: targetClass, grade: targetGrade, schedule: updatedSchedule });
+        if (result.data?.data?.id && viewMode === 'class') {
           setTimetableId(result.data.data.id);
         }
       }
       
-      setTimetable(updatedSchedule);
+      if (viewMode === 'class') {
+        setTimetable(updatedSchedule);
+      } else {
+        await fetchData();
+      }
       setEditModalOpen(false);
       setEditingCell(null);
-    } catch (error) {
       showAlert({
-        title: 'Temporal Error',
-        message: 'Failed to save period. Please verify connectivity.',
+        title: 'Timetable Updated',
+        message: `Successfully allocated ${getCourseName(editingCell.subject)} for ${targetGrade}.`,
+        type: 'success'
+      });
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to save period. Please verify schedule for clashes.';
+      showAlert({
+        title: error.response?.data?.clashes ? 'Schedule Clash Detected' : 'Temporal Error',
+        message: msg,
         type: 'error'
       });
     } finally {
@@ -362,59 +393,36 @@ const Timetable = () => {
     }
   };
 
-  const handleInitializeFromSchema = async () => {
+  const handleAutoGenerateTimetable = async () => {
     if (!selectedGrade) {
       showAlert({
         title: 'Configuration Error',
-        message: 'Please select a specific grade node first.',
+        message: 'Please select an academic level (grade) first.',
         type: 'warning'
       });
       return;
     }
 
     showAlert({
-      title: 'Initialize Chronos Matrix',
-      message: `Initialize ${selectedGrade} timetable from default schema? This will set up the institutional time slots.`,
+      title: 'Auto-Generate Timetable',
+      message: `Automatically generate the complete weekly timetable for ${selectedGrade}? This will allocate the assigned curriculum subjects and teachers across all periods without conflicts.`,
       type: 'confirm',
       onConfirm: async () => {
         try {
           setSaving(true);
-          const configRes = await timetableAPI.getByClass('CONFIGURATION');
-          const configPeriods = configRes.data?.data?.schedule?.periods || DEFAULT_PERIODS;
-          
-          const newSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] };
-          
-          configPeriods.forEach(p => {
-            if (p.isBreak) {
-              days.forEach(day => {
-                newSchedule[day].push({
-                  period: p.period,
-                  subject: p.name,
-                  isBreak: true,
-                  startTime: p.startTime || p.time?.split(' - ')[0] || '',
-                  endTime: p.endTime || p.time?.split(' - ')[1] || ''
-                });
-              });
-            }
-          });
-
-          await timetableAPI.create({ 
-            class: selectedClass, 
-            grade: selectedGrade, 
-            section: selectedSection, 
-            schedule: newSchedule 
-          });
-
-          fetchData();
-          showAlert({
-            title: 'Synchronization Complete',
-            message: 'Timetable initialized with institutional schema breaks and periods.',
-            type: 'success'
-          });
+          const res = await timetableAPI.autoGenerate({ grade: selectedGrade });
+          if (res.data?.success) {
+            await fetchData();
+            showAlert({
+              title: 'Timetable Generated Successfully',
+              message: res.data.message || `Timetable for ${selectedGrade} has been generated with all assigned subjects and educators.`,
+              type: 'success'
+            });
+          }
         } catch (error) {
           showAlert({
-            title: 'System Failure',
-            message: 'Failed to initialize temporal nodes.',
+            title: 'Generation Failed',
+            message: error.response?.data?.message || 'Failed to auto-generate timetable. Ensure subjects are assigned to this grade in Courses.',
             type: 'error'
           });
         } finally {
@@ -424,18 +432,38 @@ const Timetable = () => {
     });
   };
 
+  const handleInitializeFromSchema = handleAutoGenerateTimetable;
+
   const handleRemovePeriod = async () => {
-    if (!editingCell || !timetableId) return;
+    if (!editingCell) return;
     try {
       setSaving(true);
-      const currentTimetable = timetable || {
-        Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: []
-      };
+      const targetGrade = viewMode === 'teacher' ? (editingCell.grade || selectedGrade || 'Basic 1') : selectedGrade;
+      const targetClass = targetGrade;
+
+      let currentTimetable;
+      let targetTimetableId;
+
+      if (viewMode === 'teacher') {
+        const classRes = await timetableAPI.getByClass(targetClass);
+        currentTimetable = classRes.data?.data?.schedule || {
+          Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: []
+        };
+        targetTimetableId = classRes.data?.data?.id;
+      } else {
+        currentTimetable = timetable || {
+          Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: []
+        };
+        targetTimetableId = timetableId;
+      }
+
       const updatedSchedule = { ...currentTimetable };
       updatedSchedule[editingCell.day] = (currentTimetable[editingCell.day] || []).filter(p => p.period !== editingCell.period);
       
-      await timetableAPI.update(timetableId, { class: selectedClass, grade: selectedGrade, schedule: updatedSchedule });
-      setTimetable(updatedSchedule);
+      if (targetTimetableId) {
+        await timetableAPI.update(targetTimetableId, { class: targetClass, grade: targetGrade, schedule: updatedSchedule });
+      }
+      await fetchData();
       setEditModalOpen(false);
       setEditingCell(null);
     } catch (error) {
@@ -763,15 +791,24 @@ const Timetable = () => {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
                       Config Axis
                     </button>
-                    {!timetableId && viewMode === 'class' && selectedGrade && selectedSection && (
-                       <button onClick={handleInitializeFromSchema} disabled={saving} className="premium-btn-secondary" style={{ padding: '12px 20px', borderRadius: '16px', fontSize: '13px', fontWeight: '800' }}>
-                          {saving ? 'Initializing...' : 'Initialize Schema'}
+                    {viewMode === 'class' && selectedGrade && (
+                       <button 
+                         onClick={handleAutoGenerateTimetable} 
+                         disabled={saving} 
+                         className="premium-btn-primary" 
+                         style={{ padding: '12px 22px', borderRadius: '16px', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #00843e 0%, #059669 100%)', color: 'white', border: 'none', boxShadow: '0 4px 14px rgba(0, 132, 62, 0.3)' }}
+                       >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                          {saving ? 'Generating...' : `Auto-Generate ${selectedGrade}`}
                        </button>
                     )}
                   </>
                 )}
-                {(isAdmin || isTeacher) && (
+                {isAdmin && (
                   <button onClick={fetchData} disabled={isTodayWeekend} className="premium-btn-primary" style={{ padding: '12px 24px', height: 'auto', opacity: isTodayWeekend ? 0.6 : 1, cursor: isTodayWeekend ? 'not-allowed' : 'pointer' }}>Sync Matrix</button>
+                )}
+                {!isAdmin && (
+                  <button onClick={fetchData} disabled={isTodayWeekend} className="premium-btn-primary" style={{ padding: '12px 24px', height: 'auto', opacity: isTodayWeekend ? 0.6 : 1, cursor: isTodayWeekend ? 'not-allowed' : 'pointer' }}>Refresh</button>
                 )}
                 {isAdmin && timetableId && (
                   <button onClick={handleResetTimetable} disabled={resetting} style={{ padding: '12px 20px', borderRadius: '16px', border: 'none', backgroundColor: '#fee2e2', color: '#dc2626', fontSize: '13px', fontWeight: '800', cursor: resetting ? 'not-allowed' : 'pointer' }}>{resetting ? 'Purging...' : 'Purge'}</button>
@@ -951,6 +988,18 @@ const Timetable = () => {
               </button>
             </div>
             
+            {viewMode === 'teacher' && (
+              <div style={{ marginBottom: '28px' }}>
+                <label className="premium-label">Class / Grade Level</label>
+                <PremiumSelect 
+                  value={editingCell.grade || ''} 
+                  onChange={(e) => setEditingCell(prev => ({ ...prev, grade: e.target.value }))}
+                  options={grades.map(g => ({ value: g, label: g }))}
+                  placeholder="Select Class / Grade"
+                />
+              </div>
+            )}
+
             <div style={{ marginBottom: '28px' }}>
               <label className="premium-label">Curriculum Identity</label>
               <PremiumSelect 

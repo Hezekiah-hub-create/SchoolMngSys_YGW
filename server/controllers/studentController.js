@@ -11,7 +11,7 @@ const mapStudentToFrontend = (s) => {
     userId: s.user_id,
     admissionNumber: s.admission_number,
     firstName: s.first_name,
-    otherNames: s.other_names || s.otherNames || '',
+    otherNames: s.other_names || s.address?.other_names || s.otherNames || '',
     lastName: s.last_name,
     email: s.email,
     phone: s.phone,
@@ -20,6 +20,7 @@ const mapStudentToFrontend = (s) => {
     nationality: s.nationality,
     religion: s.religion,
     grade: s.grade,
+    house: s.house || '',
     academicYear: s.academic_year,
     dateOfAdmission: s.date_of_admission,
     address: s.address || {
@@ -193,6 +194,14 @@ const getStudentById = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Student not found' });
   }
 
+  // Security: Parents can only view their own children
+  if (req.user && req.user.role === 'parent') {
+    const parentProfile = await supabaseService.getByField(COLLECTIONS.PARENTS, 'user_id', req.user.id);
+    if (!parentProfile || !student.parent_ids || !student.parent_ids.includes(parentProfile.id)) {
+      return res.status(403).json({ message: 'Unauthorized access to student record' });
+    }
+  }
+
   res.json({ success: true, data: mapStudentToFrontend(student) });
 });
 
@@ -251,13 +260,30 @@ const createStudent = asyncHandler(async (req, res) => {
     // Normalize grade to match database check constraints
     let dbGrade = grade;
     if (grade && typeof grade === 'string') {
-      // Standard normalization: ensure space between name and number (e.g., "Basic1" -> "Basic 1")
-      const standardMatch = grade.match(/^([a-zA-Z\s]+)(\d+)$/);
-      if (standardMatch) {
-        const namePart = standardMatch[1].trim();
-        const numPart = standardMatch[2];
-        dbGrade = `${namePart} ${numPart}`;
+      let gStr = grade.trim();
+      // If it's just a number (e.g., "5"), default to Basic
+      if (/^\d+$/.test(gStr)) {
+        dbGrade = `Basic ${gStr}`;
+      } else {
+        // Standard normalization: ensure space between name and number
+        const standardMatch = gStr.match(/^([a-zA-Z\s]+)(\d+)$/);
+        if (standardMatch) {
+          let namePart = standardMatch[1].trim();
+          const numPart = standardMatch[2];
+          
+          // Map 'Primary' to 'Basic'
+          if (namePart.toLowerCase() === 'primary') {
+            namePart = 'Basic';
+          }
+          
+          dbGrade = `${namePart} ${numPart}`;
+        }
       }
+      
+      // Additional safety check: If it's still not matching constraint precisely, 
+      // but it's JHS, map correctly. JHS 1 -> Basic 7 if they want everything as Basic? 
+      // Actually, check constraint allows 'JHS 1', 'JHS 2', 'JHS 3', 'Basic 1'-'Basic 9', 'KG 1'-'KG 3', 'SSS 1'-'SSS 3'.
+      // So 'Basic 5', 'JHS 1', 'KG 2' are all perfectly valid.
     }
 
     const addressObj = address || {
@@ -267,6 +293,9 @@ const createStudent = asyncHandler(async (req, res) => {
       zipCode: req.body.postalCode || req.body.zipCode || '',
       country: req.body.country || 'Ghana'
     };
+    if (req.body.otherNames || req.body.other_names) {
+      addressObj.other_names = req.body.otherNames || req.body.other_names;
+    }
 
     const emergencyContactObj = emergencyContact || {
       name: req.body.emergencyContact || req.body.fatherName || req.body.motherName || '',
@@ -277,12 +306,12 @@ const createStudent = asyncHandler(async (req, res) => {
     const studentData = {
       admission_number: admission_number,
       first_name: firstName,
-      other_names: req.body.otherNames || req.body.other_names || '',
       last_name: lastName,
       email: userEmail,
       date_of_birth: dateOfBirth && dateOfBirth !== '' ? dateOfBirth : null,
       gender: gender ? gender.toLowerCase() : null,
       grade: dbGrade,
+      house: req.body.house || null,
       academic_year: academicYear || '2024/2025',
       address: addressObj,
       emergency_contact: emergencyContactObj,
@@ -398,6 +427,7 @@ const updateStudent = asyncHandler(async (req, res) => {
     dateOfBirth: 'date_of_birth',
     gender: 'gender',
     grade: 'grade',
+    house: 'house',
     academicYear: 'academic_year',
     nationality: 'nationality',
     religion: 'religion',

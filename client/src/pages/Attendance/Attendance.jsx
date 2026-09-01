@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI, teacherAPI, academicClassesAPI, academicSectionsAPI } from '../../services/api';
+import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI, teacherAPI, academicClassesAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumDatePicker from '../../components/common/PremiumDatePicker';
 import PremiumCalendar from '../../components/common/PremiumCalendar';
@@ -39,7 +39,6 @@ const Attendance = () => {
   const [storedUser, setStoredUser] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedSection, setSelectedSection] = useState('');
   const [linkedStudents, setLinkedStudents] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState('');
   const [pendingChanges, setPendingChanges] = useState({});
@@ -55,7 +54,6 @@ const Attendance = () => {
   const [teacherCourses, setTeacherCourses] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [dbClasses, setDbClasses] = useState([]);
-  const [dbSections, setDbSections] = useState([]);
 
   // Period schedule — each has a label, start (HH:MM 24h), end, and grace minutes before "Late"
   const PERIOD_SCHEDULE = [
@@ -131,16 +129,13 @@ const Attendance = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const [settingsRes, classRes, secRes] = await Promise.all([
+        const [settingsRes, classRes] = await Promise.all([
           settingsAPI.getSettings().catch(() => ({ data: { success: false } })),
-          academicClassesAPI.getAll().catch(() => ({ data: { data: [] } })),
-          academicSectionsAPI.getAll().catch(() => ({ data: { data: [] } }))
+          academicClassesAPI.getAll().catch(() => ({ data: { data: [] } }))
         ]);
         if (settingsRes.data?.success) setSchoolSettings(settingsRes.data.data);
         const classes = classRes.data?.data || classRes.data || [];
-        const sections = secRes.data?.data || secRes.data || [];
         setDbClasses(Array.isArray(classes) ? classes : []);
-        setDbSections(Array.isArray(sections) ? sections : []);
       } catch (err) { console.error('Error fetching settings & infra:', err); }
     };
     fetchSettings();
@@ -210,7 +205,7 @@ const Attendance = () => {
           ? Promise.resolve({ data: { data: targetStudents } })
           : (isTeacher && !selectedClass)
             ? Promise.resolve({ data: { data: [] } })
-            : studentAPI.getAll({ page, limit, grade: selectedClass, section: selectedSection })
+            : studentAPI.getAll({ page, limit, grade: selectedClass })
       ]);
 
       setStudents((isParent || isStudent) ? targetStudents : (studentsRes?.data?.data || []));
@@ -249,7 +244,6 @@ const Attendance = () => {
           setTeacherCourses(masterClassesOnly);
           if (masterClassesOnly.length > 0 && !selectedClass) {
             setSelectedClass(masterClassesOnly[0].name || masterClassesOnly[0].grade);
-            setSelectedSection(masterClassesOnly[0].section || 'A');
           }
         } catch (err) {
           console.error("Error fetching teacher courses:", err);
@@ -261,7 +255,7 @@ const Attendance = () => {
 
   useEffect(() => {
     fetchData();
-  }, [selectedDate, selectedClass, selectedSection, page, selectedChildId, linkedStudents.length]);
+  }, [selectedDate, selectedClass, page, selectedChildId, linkedStudents.length]);
 
   const handleLogout = async () => {
     try { await logout(); } finally { localStorage.removeItem('authUser'); navigate('/login'); }
@@ -444,29 +438,6 @@ const Attendance = () => {
       .map(name => ({ value: name, label: name }));
   }, [dbClasses]);
 
-  const sectionOptions = useMemo(() => {
-    if (!selectedClass) {
-      return ['A', 'B', 'C', 'D'].map(s => ({ value: s, label: mapSectionName(s) }));
-    }
-    const matchingSections = dbSections.filter(s => {
-      const sGrade = (s.grade || s.class_name || s.class?.name || '').toLowerCase().replace(/\s+/g, '');
-      const selGrade = selectedClass.toLowerCase().replace(/\s+/g, '');
-      return sGrade === selGrade || sGrade.includes(selGrade) || selGrade.includes(sGrade);
-    });
-
-    if (matchingSections.length > 0) {
-      const seen = new Set();
-      return matchingSections
-        .filter(s => {
-          if (!s.name || seen.has(s.name.trim().toUpperCase())) return false;
-          seen.add(s.name.trim().toUpperCase());
-          return true;
-        })
-        .map(s => ({ value: s.name, label: mapSectionName(s.name) }));
-    }
-
-    return ['A', 'B', 'C', 'D'].map(s => ({ value: s, label: mapSectionName(s) }));
-  }, [dbSections, selectedClass]);
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -507,19 +478,9 @@ const Attendance = () => {
                             value={selectedClass}
                             onChange={(e) => {
                               setSelectedClass(e.target.value);
-                              setSelectedSection('');
                             }}
                             options={classOptions}
                             placeholder="Select Tier"
-                          />
-                        </div>
-                        <div style={{ width: '140px' }}>
-                          <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Section Node</span>
-                          <PremiumSelect
-                            value={selectedSection}
-                            onChange={(e) => setSelectedSection(e.target.value)}
-                            options={sectionOptions}
-                            placeholder="Select Node"
                           />
                         </div>
                       </div>
@@ -530,7 +491,7 @@ const Attendance = () => {
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Assigned Master Class</span>
                           <div style={{ padding: '14px 20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
-                            {selectedClass && selectedSection ? `${selectedClass} — ` : 'No Master Class Assigned'}
+                            {selectedClass ? `${selectedClass}` : 'No Master Class Assigned'}
                           </div>
                         </div>
                         
@@ -792,7 +753,7 @@ const Attendance = () => {
                 <div style={{ padding: '20px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: '#0f172a' }}>
-                      {selectedClass ? `${selectedClass}${selectedSection ? ` — ` : ''}` : 'Scholar Register'}
+                      {selectedClass ? `${selectedClass}` : 'Scholar Register'}
                     </h3>
                     <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
                       {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} · {selectedDate}

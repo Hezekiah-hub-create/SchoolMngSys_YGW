@@ -10,15 +10,20 @@ import {
   Download,
   CheckCircle2,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  Paperclip,
+  X
 } from 'lucide-react';
-import { assignmentAPI } from '../../services/api';
+import { assignmentAPI, studentAPI, parentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
+import PremiumDatePicker from '../../components/common/PremiumDatePicker';
 
 const AssignmentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [assignment, setAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -26,12 +31,34 @@ const AssignmentDetail = () => {
     content: '',
     file: null
   });
+  const [submissionFiles, setSubmissionFiles] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [linkedChildren, setLinkedChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState('');
   const [students, setStudents] = useState([]);
   const [gradingData, setGradingData] = useState({});
 
   useEffect(() => {
     fetchAssignment();
   }, [id]);
+
+  useEffect(() => {
+    if (user?.role === 'parent') {
+      parentAPI.getMyChildren().then(res => {
+        if (res.data?.success && res.data.data?.length > 0) {
+          setLinkedChildren(res.data.data);
+          const params = new URLSearchParams(window.location.search);
+          const urlChildId = params.get('studentId');
+          if (urlChildId && res.data.data.some(c => c.id === urlChildId)) {
+            setSelectedChildId(urlChildId);
+          } else {
+            const match = res.data.data.find(c => c.grade === assignment?.grade);
+            setSelectedChildId(match ? match.id : res.data.data[0].id);
+          }
+        }
+      }).catch(err => console.error('Error fetching children:', err));
+    }
+  }, [user, assignment]);
 
   useEffect(() => {
     if (assignment && user.role === 'teacher') {
@@ -100,15 +127,67 @@ const AssignmentDetail = () => {
     }
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await assignmentAPI.upload(formData);
+      if (res.data?.success) {
+        setSubmissionFiles(prev => [...prev, {
+          url: res.data.data.url,
+          filename: res.data.data.filename || file.name,
+          mimetype: res.data.data.mimetype || file.type,
+          size: res.data.data.size || file.size
+        }]);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      showAlert({
+        title: 'Upload Failed',
+        message: 'File upload failed. Supported formats: PDF, Word, Images',
+        type: 'error'
+      });
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!submission.content.trim()) return;
+    if (!submission.content.trim() && submissionFiles.length === 0) {
+      showAlert({
+        title: 'Submission Incomplete',
+        message: 'Please provide your resolution comments or attach evidence/completed work.',
+        type: 'warning'
+      });
+      return;
+    }
     setSubmitting(true);
     try {
-      await assignmentAPI.submit(id, submission);
+      await assignmentAPI.submit(id, {
+        content: submission.content,
+        attachments: submissionFiles,
+        studentId: activeStudentId
+      });
+      setSubmission({ content: '', file: null });
+      setSubmissionFiles([]);
       fetchAssignment();
+      showAlert({
+        title: 'Work Submitted',
+        message: 'Your deliverable has been recorded and submitted successfully.',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Submission failed:', error);
+      showAlert({
+        title: 'Submission Error',
+        message: error.response?.data?.message || 'Submission failed',
+        type: 'error'
+      });
     } finally {
       setSubmitting(false);
     }
@@ -126,11 +205,19 @@ const AssignmentDetail = () => {
       });
       if (response.data.success) {
         setAssignment(response.data.data);
-        alert('Grade submitted successfully');
+        showAlert({
+          title: 'Grade Recorded',
+          message: 'Grade submitted successfully.',
+          type: 'success'
+        });
       }
     } catch (error) {
       console.error('Grading failed:', error);
-      alert('Failed to submit grade');
+      showAlert({
+        title: 'Grading Error',
+        message: error.response?.data?.message || 'Failed to submit grade.',
+        type: 'error'
+      });
     }
   };
 
@@ -171,8 +258,14 @@ const AssignmentDetail = () => {
   const createdAt = assignment.created_at || assignment.createdAt;
   const subject = assignment.course_name || assignment.subject || 'Academic Course';
   
+  const activeStudentId = user?.role === 'student' 
+    ? (user?.studentId || user?.id) 
+    : (selectedChildId || linkedChildren[0]?.id);
+
   // Find current student's submission
-  const mySubmission = user.role === 'student' ? (assignment.submissions || []).find(s => s.student === user.studentId || s.student_id === user.studentId) : null;
+  const mySubmission = (user?.role === 'student' || user?.role === 'parent') 
+    ? (assignment?.submissions || []).find(s => s.student === activeStudentId || s.student_id === activeStudentId) 
+    : null;
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -206,12 +299,13 @@ const AssignmentDetail = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '14px', fontWeight: '600' }}>
                     <Clock size={16} /> 
                     Deadline: {isEditing ? (
-                      <input 
-                        type="date" 
-                        value={editForm.due_date ? new Date(editForm.due_date).toISOString().split('T')[0] : ''}
-                        onChange={e => setEditForm({...editForm, due_date: e.target.value})}
-                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
-                      />
+                      <div style={{ display: 'inline-block', minWidth: '220px' }}>
+                        <PremiumDatePicker 
+                          value={editForm.due_date ? new Date(editForm.due_date).toISOString().split('T')[0] : ''}
+                          onChange={val => setEditForm({...editForm, due_date: val})}
+                          placeholder="Select Deadline"
+                        />
+                      </div>
                     ) : (
                       dueDate ? new Date(dueDate).toLocaleDateString() : 'N/A'
                     )}
@@ -266,27 +360,58 @@ const AssignmentDetail = () => {
                   </div>
                 )}
 
-                {assignment.fileUrl && (
-                  <div style={{ marginTop: '40px', padding: '24px', backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '14px', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-green)', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-                        <FileText size={28} />
-                      </div>
-                      <div>
-                        <p style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Supporting Document</p>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Institutional resource node</p>
-                      </div>
+                {((assignment.attachments && assignment.attachments.length > 0) || assignment.fileUrl) && (
+                  <div style={{ marginTop: '40px' }}>
+                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>Attached Assignment Materials</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {[...(assignment.attachments || []), ...(assignment.fileUrl ? [{ url: assignment.fileUrl, filename: 'Supporting Document' }] : [])].map((att, idx) => (
+                        <div key={idx} style={{ padding: '20px 24px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--brand-green-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-green)' }}>
+                              <FileText size={24} />
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>{att.filename || att.name || 'Assignment Material'}</p>
+                              <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '600' }}>{att.mimetype || 'Resource Document'}</p>
+                            </div>
+                          </div>
+                          <a 
+                            href={att.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            download={att.filename || 'assignment-material'}
+                            className="premium-btn-secondary" 
+                            style={{ padding: '10px 20px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                          >
+                            <Download size={16} /> Download
+                          </a>
+                        </div>
+                      ))}
                     </div>
-                    <button className="premium-btn-secondary" style={{ padding: '12px 24px' }}>
-                      <Download size={18} /> Download
-                    </button>
                   </div>
                 )}
               </div>
 
-              {user.role === 'student' && (
+              {(user.role === 'student' || user.role === 'parent') && (
                 <div className="glass-card" style={{ padding: '48px', marginBottom: '32px' }}>
-                  <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', marginBottom: '24px' }}>Resolution Submission</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0 }}>Resolution Submission</h3>
+                    {user.role === 'parent' && linkedChildren.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Submitting For:</span>
+                        <select 
+                          value={activeStudentId} 
+                          onChange={e => setSelectedChildId(e.target.value)}
+                          style={{ padding: '8px 14px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '13px', fontWeight: '800' }}
+                        >
+                          {linkedChildren.map(c => (
+                            <option key={c.id} value={c.id}>{c.firstName} {c.lastName} ({c.grade})</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
                   {mySubmission ? (
                     <div style={{ padding: '24px', backgroundColor: '#f0fdf4', borderRadius: '20px', border: '1px solid #bbf7d0', marginBottom: '24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#166534', marginBottom: '16px' }}>
@@ -296,23 +421,75 @@ const AssignmentDetail = () => {
                       <div style={{ fontSize: '15px', color: '#166534', fontWeight: '500', marginBottom: '16px' }}>
                         Submitted on {new Date(mySubmission.submittedAt).toLocaleString()}
                       </div>
-                      <div style={{ padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #dcfce7', color: '#1e293b', fontSize: '14px' }}>
-                        {mySubmission.content}
+                      <div style={{ padding: '16px', backgroundColor: 'white', borderRadius: '12px', border: '1px solid #dcfce7', color: '#1e293b', fontSize: '14px', marginBottom: '16px' }}>
+                        {mySubmission.content || 'No text content provided.'}
                       </div>
+                      {mySubmission.attachments && mySubmission.attachments.length > 0 && (
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: '800', color: '#166534', textTransform: 'uppercase', marginBottom: '8px' }}>Attached Deliverables:</p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {mySubmission.attachments.map((att, aIdx) => (
+                              <a 
+                                key={aIdx} 
+                                href={att.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                download={att.filename || 'submitted-work'}
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', fontSize: '12px', fontWeight: '700', textDecoration: 'none' }}
+                              >
+                                <Paperclip size={14} /> {att.filename || 'Evidence File'} <Download size={12} />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <form onSubmit={handleSubmit}>
                       <textarea 
-                        placeholder="Enter your resolution details or comments here..."
-                        style={{ width: '100%', minHeight: '200px', padding: '24px', borderRadius: '20px', border: '2px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '16px', fontWeight: '500', outline: 'none', transition: 'all 0.3s', marginBottom: '24px' }}
+                        placeholder="Enter your resolution details, answers, or comments here..."
+                        style={{ width: '100%', minHeight: '180px', padding: '24px', borderRadius: '20px', border: '2px solid #f1f5f9', backgroundColor: '#ffffff', fontSize: '16px', fontWeight: '500', outline: 'none', transition: 'all 0.3s', marginBottom: '20px' }}
                         value={submission.content}
                         onChange={e => setSubmission({...submission, content: e.target.value})}
                       />
+
+                      {submissionFiles.length > 0 && (
+                        <div style={{ marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {submissionFiles.map((file, fIdx) => (
+                            <div key={fIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', backgroundColor: '#f1f5f9', borderRadius: '10px', fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>
+                              <Paperclip size={14} color="var(--brand-green)" />
+                              <span>{file.filename}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => setSubmissionFiles(prev => prev.filter((_, i) => i !== fIdx))}
+                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, display: 'flex' }}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <input 
+                        type="file" 
+                        id="submission-file-input" 
+                        style={{ display: 'none' }}
+                        accept=".pdf,.doc,.docx,image/*"
+                        onChange={handleFileUpload}
+                      />
+
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <button type="button" className="premium-btn-secondary" style={{ padding: '14px 28px' }}>
-                          <Upload size={18} /> Attach Evidence
+                        <button 
+                          type="button" 
+                          onClick={() => document.getElementById('submission-file-input').click()}
+                          disabled={uploadingFile}
+                          className="premium-btn-secondary" 
+                          style={{ padding: '14px 28px' }}
+                        >
+                          <Upload size={18} /> {uploadingFile ? 'Uploading...' : '+ Attach Completed Work'}
                         </button>
-                        <button type="submit" disabled={submitting} className="premium-btn-primary" style={{ padding: '16px 40px' }}>
+                        <button type="submit" disabled={submitting || uploadingFile} className="premium-btn-primary" style={{ padding: '16px 40px' }}>
                           {submitting ? 'Transmitting...' : 'Commit Submission'}
                         </button>
                       </div>
@@ -371,7 +548,26 @@ const AssignmentDetail = () => {
                           {submission && (
                             <div style={{ marginBottom: '24px', padding: '20px', backgroundColor: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                               <p style={{ margin: 0, fontSize: '12px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Submission Content</p>
-                              <div style={{ fontSize: '14px', color: '#334155', lineHeight: '1.6' }}>{submission.content}</div>
+                              <div style={{ fontSize: '14px', color: '#334155', lineHeight: '1.6', marginBottom: submission.attachments?.length > 0 ? '16px' : '0' }}>{submission.content || 'No text submitted.'}</div>
+                              {submission.attachments && submission.attachments.length > 0 && (
+                                <div>
+                                  <p style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase' }}>Attached Student Work:</p>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {submission.attachments.map((att, attIdx) => (
+                                      <a
+                                        key={attIdx}
+                                        href={att.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        download={att.filename || 'student-deliverable'}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', fontSize: '12px', fontWeight: '700', textDecoration: 'none' }}
+                                      >
+                                        <Paperclip size={14} /> {att.filename || 'Submitted File'} <Download size={12} />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 

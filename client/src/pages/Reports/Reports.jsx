@@ -39,6 +39,7 @@ import {
 import RLogo from '../../assets/R.png';
 import UbsLogo from '../../assets/UBS.png';
 import { kgAssessments } from '../../utils/kgAssessments';
+import { mapSectionName } from '../../utils/sectionHelper';
 import './Reports.css';
 
 
@@ -1222,9 +1223,9 @@ const ReportTemplate = ({ data }) => {
             <thead>
               <tr style={{ background: 'linear-gradient(to right, #00843e, #005a2b)', color: 'white' }}>
                 <th style={{ width: '25%', textAlign: 'left', padding: getDensityStyle('headerPadding'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>CURRICULUM NODES</th>
-                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>CLASS [50]</th>}
-                <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>EXAM [{isMidTerm ? '100' : '50'}]</th>
-                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>TOTAL [100]</th>}
+                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>CLASS [100]</th>}
+                <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>EXAM [{isMidTerm ? '100' : '100'}]</th>
+                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>TOTAL [200]</th>}
                 <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>POS.</th>
                 <th style={{ width: '8%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>GRADE</th>
                 <th style={{ width: '22%', textAlign: 'left', padding: getDensityStyle('headerPadding'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>INTERPRETATION</th>
@@ -1334,35 +1335,32 @@ const ReportTemplate = ({ data }) => {
                   <tr style={{ backgroundColor: 'var(--slate-100)', fontWeight: '900', fontSize: '8px', color: 'var(--slate-700)' }}>
                     <td style={{ border: '1px solid #005a2b', padding: '4px' }}>100-90</td>
                     <td style={{ border: '1px solid #005a2b', padding: '4px' }}>89-80</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>79-70</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>69-60</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>59-55</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>54-50</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>49-40</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>39-35</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>34-0</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>79-75</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>74-70</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>69-65</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>64-60</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>59-50</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>49-0</td>
                   </tr>
                   <tr style={{ fontSize: '8px', fontWeight: '900', color: '#005a2b' }}>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Highest</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Higher</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>High</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>High Avg</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Average</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Low Avg</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Low</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Lower</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Lowest</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Excellent</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Very Good</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Good</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Good</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Credit</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Credit</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Pass</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>Fail</td>
                   </tr>
                   <tr style={{ fontSize: '8px', fontWeight: '1000', color: '#005a2b', backgroundColor: 'var(--brand-yellow-soft)' }}>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>1</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>2</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>3</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>4</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>5</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>6</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>7</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>8</td>
-                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>9</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>A+</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>A</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>B+</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>B</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>C+</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>C</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>D</td>
+                    <td style={{ border: '1px solid #005a2b', padding: '4px' }}>F</td>
                   </tr>
                 </tbody>
               </table>

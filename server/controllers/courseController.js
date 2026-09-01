@@ -359,16 +359,18 @@ const getCoursesByGrade = asyncHandler(async (req, res) => {
     }
   }
 
-  const transformed = filteredData.map(item => ({
-    ...item,
-    name: item.subject?.name,
-    code: item.subject?.code,
-    grade: item.class?.name,
-    teacher: item.teacher,
-    room: item.room || 'N/A',
-    credits: item.credits || 0,
-    hoursPerWeek: item.hours_per_week || 0
-  }));
+  const transformed = filteredData
+    .filter(item => item.subject && item.subject.name)
+    .map(item => ({
+      ...item,
+      name: item.subject?.name || 'Subject',
+      code: item.subject?.code || 'N/A',
+      grade: item.class?.name || 'N/A',
+      teacher: item.teacher,
+      room: item.room || 'N/A',
+      credits: item.credits || 0,
+      hoursPerWeek: item.hours_per_week || 0
+    }));
 
   res.json({
     success: true,
