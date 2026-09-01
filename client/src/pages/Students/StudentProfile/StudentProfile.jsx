@@ -5,7 +5,6 @@ import { useAuth } from '../../../context/AuthContext';
 import { useAlert } from '../../../context/AlertContext';
 import PremiumSelect from '../../../components/common/PremiumSelect';
 import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
-import { mapSectionName } from '../../../utils/sectionHelper';
 
 // Premium Icon Components
 const Icons = {
@@ -435,7 +434,7 @@ const StudentProfile = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--brand-slate-500)' }}>{displayGrade(student?.grade)}</span>
                   <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand-slate-300)' }}></div>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--brand-slate-500)' }}>Section {mapSectionName(student?.section || 'A')}</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--brand-slate-500)' }}></span>
                 </div>
               </div>
 
@@ -523,12 +522,12 @@ const StudentProfile = () => {
                           value={editFormData.section}
                           onChange={(e) => handleEditChange({ target: { name: 'section', value: e.target.value } })}
                           options={availableSections.length > 0 
-                            ? availableSections.map(s => ({ value: s.name, label: `Section ${mapSectionName(s.name)}` }))
+                            ? availableSections.map(s => ({ value: s.name, label: `` }))
                             : [
-                                { value: 'A', label: `Section ${mapSectionName('A')}` },
-                                { value: 'B', label: `Section ${mapSectionName('B')}` },
-                                { value: 'C', label: `Section ${mapSectionName('C')}` },
-                                { value: 'D', label: `Section ${mapSectionName('D')}` }
+                                { value: 'A', label: `` },
+                                { value: 'B', label: `` },
+                                { value: 'C', label: `` },
+                                { value: 'D', label: `` }
                               ]
                           }
                           placeholder="Select Section"

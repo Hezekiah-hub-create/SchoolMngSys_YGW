@@ -2,7 +2,6 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const bcrypt = require('bcryptjs');
-const { normalizeSection } = require('../utils/sectionHelper');
 
 // Helper to map DB snake_case to Frontend camelCase
 const mapStudentToFrontend = (s) => {
@@ -21,7 +20,6 @@ const mapStudentToFrontend = (s) => {
     nationality: s.nationality,
     religion: s.religion,
     grade: s.grade,
-    section: s.section,
     academicYear: s.academic_year,
     dateOfAdmission: s.date_of_admission,
     address: s.address || {
@@ -50,7 +48,6 @@ const getAllStudents = asyncHandler(async (req, res) => {
     limit = 20, 
     search, 
     grade, 
-    section, 
     status,
     academicYear 
   } = req.query;
@@ -66,21 +63,21 @@ const getAllStudents = asyncHandler(async (req, res) => {
     if (teacherProfile) {
       const teacherId = teacherProfile.id;
       
-      // 1. Get sections where they are Class Master
-      const { data: masterSections } = await supabase
-        .from(COLLECTIONS.SECTIONS)
-        .select('name, class:class_id(name)')
-        .eq('class_master_id', teacherId);
+      // 1. Get grades where they are Class Master
+      const { data: masterGrades } = await supabase
+        .from(COLLECTIONS.GRADE_MASTERS)
+        .select('grade')
+        .eq('teacher_id', teacherId);
       
-      // 2. Get sections where they teach subjects
-      const { data: subjectSections } = await supabase
+      // 2. Get grades where they teach subjects
+      const { data: subjectGrades } = await supabase
         .from(COLLECTIONS.CLASS_SUBJECTS)
-        .select('section, class:class_id(name)')
+        .select('class:class_id(name)')
         .eq('teacher_id', teacherId);
       
       const assignments = [
-        ...(masterSections || []).map(s => ({ grade: s.class?.name, section: s.name })),
-        ...(subjectSections || []).map(s => ({ grade: s.class?.name, section: s.section }))
+        ...(masterGrades || []).map(g => ({ grade: g.grade })),
+        ...(subjectGrades || []).map(s => ({ grade: s.class?.name }))
       ];
 
       if (assignments.length === 0) {
@@ -98,9 +95,9 @@ const getAllStudents = asyncHandler(async (req, res) => {
         return norm(g1) === norm(g2) || norm(g1).includes(norm(g2)) || norm(g2).includes(norm(g1));
       };
 
-      // Filter students by grade and section (case-insensitive)
+      // Filter students by grade (case-insensitive)
       students = students.filter(s =>
-        assignments.some(a => isGradeMatch(a.grade, s.grade) && (normalizeSection(a.section) === normalizeSection(s.section) || !a.section || !s.section))
+        assignments.some(a => isGradeMatch(a.grade, s.grade))
       );
     } else {
       return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
@@ -125,24 +122,12 @@ const getAllStudents = asyncHandler(async (req, res) => {
     return n1 === n2 || n1.includes(n2) || n2.includes(n1);
   };
 
-  // Helper to match section names (e.g. 'Yellow (Y)', 'Yellow', 'A', 'Section A')
-  const normSection = (sec) => {
-    return normalizeSection(sec);
-  };
-
   // Apply filters
   if (status) {
     students = students.filter(s => s.status === status);
   }
   if (grade) {
     students = students.filter(s => isGradeMatch(s.grade, grade));
-  }
-  if (section) {
-    const targetNorm = normSection(section);
-    students = students.filter(s => {
-      const sSec = normSection(s.section);
-      return sSec === targetNorm || sSec.includes(targetNorm) || targetNorm.includes(sSec);
-    });
   }
   if (academicYear) {
     students = students.filter(s => s.academic_year === academicYear);
@@ -223,7 +208,6 @@ const createStudent = asyncHandler(async (req, res) => {
       dateOfBirth,
       gender,
       grade,
-      section,
       academicYear,
       address,
       emergencyContact,
@@ -299,7 +283,6 @@ const createStudent = asyncHandler(async (req, res) => {
       date_of_birth: dateOfBirth && dateOfBirth !== '' ? dateOfBirth : null,
       gender: gender ? gender.toLowerCase() : null,
       grade: dbGrade,
-      section: section || 'A',
       academic_year: academicYear || '2024/2025',
       address: addressObj,
       emergency_contact: emergencyContactObj,
@@ -415,7 +398,6 @@ const updateStudent = asyncHandler(async (req, res) => {
     dateOfBirth: 'date_of_birth',
     gender: 'gender',
     grade: 'grade',
-    section: 'section',
     academicYear: 'academic_year',
     nationality: 'nationality',
     religion: 'religion',

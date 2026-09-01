@@ -5,7 +5,6 @@ import { studentAPI, courseAPI, gradeAPI, settingsAPI, teacherAPI, academicClass
 import PremiumSelect from '../../../components/common/PremiumSelect';
 import { useAlert } from '../../../context/AlertContext';
 import { getKGAreas } from '../../../utils/kgAssessments';
-import { mapSectionName } from '../../../utils/sectionHelper';
 
 const displayGrade = (g) => {
   if (!g) return 'No Grade';
@@ -98,7 +97,7 @@ const MarksEntry = () => {
         if (seen.has(key)) return false;
         seen.add(key); return true;
       })
-      .map(c => ({ grade: c.grade, section: c.section, label: `${displayGrade(c.grade)} — Section ${mapSectionName(c.section)}` }))
+      .map(c => ({ grade: c.grade, section: c.section, label: `${displayGrade(c.grade)} — ` }))
       .sort((a, b) => {
         if (masterClass) {
           const aIsMaster = a.grade === (masterClass.name || masterClass.grade) && a.section === masterClass.section;
@@ -465,7 +464,7 @@ const MarksEntry = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', marginBottom: '24px' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
               <div>
-                <p style={{ fontSize: '13px', fontWeight: '900', color: '#15803d', margin: 0 }}>Class Master — {masterClass.name} Section {mapSectionName(masterClass.section)}</p>
+                <p style={{ fontSize: '13px', fontWeight: '900', color: '#15803d', margin: 0 }}>Class Master — {masterClass.name} </p>
                 <p style={{ fontSize: '12px', fontWeight: '600', color: '#4ade80', margin: '2px 0 0' }}>You can view all student marks. You can only edit marks for subjects you personally teach.</p>
               </div>
             </div>
@@ -950,7 +949,7 @@ const ClassOverviewPanel = ({ grade, section, term, settings, getGrade, onTermCh
       <div className="glass-card" style={{ padding: 0, overflow: 'hidden', overflowX: 'auto' }}>
         <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9' }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>
-            {grade} — Section {mapSectionName(section)}
+            {grade} — 
             <span style={{ color: '#64748b', fontWeight: '600', fontSize: '14px', marginLeft: '12px' }}>Full Class Grade Overview ({term} Term)</span>
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>

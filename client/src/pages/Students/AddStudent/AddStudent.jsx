@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { studentAPI, parentAPI, academicClassesAPI, academicSectionsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import RoleBasedSidebar from '../../../components/layout/RoleBasedSidebar';
-import { mapSectionName } from '../../../utils/sectionHelper';
 import TopNav from '../../../components/layout/TopNav';
 
 import PremiumDatePicker from '../../../components/common/PremiumDatePicker';
@@ -148,12 +147,12 @@ const AddStudent = () => {
   ];
 
   const sectionOptions = availableSections.length > 0 
-    ? availableSections.map(s => ({ value: s.name, label: `Section ${mapSectionName(s.name)}` }))
+    ? availableSections.map(s => ({ value: s.name, label: `` }))
     : [
-        { value: 'A', label: `Section ${mapSectionName('A')}` },
-        { value: 'B', label: `Section ${mapSectionName('B')}` },
-        { value: 'C', label: `Section ${mapSectionName('C')}` },
-        { value: 'D', label: `Section ${mapSectionName('D')}` }
+        { value: 'A', label: `` },
+        { value: 'B', label: `` },
+        { value: 'C', label: `` },
+        { value: 'D', label: `` }
       ];
 
   const handleChange = async (e) => {

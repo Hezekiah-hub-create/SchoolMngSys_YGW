@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { teacherAPI, gradeAPI, timetableAPI, courseAPI, settingsAPI, studentAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { mapSectionName } from '../../utils/sectionHelper';
 import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
 
 // Icon components for premium feel
@@ -304,7 +303,7 @@ const TeacherDashboard = () => {
               <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
                 Welcome, <span style={{ color: '#0f172a', fontWeight: '800' }}>{currentUser?.first_name || currentUser?.firstName || 'Teacher'}</span>. 
                 {masterClasses.length > 0 && (
-                  <> Master of <span style={{ color: 'var(--brand-green)', fontWeight: '700' }}>{masterClasses.map(c => `${c.name} ${mapSectionName(c.section)}`).join(', ')}</span>. </>
+                  <> Master of <span style={{ color: 'var(--brand-green)', fontWeight: '700' }}>{masterClasses.map(c => `${c.name} `).join(', ')}</span>. </>
                 )}
                 Overseeing <span style={{ color: 'var(--brand-green)', fontWeight: '700' }}>{stats.classes} institutional nodes</span> today.
               </p>
@@ -338,7 +337,7 @@ const TeacherDashboard = () => {
                   </div>
                   <h2 style={{ fontSize: '28px', fontWeight: '950', color: 'white', margin: '0 0 8px 0', letterSpacing: '-1px' }}>Class Master Designation</h2>
                   <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', fontWeight: '500', maxWidth: '600px' }}>
-                    You are currently serving as the Lead Faculty for <span style={{ fontWeight: '800', color: '#fff' }}>{masterClasses.map(c => `${c.name} ${mapSectionName(c.section)}`).join(' & ')}</span>.
+                    You are currently serving as the Lead Faculty for <span style={{ fontWeight: '800', color: '#fff' }}>{masterClasses.map(c => `${c.name} `).join(' & ')}</span>.
                   </p>
                   <button 
                     onClick={() => navigate('/reports/academic')}
@@ -445,7 +444,7 @@ const TeacherDashboard = () => {
                       <p style={{ fontSize: '12px', fontWeight: '900', color: 'var(--brand-green)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{cls.code || 'COURSE'}</p>
                       <h3 style={{ fontSize: '17px', fontWeight: '900', color: '#0f172a', margin: '0 0 16px 0', letterSpacing: '-0.3px' }}>{cls.name}</h3>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: '900', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', padding: '6px 14px', borderRadius: '24px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cls.grade} {mapSectionName(cls.section)}</span>
+                        <span style={{ fontSize: '11px', fontWeight: '900', backgroundColor: '#f0fdf4', color: 'var(--brand-green)', padding: '6px 14px', borderRadius: '24px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cls.grade} </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748b', fontWeight: '700' }}>
                           <Icons.Users /> {cls.studentCount || 0} Scholars
                         </div>

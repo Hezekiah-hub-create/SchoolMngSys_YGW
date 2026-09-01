@@ -180,7 +180,7 @@ const seedData = async () => {
         first_name: fName, last_name: lName,
         date_of_birth: '1985-01-01', gender: i % 2 === 0 ? 'male' : 'female',
         subject: teacherSubjects[i-1].subject, grades: teacherSubjects[i-1].grades,
-        salary: 4000 + (i * 500), status: 'active'
+        status: 'active'
       });
     }
 
@@ -232,7 +232,7 @@ const seedData = async () => {
           first_name: cFName, last_name: familyName, email: `${sId}@uhasbasic.edu.gh`,
           date_of_birth: `${2008 + (num % 6)}-${String((num % 12) + 1).padStart(2,'0')}-${String((num % 28) + 1).padStart(2,'0')}`,
           gender: num % 2 === 0 ? 'male' : 'female',
-          grade: validGrades[num % validGrades.length], section: num % 2 === 0 ? 'Yellow (Y)' : 'Green (G)',
+          grade: validGrades[num % validGrades.length],
           academic_year: '2024-2025', parent_ids: [getPId(pId)], status: 'active',
           phone: `+233504${String(num).padStart(4, '0')}`, nationality: 'Ghanaian',
           religion: religions[num % religions.length], house: houses[num % houses.length],
@@ -252,7 +252,7 @@ const seedData = async () => {
     const clearOrder = [
       'health_records', 'disciplinary_records',
       'report_cards', 'grades', 'attendance', 'assignments', 'timetable',
-      'class_subjects', 'sections', 'academic_classes', 'subjects', 'exams',
+      'class_subjects', 'academic_classes', 'subjects', 'exams',
       'students', 'parents', 'teachers', 'staff',
       'announcements', 'events', 'settings', 'users', 'login_history'
     ];
@@ -321,25 +321,6 @@ const seedData = async () => {
     if (classesError) throw new Error('Academic classes upsert failed: ' + classesError.message);
     console.log(`Upserted ${classesData.length} academic classes`);
 
-    // 2. Seed Sections
-    const sectionsData = [];
-    classesData.forEach((c, idx) => {
-      const sectionNames = ['Yellow (Y)', 'Green (G)', 'Red (R)', 'Blue (B)'];
-      sectionNames.forEach((secName, secIdx) => {
-        sectionsData.push({
-          id: deterministicUUID(`section-${c.name}-${secName}`),
-          class_id: c.id,
-          name: secName,
-          class_master_id: getTId(`t${String(((idx + secIdx) % 14) + 1).padStart(3, '0')}`)
-        });
-      });
-    });
-    let { error: sectionsError } = await supabase
-      .from('sections')
-      .upsert(sectionsData, { onConflict: 'id' });
-    if (sectionsError) throw new Error('Sections upsert failed: ' + sectionsError.message);
-    console.log(`Upserted ${sectionsData.length} sections`);
-
     // 3. Seed Subjects
     const subjectsMap = {};
     const subjectsData = subjectsConfig.map(s => {
@@ -361,7 +342,6 @@ const seedData = async () => {
 
     // 4. Seed Class Subjects (which represent active courses / teaching relationships)
     const classSubjectsData = [];
-    const sectionsList = ['Yellow (Y)', 'Green (G)', 'Red (R)', 'Blue (B)'];
 
     validGrades.forEach(grade => {
       const classId = classesMap[grade];
@@ -373,15 +353,12 @@ const seedData = async () => {
           const teacherNum = sIdx + 1; // Teacher matching the subject index
           const teacherId = getTId(`t${String(teacherNum).padStart(3, '0')}`);
 
-          sectionsList.forEach(section => {
-            const courseIdStr = `c-${grade}-${s.code}-${section}`;
-            classSubjectsData.push({
-              id: deterministicUUID(courseIdStr),
-              class_id: classId,
-              subject_id: subjectId,
-              teacher_id: teacherId,
-              section: section
-            });
+          const courseIdStr = `c-${grade}-${s.code}`;
+          classSubjectsData.push({
+            id: deterministicUUID(courseIdStr),
+            class_id: classId,
+            subject_id: subjectId,
+            teacher_id: teacherId
           });
         }
       });
@@ -407,7 +384,7 @@ const seedData = async () => {
     studentsData.slice(0, 30).forEach(s => {
       classSubjectsData.forEach(c => {
         const courseGrade = classIdToGrade[c.class_id];
-        if (courseGrade === s.grade && c.section === s.section) {
+        if (courseGrade === s.grade) {
           const classwork = 70 + Math.floor(Math.random() * 25);
           const homework = 72 + Math.floor(Math.random() * 23);
           const midterm = 68 + Math.floor(Math.random() * 27);
@@ -482,7 +459,6 @@ const seedData = async () => {
       ];
 
       const gradesToSchedule = ['JHS 1', 'Basic 6', 'Basic 4', 'Basic 1'];
-      const sectionsToSchedule = ['Yellow (Y)', 'Green (G)'];
 
       const classIdToGrade = {};
       classesData.forEach(c => {
@@ -490,10 +466,9 @@ const seedData = async () => {
       });
 
       gradesToSchedule.forEach(grade => {
-        sectionsToSchedule.forEach(section => {
           const gradeCourses = classSubjectsData.filter(c => {
             const courseGrade = classIdToGrade[c.class_id];
-            return courseGrade === grade && c.section === section;
+            return courseGrade === grade;
           });
 
           if (gradeCourses.length === 0) return;
@@ -504,11 +479,10 @@ const seedData = async () => {
               const selectedCourse = gradeCourses[courseIndex];
 
               timetableData.push({
-                id: deterministicUUID(`tt-${grade}-${section}-${day}-${p.period}`),
+                id: deterministicUUID(`tt-${grade}-${day}-${p.period}`),
                 academic_year: '2024-2025',
                 term: '1st',
                 grade: grade,
-                section: section,
                 day,
                 period: p.period,
                 start_time: p.start,
@@ -522,7 +496,6 @@ const seedData = async () => {
               });
             });
           });
-        });
       });
 
       const { error } = await supabase.from('timetable').upsert(timetableData, { onConflict: 'id' });

@@ -23,7 +23,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const examRoutes = require('./routes/examRoutes');
 const gradeMasterRoutes = require('./routes/gradeMasterRoutes');
 const classRoutes = require('./routes/classRoutes');
-const sectionRoutes = require('./routes/sectionRoutes');
+
 const subjectRoutes = require('./routes/subjectRoutes');
 const academicCalendarRoutes = require('./routes/academicCalendarRoutes');
 const aiRoutes = require('./routes/aiRoutes');
@@ -51,29 +51,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.post('/api/debug/eval', async (req, res) => {
-  const { code } = req.body;
-  try {
-    const supabase = require('./config/supabase');
-    const { supabaseService, COLLECTIONS } = require('./services/supabaseService');
-    const result = await eval(`(async () => { ${code} })()`);
-    res.json({ success: true, result });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message, stack: err.stack });
-  }
-});
-
-app.post('/api/debug/fix-password', async (req, res) => {
-  const bcrypt = require('bcryptjs');
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
-  
-  const hashed = await bcrypt.hash(password, 10);
-  const { error } = await supabase.from('users').update({ password: hashed }).eq('email', email.toLowerCase());
-  if (error) return res.status(500).json({ message: error.message });
-  
-  res.json({ message: 'Password updated', email });
-});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
@@ -93,7 +70,7 @@ app.use('/api/audit', auditRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/classes', classRoutes);
-app.use('/api/sections', sectionRoutes);
+
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/academic-calendar', academicCalendarRoutes);
 app.use('/api/ai', aiRoutes);

@@ -101,18 +101,16 @@ const settingsController = {
   // Get academic stats
   getAcademicStats: async (req, res) => {
     try {
-      const [classes, subjects, sections] = await Promise.all([
+      const [classes, subjects] = await Promise.all([
         supabaseService.getAll(COLLECTIONS.ACADEMIC_CLASSES),
-        supabaseService.getAll(COLLECTIONS.SUBJECTS),
-        supabaseService.getAll(COLLECTIONS.SECTIONS)
+        supabaseService.getAll(COLLECTIONS.SUBJECTS)
       ]);
       
       res.json({
         success: true,
         data: {
           totalClasses: classes.length,
-          totalSubjects: subjects.length,
-          totalSections: sections.length
+          totalSubjects: subjects.length
         }
       });
     } catch (error) {

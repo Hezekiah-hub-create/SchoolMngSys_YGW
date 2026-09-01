@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { parentAPI, studentAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
-import { mapSectionName } from '../../../utils/sectionHelper';
 
 // Modern Icon Components
 const Icons = {
@@ -307,7 +306,7 @@ const ParentProfile = () => {
                               </div>
                               <div style={{ flex: 1 }}>
                                 <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--brand-slate-900)' }}>{student.firstName} {student.lastName}</h4>
-                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--brand-slate-500)', fontWeight: '600' }}>{student.grade} • Section {mapSectionName(student.section || 'A')}</p>
+                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--brand-slate-500)', fontWeight: '600' }}>{student.grade} • </p>
                               </div>
                             </div>
                           ))}

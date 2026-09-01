@@ -31,7 +31,6 @@ const menuConfigs = {
       expandable: true,
       subItems: [
         { name: 'Classes', path: '/classes' },
-        { name: 'Sections', path: '/sections' },
         { name: 'Subjects', path: '/subjects' },
         { name: 'Subject Allocation', path: '/courses' },
         { name: 'Timetable', path: '/timetable' }
@@ -172,7 +171,7 @@ const RoleBasedSidebar = ({ user, onLogout, activeMenu, setActiveMenu }) => {
   let menuItems = [...(menuConfigs[role] || menuConfigs.admin)];
   
   // Dynamic addition for Class Masters (Teachers)
-  if (role === 'teacher' && user?.masteredSections && user.masteredSections.length > 0) {
+  if (role === 'teacher' && user?.masteredGrades && user.masteredGrades.length > 0) {
     const hasReports = menuItems.some(item => item.name === 'Reports');
     if (!hasReports) {
       menuItems.push({ 

@@ -1,7 +1,7 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const bcrypt = require('bcryptjs');
-const { normalizeSection } = require('../utils/sectionHelper');
+
 
 // Helper to map DB snake_case to Frontend camelCase
 const mapParentToFrontend = (p) => {
@@ -447,9 +447,8 @@ const getMyChildrenAssignments = asyncHandler(async (req, res) => {
 
       const aGradeNorm = normalizeGrade(aGrade);
       const matchesGrade = studentGradeNorm && aGradeNorm && (studentGradeNorm === aGradeNorm);
-      const matchesSection = !aSection || aSection === 'All' || normalizeSection(aSection) === normalizeSection(student.section);
       
-      return matchesGrade && matchesSection;
+      return matchesGrade;
     });
 
     matchedAssignments.forEach(a => {

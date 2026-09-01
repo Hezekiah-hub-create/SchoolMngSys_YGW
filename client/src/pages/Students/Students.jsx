@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { studentAPI, parentAPI, academicClassesAPI, teacherAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
-import { mapSectionName } from '../../utils/sectionHelper';
 
 const normalizeSection = (sec) => {
   if (!sec) return '';
@@ -252,7 +251,7 @@ const Students = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                     <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--brand-green)' }}>{displayGrade(student.grade)}</span>
                     <span style={{ color: '#cbd5e1' }}>•</span>
-                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>Section {mapSectionName(student.section || 'A')}</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}></span>
                   </div>
                 </div>
 

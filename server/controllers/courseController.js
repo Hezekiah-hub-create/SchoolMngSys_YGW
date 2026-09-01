@@ -1,7 +1,6 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
-const { normalizeSection } = require('../utils/sectionHelper');
 
 const GES_SUBJECTS_BY_GRADE = {
   'kg 1': [
@@ -146,7 +145,7 @@ GES_SUBJECTS_BY_GRADE['jhs 3'] = GES_SUBJECTS_BY_GRADE['basic 9'];
 // @route   GET /api/courses
 // @access  Private
 const getAllCourses = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 100, search, grade, section, academicYear } = req.query;
+  const { page = 1, limit = 100, search, grade, academicYear } = req.query;
   let teacher = req.query.teacher;
   let query = supabase
     .from(COLLECTIONS.CLASS_SUBJECTS)
@@ -190,8 +189,6 @@ const getAllCourses = asyncHandler(async (req, res) => {
     query = query.or(`academic_year.eq."${yearWithDash}",academic_year.eq."${yearWithSlash}"`);
   }
   
-  if (section) query = query.eq('section', section);
-  
   try {
     const { data, error } = await query;
     if (error) {
@@ -206,7 +203,6 @@ const getAllCourses = asyncHandler(async (req, res) => {
       name: item.subject?.name || 'Unknown Subject',
       code: item.subject?.code || 'N/A',
       grade: item.class?.name || 'N/A',
-      section: item.section || 'A',
       teacher_id: item.teacher_id,
       teacher: item.teacher, // Explicitly include the teacher object
       academic_year: item.academic_year,
@@ -225,10 +221,7 @@ const getAllCourses = asyncHandler(async (req, res) => {
         
         transformedData = transformedData.filter(c => {
           const courseGradeNorm = (c.grade || '').trim();
-          const matchesGrade = courseGradeNorm === studentGradeNorm;
-          const matchesSection = !c.section || c.section === 'All' || normalizeSection(c.section) === normalizeSection(studentProfile.section);
-          
-          return matchesGrade && matchesSection;
+          return courseGradeNorm === studentGradeNorm;
         });
       } else {
         return res.json({ success: true, data: [], pagination: { page: 1, limit, total: 0, pages: 0 } });
@@ -361,10 +354,7 @@ const getCoursesByGrade = asyncHandler(async (req, res) => {
   // Data Isolation for students
   if (req.user.role === 'student') {
     const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', req.user.id);
-    if (studentProfile) {
-      // Already filtered by class_id, but double check section
-      filteredData = data.filter(c => !c.section || c.section === 'All' || c.section === studentProfile.section);
-    } else {
+    if (!studentProfile) {
       return res.json({ success: true, data: [], count: 0 });
     }
   }
@@ -394,7 +384,7 @@ const getCoursesByGradeQuery = asyncHandler(async (req, res) => {
 
 // @desc    Create course
 const createCourse = asyncHandler(async (req, res) => {
-  const { name, code, grade, section, academicYear, teacherId, teacher, room, credits, hoursPerWeek } = req.body;
+  const { name, code, grade, academicYear, teacherId, teacher, room, credits, hoursPerWeek } = req.body;
   const tId = teacherId || teacher || null;
   const finalTeacherId = tId === '' ? null : tId;
   
@@ -426,7 +416,6 @@ const createCourse = asyncHandler(async (req, res) => {
     class_id: academicClass.id,
     subject_id: subject.id,
     teacher_id: finalTeacherId,
-    section: section || 'A',
     academic_year: academicYear || '2024/2025',
     room: room || '',
     credits: credits || 3,
@@ -435,7 +424,7 @@ const createCourse = asyncHandler(async (req, res) => {
 
   try {
     const assignments = await supabaseService.bulkUpsert(COLLECTIONS.CLASS_SUBJECTS, [updates], {
-      onConflict: 'class_id,subject_id,section'
+      onConflict: 'class_id,subject_id'
     });
     const assignment = assignments[0];
     if (finalTeacherId) {
@@ -473,7 +462,7 @@ const createCourse = asyncHandler(async (req, res) => {
 
 // @desc    Update course
 const updateCourse = asyncHandler(async (req, res) => {
-  const { name, grade, teacherId, teacher, section, academicYear, room, credits, hoursPerWeek } = req.body;
+  const { name, grade, teacherId, teacher, academicYear, room, credits, hoursPerWeek } = req.body;
   const tId = teacherId !== undefined ? teacherId : teacher;
   const finalTeacherId = tId === '' ? null : tId;
   
@@ -509,7 +498,6 @@ const updateCourse = asyncHandler(async (req, res) => {
     subject_id: subjectId,
     class_id: classId,
     teacher_id: finalTeacherId !== undefined ? finalTeacherId : assignment.teacher_id,
-    section: section !== undefined ? section : assignment.section,
     academic_year: academicYear !== undefined ? academicYear : assignment.academic_year,
     room: room !== undefined ? room : assignment.room,
     credits: credits !== undefined ? credits : assignment.credits,
@@ -629,14 +617,6 @@ const autoAllocateCourses = asyncHandler(async (req, res) => {
   }
   const academicClass = matchedClasses[0];
 
-  // 2. Fetch sections for this class
-  const { data: sections } = await supabase
-    .from(COLLECTIONS.SECTIONS)
-    .select('*')
-    .eq('class_id', academicClass.id);
-
-  const sectionsToAllocate = (sections && sections.length > 0) ? sections : [{ name: 'A' }];
-
   // 3. Find subject rules for this grade
   const subjectList = GES_SUBJECTS_BY_GRADE[gradeLower];
   if (!subjectList) {
@@ -664,30 +644,26 @@ const autoAllocateCourses = asyncHandler(async (req, res) => {
 
     if (!dbSub) continue;
 
-    // B. Allocate for each section
-    for (const section of sectionsToAllocate) {
-      // Check if already allocated
-      const { data: existing } = await supabase
-        .from(COLLECTIONS.CLASS_SUBJECTS)
-        .select('*')
-        .eq('class_id', academicClass.id)
-        .eq('subject_id', dbSub.id)
-        .eq('section', section.name)
-        .maybeSingle();
+    // B. Allocate subject to class
+    // Check if already allocated
+    const { data: existing } = await supabase
+      .from(COLLECTIONS.CLASS_SUBJECTS)
+      .select('*')
+      .eq('class_id', academicClass.id)
+      .eq('subject_id', dbSub.id)
+      .maybeSingle();
 
-      if (!existing) {
-        const newAlloc = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).insert({
-          class_id: academicClass.id,
-          subject_id: dbSub.id,
-          section: section.name,
-          teacher_id: null,
-          academic_year: academicYear || '2024/2025',
-          credits: 3,
-          hours_per_week: 3,
-          room: 'Classroom'
-        }).select().maybeSingle();
-        if (newAlloc) created.push(newAlloc);
-      }
+    if (!existing) {
+      const newAlloc = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).insert({
+        class_id: academicClass.id,
+        subject_id: dbSub.id,
+        teacher_id: null,
+        academic_year: academicYear || '2024/2025',
+        credits: 3,
+        hours_per_week: 3,
+        room: 'Classroom'
+      }).select().maybeSingle();
+      if (newAlloc) created.push(newAlloc);
     }
   }
 

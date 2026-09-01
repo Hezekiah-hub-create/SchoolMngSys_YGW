@@ -2,7 +2,7 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const smsService = require('../services/smsService');
-const { normalizeSection } = require('../utils/sectionHelper');
+
 
 // Get all assignments
 const getAllAssignments = asyncHandler(async (req, res) => {
@@ -86,9 +86,7 @@ const getAllAssignments = asyncHandler(async (req, res) => {
           const studentGradeNorm = normalize(studentGrade);
           const aGradeNorm = normalize(a.grade || a.class);
           
-          const matchesGrade = studentGradeNorm && aGradeNorm && (
-            studentGradeNorm === aGradeNorm && (!a.section || normalizeSection(a.section) === normalizeSection(studentSection))
-          );
+          const matchesGrade = studentGradeNorm && aGradeNorm && (studentGradeNorm === aGradeNorm);
           return hasSubmission || matchesGrade;
         });
       } else {
@@ -222,15 +220,14 @@ const createAssignment = asyncHandler(async (req, res) => {
 
   // Automated Phone Push Notification (SMS) to parents
   if (grade) {
-    let studentQuery = supabase.from(COLLECTIONS.STUDENTS).select('phone, guardian_phone, parent:parent_id(phone)').eq('grade', grade);
+    let studentQuery = supabase.from(COLLECTIONS.STUDENTS).select('phone, emergency_contact, parent_ids').eq('grade', grade);
     if (section && section !== 'All') studentQuery = studentQuery.eq('section', section);
     
     studentQuery.then(({ data: stList }) => {
       const phones = new Set();
       (stList || []).forEach(st => {
-        if (st.guardian_phone) phones.add(st.guardian_phone);
+        if (st.emergency_contact?.phone) phones.add(st.emergency_contact.phone);
         if (st.phone) phones.add(st.phone);
-        if (st.parent?.phone) phones.add(st.parent.phone);
       });
       const uniquePhones = Array.from(phones).filter(Boolean);
       if (uniquePhones.length > 0) {

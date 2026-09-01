@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentAPI, gradeAPI, attendanceAPI, assignmentAPI, courseAPI, eventAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { mapSectionName } from '../../utils/sectionHelper';
 import AcademicCalendarWidget from '../../components/dashboard/AcademicCalendarWidget';
 
 // ─── Shared helpers ────────────────────────────────────────────────
@@ -166,7 +165,7 @@ const StudentDashboard = () => {
                 <span style={{ color: 'var(--brand-green)' }}>✨</span>
               </h1>
               <p style={{ fontSize: '17px', color: '#64748b', marginTop: '10px', fontWeight: '500' }}>
-                {currentUser?.grade ? `${currentUser.grade}${currentUser?.section ? ` Section ${mapSectionName(currentUser.section)}` : ''}` : 'Academic Profile'} — Navigating your <span style={{ color: '#0f172a', fontWeight: '800' }}>UHAS Success Matrix</span>.
+                {currentUser?.grade ? `${currentUser.grade}${currentUser?.section ? ` ` : ''}` : 'Academic Profile'} — Navigating your <span style={{ color: '#0f172a', fontWeight: '800' }}>UHAS Success Matrix</span>.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>

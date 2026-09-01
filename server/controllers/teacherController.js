@@ -2,7 +2,6 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const bcrypt = require('bcryptjs');
-const { normalizeSection } = require('../utils/sectionHelper');
 
 // Helper to map DB snake_case to Frontend camelCase
 const mapTeacherToFrontend = (t) => {
@@ -20,7 +19,6 @@ const mapTeacherToFrontend = (t) => {
     subjects: t.subjects || [],
     grades: t.grades || [],
     classTeacherOf: t.class_teacher_of,
-    salary: t.salary,
     position: t.position || 'Teacher',
     specialization: t.specialization,
     experience: t.experience || 0,
@@ -282,8 +280,7 @@ const getAllTeachers = asyncHandler(async (req, res) => {
       }
       if (a.subject?.name) teacherAssignments[a.teacher_id].subjects.add(a.subject.name);
       if (a.class?.name) {
-        const gradeStr = `${a.class.name}${a.section ? ' ' + a.section : ''}`;
-        teacherAssignments[a.teacher_id].grades.add(gradeStr);
+        teacherAssignments[a.teacher_id].grades.add(a.class.name);
       }
     });
   }
@@ -375,7 +372,7 @@ const getTeacherById = asyncHandler(async (req, res) => {
     if (!assignError && assignments && assignments.length > 0) {
       // Prioritize live assignments
       const liveSubjects = [...new Set(assignments.map(a => a.subject?.name).filter(Boolean))];
-      const liveGrades = [...new Set(assignments.map(a => `${a.class?.name}${a.section ? ' ' + a.section : ''}`).filter(Boolean))];
+      const liveGrades = [...new Set(assignments.map(a => a.class?.name).filter(Boolean))];
       
       teacher.subjects = liveSubjects;
       teacher.grades = liveGrades;
@@ -435,7 +432,6 @@ const createTeacher = asyncHandler(async (req, res) => {
     dateOfEmployment,
     address,
     emergencyContact,
-    salary,
     bankAccount,
     socialSecurity,
     subjects,
@@ -514,7 +510,6 @@ const createTeacher = asyncHandler(async (req, res) => {
     date_of_employment: dateOfEmployment && dateOfEmployment !== '' ? dateOfEmployment : new Date().toISOString().split('T')[0],
     address: address || {},
     emergency_contact: emergencyContact || {},
-    salary: salary || 0,
     bank_account: bankAccount || {},
     social_security: socialSecurity,
     subject: subjects?.[0] || '',
@@ -597,7 +592,6 @@ const updateTeacher = asyncHandler(async (req, res) => {
     grades: 'grades',
     address: 'address',
     emergencyContact: 'emergency_contact',
-    salary: 'salary',
     bankAccount: 'bank_account',
     socialSecurity: 'social_security',
     status: 'status',
@@ -619,8 +613,8 @@ const updateTeacher = asyncHandler(async (req, res) => {
       if ((frontendField === 'dateOfBirth' || frontendField === 'dateOfEmployment') && (value === '' || value == null)) {
         return;
       }
-      if (frontendField === 'salary' || frontendField === 'experience') {
-        value = (value === '' || value == null) ? 0 : (frontendField === 'experience' ? parseInt(value) : parseFloat(value));
+      if (frontendField === 'experience') {
+        value = (value === '' || value == null) ? 0 : parseInt(value);
       }
       if (frontendField === 'qualifications' && typeof value === 'string') {
         value = value ? [value] : [];
@@ -842,15 +836,15 @@ const getMyCourses = asyncHandler(async (req, res) => {
 
     console.log(`[DEBUG] Fetching academic assignments for teacher ID: ${teacher.id}`);
     
-    // 1. Get sections where they are Class Master (or coordinator)
-    let masterSectionsQuery = supabase
-      .from(COLLECTIONS.SECTIONS)
-      .select('*, class:class_id (*)');
+    // 1. Get grades where they are Class Master (or coordinator)
+    let masterGradesQuery = supabase
+      .from(COLLECTIONS.GRADE_MASTERS)
+      .select('*');
       
-    let masterSections = [];
-    const { data: ownMasterSections, error: masterError } = await masterSectionsQuery.eq('class_master_id', teacher.id);
+    let masterGrades = [];
+    const { data: ownMasterGrades, error: masterError } = await masterGradesQuery.eq('teacher_id', teacher.id);
     if (masterError) throw masterError;
-    masterSections = ownMasterSections || [];
+    masterGrades = ownMasterGrades || [];
 
     // 2. Join class_subjects with subjects and academic_classes for taught subjects
     let assignments = [];
@@ -890,19 +884,6 @@ const getMyCourses = asyncHandler(async (req, res) => {
             if (!existingIds.has(ca.id)) assignments.push(ca);
           });
         }
-        
-        // Fetch sections for valid classes
-        const { data: coordSections, error: coordSecError } = await supabase
-          .from(COLLECTIONS.SECTIONS)
-          .select('*, class:class_id (*)')
-          .in('class_id', validClassIds);
-          
-        if (!coordSecError && coordSections) {
-          const existingSecIds = new Set(masterSections.map(s => s.id));
-          coordSections.forEach(cs => {
-            if (!existingSecIds.has(cs.id)) masterSections.push(cs);
-          });
-        }
       }
     }
 
@@ -919,16 +900,13 @@ const getMyCourses = asyncHandler(async (req, res) => {
     const transformedAssignments = await Promise.all(assignments.map(async (item) => {
       const gradeName = item.class?.name || '';
       const gradesToSearch = getGradeVariations(gradeName);
-      const targetSec = normalizeSection(item.section);
 
       const { data: studentsInGrade } = await supabase
         .from(COLLECTIONS.STUDENTS)
-        .select('section')
+        .select('id')
         .in('grade', gradesToSearch);
         
-      const matchingStudents = (studentsInGrade || []).filter(s => {
-        return normalizeSection(s.section) === targetSec;
-      });
+      const matchingStudents = studentsInGrade || [];
 
       return {
         id: item.id,
@@ -936,32 +914,27 @@ const getMyCourses = asyncHandler(async (req, res) => {
         name: item.subject?.name || 'Unknown Subject',
         code: item.subject?.code || 'N/A',
         grade: item.class?.name || 'N/A',
-        section: item.section || 'A',
         academic_year: item.academic_year,
         studentCount: matchingStudents.length,
         students: []
       };
     }));
 
-    const transformedMasterClasses = await Promise.all((masterSections || []).map(async (s) => {
-      const gradeName = s.class?.name || '';
+    const transformedMasterClasses = await Promise.all((masterGrades || []).map(async (s) => {
+      const gradeName = s.grade || '';
       const gradesToSearch = getGradeVariations(gradeName);
-      const targetSec = normalizeSection(s.name);
 
       const { data: studentsInGrade } = await supabase
         .from(COLLECTIONS.STUDENTS)
-        .select('section')
+        .select('id')
         .in('grade', gradesToSearch);
         
-      const matchingStudents = (studentsInGrade || []).filter(st => {
-        return normalizeSection(st.section) === targetSec;
-      });
+      const matchingStudents = studentsInGrade || [];
 
       return {
         id: s.id,
         name: gradeName || 'Class',
-        section: s.name,
-        academic_year: s.class?.academic_year || '2024/2025',
+        academic_year: s.academic_year || '2024/2025',
         studentCount: matchingStudents.length
       };
     }));

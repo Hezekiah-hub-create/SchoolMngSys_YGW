@@ -895,12 +895,12 @@ const sendReportToParents = asyncHandler(async (req, res) => {
       const academicYear = r.year || r.academic_year || 'current session';
 
       supabase.from(COLLECTIONS.STUDENTS)
-        .select('phone, guardian_phone, parent:parent_id(phone)')
+        .select('phone, emergency_contact, parent_ids')
         .eq('id', sId)
         .single()
-        .then(({ data: st }) => {
-          if (st) {
-            const parentPhone = st.guardian_phone || st.phone || st.parent?.phone;
+        .then(({ data: stData }) => {
+          if (stData) {
+            const parentPhone = stData.emergency_contact?.phone || stData.phone;
             if (parentPhone) {
               smsService.sendReportAlert({
                 studentName: sName,

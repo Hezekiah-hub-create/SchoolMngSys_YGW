@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { teacherAPI, courseAPI, staffAPI, academicClassesAPI, academicSubjectsAPI } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
-import { mapSectionName } from '../../../utils/sectionHelper';
 
 // Modern Icon Components
 const displayGrade = (g) => {
@@ -398,7 +397,6 @@ const TeacherProfile = () => {
       qualifications: Array.isArray(teacher?.qualifications) ? teacher.qualifications[0] : (teacher?.qualifications || ''),
       specialization: teacher?.specialization || '',
       experience: teacher?.experience ?? 0,
-      salary: teacher?.salary || 0,
       dateOfEmployment: teacher?.dateOfEmployment || teacher?.date_of_employment ? (teacher.dateOfEmployment || teacher.date_of_employment).split('T')[0] : '',
       contractType: teacher?.contractType || teacher?.contract_type || 'permanent',
       position: teacher?.position || 'Teacher',
@@ -634,7 +632,6 @@ const TeacherProfile = () => {
                       <div className="responsive-grid-3">
                         <FormGroup label="Qualification" name="qualifications" value={formData.qualifications} onChange={handleChange} />
                         <FormGroup label="Coordinator Block" name="coordinatorBlock" value={formData.coordinatorBlock} onChange={handleChange} type="select" options={coordinatorOptions} />
-                        <FormGroup label="Salary (GHS)" name="salary" value={formData.salary} onChange={handleChange} type="number" />
                         <FormGroup label="Position" name="position" value={formData.position} onChange={handleChange} />
                         <FormGroup label="Experience (Years)" name="experience" value={formData.experience} onChange={handleChange} type="number" />
                         <FormGroup label="Employment Date" name="dateOfEmployment" value={formData.dateOfEmployment} onChange={handleChange} type="date" />
@@ -667,7 +664,6 @@ const TeacherProfile = () => {
                         <DetailBlock label="Highest Qualification" value={teacher?.qualifications} icon={<Icons.Award />} />
                         <DetailBlock label="Coordinator Block" value={teacher?.coordinatorBlock || 'None'} icon={<Icons.Shield />} />
                         <DetailBlock label="Specialization" value={teacher?.specialization} icon={<Icons.Book />} />
-                        <DetailBlock label="Monthly Salary" value={teacher?.salary ? `GHS ${teacher.salary.toLocaleString()}` : 'N/A'} icon={<Icons.Briefcase />} />
                         <DetailBlock label="Professional Experience" value={`${teacher?.experience || 0} Years`} icon={<Icons.Award />} />
                       </div>
                     )}
@@ -685,7 +681,7 @@ const TeacherProfile = () => {
                         <div>
                           <SectionTitle title="Teaching Grade Matrix" />
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => `${c.grade} ${mapSectionName(c.section || 'A')}`))] : (teacher?.grades || [])).map((g, i) => (
+                            {(teacherCourses.length > 0 ? [...new Set(teacherCourses.map(c => `${c.grade}`))] : (teacher?.grades || [])).map((g, i) => (
                               <Badge key={i} text={g} color="#6366f1" />
                             ))}
                             {teacherCourses.length === 0 && (!teacher?.grades || teacher.grades.length === 0) && <p style={{ color: 'var(--brand-slate-400)', fontSize: '14px' }}>No grades assigned</p>}

@@ -68,34 +68,46 @@ const getSMSStatus = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Broadcast SMS to parents of specific Grade/Section or All School
+// @desc    Broadcast SMS to parents of specific Grade or All School
 // @route   POST /api/sms/broadcast
 // @access  Private (Admin, Teacher)
 const broadcastSMS = asyncHandler(async (req, res) => {
-  const { grade, section, message, title } = req.body;
+  const { grade, message, title } = req.body;
 
   if (!message) {
     return res.status(400).json({ success: false, message: 'Broadcast message content is required' });
   }
 
-  // Fetch parent phone numbers from students matching grade/section
-  let query = supabase.from(COLLECTIONS.STUDENTS).select('phone, guardian_phone, parent:parent_id(phone)');
+  // Fetch parent phone numbers from students matching grade
+  let query = supabase.from(COLLECTIONS.STUDENTS).select('phone, emergency_contact, parent_ids');
   if (grade && grade !== 'all') {
     query = query.eq('grade', grade);
-  }
-  if (section && section !== 'all') {
-    query = query.eq('section', section);
   }
 
   const { data: students, error } = await query;
   if (error) throw error;
 
   const phoneNumbers = new Set();
+  const parentIds = new Set();
+  
   (students || []).forEach(s => {
-    if (s.guardian_phone) phoneNumbers.add(s.guardian_phone);
     if (s.phone) phoneNumbers.add(s.phone);
-    if (s.parent?.phone) phoneNumbers.add(s.parent.phone);
+    if (s.emergency_contact?.phone) phoneNumbers.add(s.emergency_contact.phone);
+    if (s.parent_ids && Array.isArray(s.parent_ids)) {
+      s.parent_ids.forEach(id => parentIds.add(id));
+    }
   });
+
+  if (parentIds.size > 0) {
+    const { data: parents } = await supabase
+      .from(COLLECTIONS.PARENTS)
+      .select('phone')
+      .in('id', Array.from(parentIds));
+      
+    (parents || []).forEach(p => {
+      if (p.phone) phoneNumbers.add(p.phone);
+    });
+  }
 
   const uniquePhones = Array.from(phoneNumbers).filter(Boolean);
 

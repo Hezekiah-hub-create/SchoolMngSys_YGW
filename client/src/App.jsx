@@ -40,7 +40,6 @@ import SettingsSMS from './pages/Settings/SMS/SMSConfig';
 import SettingsLayout from './pages/Settings/SettingsLayout';
 import Reports from './pages/Reports/Reports';
 import StaffReports from './pages/Reports/StaffReports';
-import Sections from './pages/Sections/Sections';
 import NonTeaching from './pages/Staff/NonTeaching';
 import StaffProfile from './pages/Staff/StaffProfile/StaffProfile';
 import HelpSupport from './pages/Account/HelpSupport';
@@ -140,7 +139,6 @@ const RoleBasedRoute = ({ children }) => {
     '/parents/:id',
     '/attendance',
     '/classes',
-    '/sections',
     '/subjects',
     '/courses',
     '/reports',
@@ -278,9 +276,6 @@ function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/reports/academic" element={<Reports type="academic" />} />
             <Route path="/reports/staff" element={<StaffReports />} />
-
-            {/* Sections Management */}
-            <Route path="/sections" element={<Sections />} />
 
             {/* Staff Management */}
             <Route path="/staff/non-teaching" element={<NonTeaching />} />

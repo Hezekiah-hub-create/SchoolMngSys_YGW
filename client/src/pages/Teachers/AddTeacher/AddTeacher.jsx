@@ -227,7 +227,6 @@ const AllocationSelector = ({ allocations, selectedIds, onChange }) => {
                       />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
                         <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{alloc.name || alloc.subject?.name || 'Unmapped Subject'}</span>
-                        <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--brand-green)' }}>Section {alloc.section}</span>
                         {currentTeacher && (
                           <span style={{ fontSize: '11px', color: '#94a3b8' }}>Currently: {currentTeacher}</span>
                         )}

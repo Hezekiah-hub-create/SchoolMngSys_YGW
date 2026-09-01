@@ -1,7 +1,6 @@
 const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
-const { normalizeSection } = require('../utils/sectionHelper');
 
 const isUUID = (str) => {
   if (!str || typeof str !== 'string') return false;
@@ -37,13 +36,11 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
     const studentProfile = await supabaseService.getByField(COLLECTIONS.STUDENTS, 'user_id', user.id);
     if (studentProfile) {
       const myGrade = studentProfile.grade;
-      const mySection = studentProfile.section || 'A';
       
       const requested = className.toLowerCase().trim().replace(/\s/g, '');
       const myGradeNorm = myGrade.toLowerCase().trim().replace(/\s/g, '');
-      const myClassFullNorm = `${myGradeNorm}${mySection.toLowerCase()}`;
       
-      const allowed = [myGradeNorm, myClassFullNorm, 'configuration']; // Students can view configuration for periods
+      const allowed = [myGradeNorm, 'configuration']; // Students can view configuration for periods
       
       if (!allowed.includes(requested)) {
         return res.status(403).json({ message: 'Access denied. You can only view your own class timetable.' });
@@ -61,8 +58,7 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
       const requested = className.toLowerCase().trim().replace(/\s/g, '');
       const allowedClasses = children.filter(Boolean).map(s => {
         const gradeNorm = (s.grade || '').toLowerCase().trim().replace(/\s/g, '');
-        const sectionNorm = (s.section || 'A').toLowerCase();
-        return [`${gradeNorm}${sectionNorm}`, gradeNorm];
+        return [gradeNorm];
       }).flat();
       allowedClasses.push('configuration'); // Parents can view configuration for periods
 
@@ -72,34 +68,10 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
     }
   }
   
-  let grade, section;
+  let grade = className.trim();
   
   if (className === 'CONFIGURATION') {
     grade = 'SYSTEM';
-    section = 'CONFIG';
-  } else {
-    const clsName = className.trim();
-    const sectionsConfig = ['Yellow (Y)', 'Green (G)', 'Red (R)', 'Blue (B)', 'Yellow', 'Green', 'Red', 'Blue', 'yellow', 'green', 'red', 'blue'];
-    let foundSection = null;
-    for (const secName of sectionsConfig) {
-      if (clsName.toLowerCase().endsWith(secName.toLowerCase())) {
-        foundSection = secName;
-        grade = clsName.slice(0, -secName.length).trim();
-        break;
-      }
-    }
-    
-    if (foundSection) {
-      section = foundSection;
-    } else {
-      section = clsName.slice(-1).toUpperCase();
-      grade = clsName.slice(0, -1).trim();
-      
-      if (!['A', 'B', 'C', 'D'].includes(section)) {
-        section = 'A'; 
-        grade = clsName;
-      }
-    }
   }
 
   const allSettings = await supabaseService.getAll('settings');
@@ -124,8 +96,7 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
 
   if (error) throw error;
 
-  const targetSec = normalizeSection(section);
-  const rows = (allRows || []).filter(r => normalizeSection(r.section) === targetSec);
+  const rows = allRows || [];
 
   const classRows = (rows || []).filter(r => {
     const rYear = (r.academic_year || r.academicYear || '').replace('/', '-');
@@ -213,10 +184,9 @@ const getTimetableByClass = asyncHandler(async (req, res) => {
   res.json({ 
     success: true, 
     data: {
-      id: classRows.length > 0 ? (className === 'CONFIGURATION' ? 'SYSTEM-CONFIG' : `${grade}-${section}`) : null,
+      id: classRows.length > 0 ? (className === 'CONFIGURATION' ? 'SYSTEM-CONFIG' : grade) : null,
       class: className,
       grade,
-      section,
       schedule: className === 'CONFIGURATION' 
         ? { periods: finalPeriods }
         : schedule
@@ -282,8 +252,7 @@ const getTimetableByTeacher = asyncHandler(async (req, res) => {
       course_name: subjectName,
       subject: subjectName,
       teacher: teacherName, // Ensure this is a string
-      grade: p.grade,
-      section: p.section
+      grade: p.grade
     };
   });
 
@@ -294,9 +263,9 @@ const getTimetableByTeacher = asyncHandler(async (req, res) => {
 // @route   POST /api/timetable
 // @access  Private (Admin)
 const createTimetable = asyncHandler(async (req, res) => {
-  const { grade, section, schedule, class: className } = req.body;
-  if (!grade || !section || !schedule) {
-    return res.status(400).json({ message: 'Grade, section, and schedule are required' });
+  const { grade, schedule, class: className } = req.body;
+  if (!grade || !schedule) {
+    return res.status(400).json({ message: 'Grade and schedule are required' });
   }
 
   // Fetch current settings
@@ -308,8 +277,7 @@ const createTimetable = asyncHandler(async (req, res) => {
   const existingRows = await supabaseService.getManyByField(COLLECTIONS.TIMETABLE, 'grade', grade);
   const classRows = existingRows.filter(r => {
     const normRowSession = (r.academic_year || r.academicYear || '').replace('/', '-');
-    return r.section === section && 
-           normRowSession === normCurrentSession && 
+    return normRowSession === normCurrentSession && 
            r.term === settings.current_term;
   });
   
@@ -330,7 +298,6 @@ const createTimetable = asyncHandler(async (req, res) => {
         academic_year: settings.current_session,
         term: settings.current_term,
         grade,
-        section,
         day: (day.toLowerCase() === 'periods' || className === 'CONFIGURATION') ? 'monday' : day.toLowerCase(),
         period: period.period,
         start_time: period.startTime || period.time?.split(' - ')[0] || '',
@@ -353,7 +320,7 @@ const createTimetable = asyncHandler(async (req, res) => {
 // @route   PUT /api/timetable/:id
 // @access  Private (Admin/Teacher)
 const updateTimetable = asyncHandler(async (req, res) => {
-  const { grade, section, schedule, class: className } = req.body;
+  const { grade, schedule, class: className } = req.body;
   const user = req.user;
 
   // Security check for teachers
@@ -362,7 +329,7 @@ const updateTimetable = asyncHandler(async (req, res) => {
     if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
     const teacherCourses = await supabaseService.getAll(COLLECTIONS.COURSES);
     const hasAssignedCourse = teacherCourses.some(c => 
-      ((c.teacher_id || c.teacher) === teacherProfile.id) && c.grade === grade && (c.section || '').includes(section || '')
+      ((c.teacher_id || c.teacher) === teacherProfile.id) && c.grade === grade
     );
     const isGradeTeacher = teacherProfile.grades && teacherProfile.grades.includes(grade);
     if (!hasAssignedCourse && !isGradeTeacher) {
@@ -379,8 +346,7 @@ const updateTimetable = asyncHandler(async (req, res) => {
   const existingRows = await supabaseService.getManyByField(COLLECTIONS.TIMETABLE, 'grade', grade);
   const classRows = existingRows.filter(r => {
     const normRowSession = (r.academic_year || r.academicYear || '').replace('/', '-');
-    return r.section === section && 
-           normRowSession === normCurrentSession && 
+    return normRowSession === normCurrentSession && 
            r.term === settings.current_term;
   });
   
@@ -402,7 +368,6 @@ const updateTimetable = asyncHandler(async (req, res) => {
         academic_year: settings.current_session,
         term: settings.current_term,
         grade,
-        section,
         day: (day.toLowerCase() === 'periods' || className === 'CONFIGURATION') ? 'monday' : day.toLowerCase(),
         period: period.period,
         start_time: period.startTime || period.time?.split(' - ')[0] || '',
@@ -429,11 +394,10 @@ const deleteTimetable = asyncHandler(async (req, res) => {
   if (req.params.id.length > 20) {
     await supabaseService.delete(COLLECTIONS.TIMETABLE, req.params.id);
   } else {
-    // Logic to delete by class (grade-section)
-    const [grade, section] = req.params.id.split('-');
+    // Logic to delete by class (grade)
+    const grade = req.params.id;
     const allRows = await supabaseService.getManyByField(COLLECTIONS.TIMETABLE, 'grade', grade);
-    const classRows = allRows.filter(r => r.section === section);
-    for (const row of classRows) {
+    for (const row of allRows) {
       await supabaseService.delete(COLLECTIONS.TIMETABLE, row.id);
     }
   }

@@ -41,14 +41,6 @@ import UbsLogo from '../../assets/UBS.png';
 import { kgAssessments } from '../../utils/kgAssessments';
 import './Reports.css';
 
-const mapSectionName = (name) => {
-  if (!name) return name;
-  if (name.toUpperCase() === 'A') return 'Yellow (Y)';
-  if (name.toUpperCase() === 'B') return 'Green (G)';
-  if (name.toUpperCase() === 'C') return 'Red (R)';
-  if (name.toUpperCase() === 'D') return 'Blue (B)';
-  return name;
-};
 
 const Reports = () => {
   const { user } = useAuth();
@@ -1189,7 +1181,7 @@ const ReportTemplate = ({ data }) => {
               </div>
               <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-yellow)', background: 'var(--slate-50)', borderRadius: '6px' }}>
                 <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>BASIC / SECTION</div>
-                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.class?.toUpperCase().replace('BASIC', '').replace('PRIMARY', '').trim()} - {mapSectionName(data.section)}</div>
+                <div style={{ fontSize: getDensityStyle('fontSize'), fontWeight: '1000', color: 'black' }}>{data.class?.toUpperCase().replace('BASIC', '').replace('PRIMARY', '').trim()} - </div>
               </div>
               <div style={{ padding: getDensityStyle('metaPadding'), borderLeft: '3px solid var(--brand-green)', background: 'var(--slate-50)', borderRadius: '6px' }}>
                 <div style={{ fontSize: '8px', color: 'var(--slate-500)', fontWeight: '900', marginBottom: '1px' }}>ADMISSION NO.</div>
@@ -1435,7 +1427,7 @@ const CohortSummaryTemplate = ({ reports, filters }) => {
                 CLASS PERFORMANCE SYNTHESIS (BROADSHEET)
               </div>
               <div style={{ fontSize: '12px', fontWeight: '800', color: '#00843e', textTransform: 'uppercase', marginTop: '5px', opacity: 0.8 }}>
-                {filters.grade} - {filters.section ? `SECTION ${mapSectionName(filters.section)}` : 'ALL SECTIONS'} | {filters.term}, {(filters.year || '').replace('-', '/')}
+                {filters.grade} - {filters.section ? `` : 'ALL SECTIONS'} | {filters.term}, {(filters.year || '').replace('-', '/')}
               </div>
             </div>
             <img src={UbsLogo} alt="UBS Logo" style={{ width: useUltraCompact ? '60px' : '85px', height: useUltraCompact ? '60px' : '85px', objectFit: 'contain' }} />

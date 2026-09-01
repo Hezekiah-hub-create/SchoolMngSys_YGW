@@ -20,7 +20,6 @@ const mapStaffToFrontend = (s) => {
     department: s.department,
     position: s.position,
     dateOfEmployment: s.date_of_employment,
-    salary: s.salary,
     status: s.status,
     profileImage: s.profile_image,
     createdAt: s.created_at,
@@ -106,7 +105,6 @@ const createStaff = asyncHandler(async (req, res) => {
     department,
     role,
     dateOfEmployment,
-    salary,
     position
   } = req.body;
 
@@ -158,7 +156,6 @@ const createStaff = asyncHandler(async (req, res) => {
     department: department || null,
     position: position || role || 'Staff',
     date_of_employment: (dateOfEmployment && dateOfEmployment !== '') ? dateOfEmployment : new Date().toISOString().split('T')[0],
-    salary: salary || 0,
     status: 'active'
   };
 
@@ -195,7 +192,6 @@ const updateStaff = asyncHandler(async (req, res) => {
     position: 'position',
     email: 'email',
     status: 'status',
-    salary: 'salary',
     dateOfEmployment: 'date_of_employment'
   };
 

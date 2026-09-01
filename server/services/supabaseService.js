@@ -32,7 +32,6 @@ const COLLECTIONS = {
   EXAMS: 'exams',
   GRADE_MASTERS: 'grade_masters',
   ACADEMIC_CLASSES: 'academic_classes',
-  SECTIONS: 'sections',
   SUBJECTS: 'subjects',
   CLASS_SUBJECTS: 'class_subjects',
   LOGIN_HISTORY: 'login_history',

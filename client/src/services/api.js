@@ -157,10 +157,10 @@ export const academicClassesAPI = {
 export const classAPI = academicClassesAPI;
 
 export const academicSectionsAPI = {
-  getAll: () => api.get('/api/sections'),
-  create: (data) => api.post('/api/sections', data),
-  update: (id, data) => api.put(`/api/sections/${id}`, data),
-  delete: (id) => api.delete(`/api/sections/${id}`)
+  getAll: () => Promise.resolve({ data: { success: true, data: [] } }),
+  create: () => Promise.resolve({ data: { success: true, data: {} } }),
+  update: () => Promise.resolve({ data: { success: true, data: {} } }),
+  delete: () => Promise.resolve({ data: { success: true } })
 };
 
 export const academicSubjectsAPI = {

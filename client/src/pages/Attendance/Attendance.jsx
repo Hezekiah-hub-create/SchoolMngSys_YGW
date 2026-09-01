@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { attendanceAPI, studentAPI, courseAPI, parentAPI, settingsAPI, teacherAPI, academicClassesAPI, academicSectionsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { mapSectionName } from '../../utils/sectionHelper';
 import PremiumDatePicker from '../../components/common/PremiumDatePicker';
 import PremiumCalendar from '../../components/common/PremiumCalendar';
 import PremiumSelect from '../../components/common/PremiumSelect';
@@ -531,7 +530,7 @@ const Attendance = () => {
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Assigned Master Class</span>
                           <div style={{ padding: '14px 20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
-                            {selectedClass && selectedSection ? `${selectedClass} — Section ${mapSectionName(selectedSection)}` : 'No Master Class Assigned'}
+                            {selectedClass && selectedSection ? `${selectedClass} — ` : 'No Master Class Assigned'}
                           </div>
                         </div>
                         
@@ -793,7 +792,7 @@ const Attendance = () => {
                 <div style={{ padding: '20px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: '#0f172a' }}>
-                      {selectedClass ? `${selectedClass}${selectedSection ? ` — Section ${mapSectionName(selectedSection)}` : ''}` : 'Scholar Register'}
+                      {selectedClass ? `${selectedClass}${selectedSection ? ` — ` : ''}` : 'Scholar Register'}
                     </h3>
                     <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
                       {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} · {selectedDate}

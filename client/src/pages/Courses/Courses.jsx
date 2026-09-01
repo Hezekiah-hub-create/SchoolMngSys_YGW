@@ -6,7 +6,6 @@ import RoleBasedSidebar from '../../components/layout/RoleBasedSidebar';
 import TopNav from '../../components/layout/TopNav';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { useAlert } from '../../context/AlertContext';
-import { mapSectionName } from '../../utils/sectionHelper';
 import ReactMarkdown from 'react-markdown';
 import './Courses.css';
 
@@ -640,7 +639,7 @@ const Courses = () => {
                           boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                         }}>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Section {mapSectionName(a.section)}</span>
+                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--brand-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}></span>
                             <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
                               {a.teacher ? `${a.teacher.firstName || a.teacher.first_name} ${a.teacher.lastName || a.teacher.last_name}` : 'Unassigned'}
                             </span>
@@ -744,7 +743,7 @@ const Courses = () => {
                 {allSections.filter(s => normalizeGrade(s.class_name || s.grade) === normalizeGrade(formData.grade)).length > 0 ? (
                   allSections.filter(s => normalizeGrade(s.class_name || s.grade) === normalizeGrade(formData.grade)).map(section => (
                     <div key={section.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                      <span style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}>Section {mapSectionName(section.name)}</span>
+                      <span style={{ fontWeight: '800', color: '#1e293b', fontSize: '13px' }}></span>
                       <PremiumSelect 
                         label={section.name}
                         value={formData.sectionAssignments[section.name] || ''}
@@ -811,7 +810,7 @@ const Courses = () => {
                           <div style={{ fontSize: '11px', color: '#94a3b8' }}>{s.admission_number || s.id?.substring(0, 8)}</div>
                         </td>
                         <td style={{ padding: '12px' }}>{displayGrade(s.grade)}</td>
-                        <td style={{ padding: '12px' }}>{mapSectionName(s.section || 'A')}</td>
+                        <td style={{ padding: '12px' }}></td>
                       </tr>
                     ))}
                   </tbody>

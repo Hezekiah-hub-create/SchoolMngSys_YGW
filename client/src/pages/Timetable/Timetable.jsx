@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { timetableAPI, teacherAPI, courseAPI, parentAPI, academicSubjectsAPI, settingsAPI } from '../../services/api';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { useAlert } from '../../context/AlertContext';
-import { mapSectionName } from '../../utils/sectionHelper';
 
 const displayGrade = (g) => {
   if (!g) return 'N/A';
@@ -77,7 +76,7 @@ const Timetable = () => {
 
   const [subjects, setSubjects] = useState([]);
 
-  const selectedClass = (selectedGrade && selectedSection) ? `${selectedGrade}${selectedSection}` : null;
+  const selectedClass = selectedGrade ? selectedGrade : null;
 
   useEffect(() => {
     const fetchLinkedStudents = async () => {
@@ -146,16 +145,16 @@ const Timetable = () => {
   
   const getClassToFetch = () => {
     if (isParent && selectedChild) {
-      return `${selectedChild.grade}${selectedChild.section}`;
+      return selectedChild.grade;
     }
     return selectedClass;
   };
   
   useEffect(() => {
-    if (currentViewMode === 'teacher' || (selectedGrade && selectedSection)) {
+    if (currentViewMode === 'teacher' || selectedGrade) {
       fetchData();
     }
-  }, [selectedGrade, selectedSection, currentViewMode, selectedChild, selectedTeacherId]);
+  }, [selectedGrade, currentViewMode, selectedChild, selectedTeacherId]);
 
   const fetchData = async () => {
     try {
@@ -189,7 +188,7 @@ const Timetable = () => {
           const teacherSchedule = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] };
           ttData.forEach(p => {
             if (teacherSchedule[p.day]) {
-              teacherSchedule[p.day].push({ ...p, subject: p.subject || p.course_name, room: `${p.grade} - ${mapSectionName(p.section || 'A')}${p.room ? ` (${p.room})` : ''}` });
+              teacherSchedule[p.day].push({ ...p, subject: p.subject || p.course_name, room: `${p.grade}${p.room ? ` (${p.room})` : ''}` });
             }
           });
           setTimetable(teacherSchedule);
@@ -341,9 +340,9 @@ const Timetable = () => {
       }
 
       if (timetableId) {
-        await timetableAPI.update(timetableId, { class: selectedClass, grade: selectedGrade, section: selectedSection, schedule: updatedSchedule });
+        await timetableAPI.update(timetableId, { class: selectedClass, grade: selectedGrade, schedule: updatedSchedule });
       } else {
-        const result = await timetableAPI.create({ class: selectedClass, grade: selectedGrade, section: selectedSection, schedule: updatedSchedule });
+        const result = await timetableAPI.create({ class: selectedClass, grade: selectedGrade, schedule: updatedSchedule });
         if (result.data?.data?.id) {
           setTimetableId(result.data.data.id);
         }
@@ -364,10 +363,10 @@ const Timetable = () => {
   };
 
   const handleInitializeFromSchema = async () => {
-    if (!selectedGrade || !selectedSection) {
+    if (!selectedGrade) {
       showAlert({
         title: 'Configuration Error',
-        message: 'Please select a specific grade and section node first.',
+        message: 'Please select a specific grade node first.',
         type: 'warning'
       });
       return;
@@ -375,7 +374,7 @@ const Timetable = () => {
 
     showAlert({
       title: 'Initialize Chronos Matrix',
-      message: `Initialize ${selectedGrade}${selectedSection} timetable from default schema? This will set up the institutional time slots.`,
+      message: `Initialize ${selectedGrade} timetable from default schema? This will set up the institutional time slots.`,
       type: 'confirm',
       onConfirm: async () => {
         try {
@@ -435,7 +434,7 @@ const Timetable = () => {
       const updatedSchedule = { ...currentTimetable };
       updatedSchedule[editingCell.day] = (currentTimetable[editingCell.day] || []).filter(p => p.period !== editingCell.period);
       
-      await timetableAPI.update(timetableId, { class: selectedClass, grade: selectedGrade, section: selectedSection, schedule: updatedSchedule });
+      await timetableAPI.update(timetableId, { class: selectedClass, grade: selectedGrade, schedule: updatedSchedule });
       setTimetable(updatedSchedule);
       setEditModalOpen(false);
       setEditingCell(null);
@@ -447,7 +446,7 @@ const Timetable = () => {
   };
 
   const handleResetTimetable = async () => {
-    const classLabel = viewMode === 'class' ? `${selectedGrade} Section ${mapSectionName(selectedSection)}` : 'selected faculty';
+    const classLabel = viewMode === 'class' ? `${selectedGrade}` : 'selected faculty';
     
     showAlert({
       title: 'Confirm Temporal Purge',
@@ -457,7 +456,7 @@ const Timetable = () => {
         try {
           setResetting(true);
           if (viewMode === 'class' && selectedGrade && selectedSection) {
-            const idToDelete = `${selectedGrade}-${selectedSection}`;
+            const idToDelete = `${selectedGrade}`;
             await timetableAPI.delete(idToDelete);
           } else {
             await timetableAPI.delete(timetableId);
@@ -498,8 +497,7 @@ const Timetable = () => {
       const configData = {
         class: 'CONFIGURATION',
         grade: 'SYSTEM',
-        section: 'CONFIG',
-        schedule: { periods: editingPeriods }
+                schedule: { periods: editingPeriods }
       };
 
       const periodRes = await timetableAPI.getByClass('CONFIGURATION');
@@ -613,7 +611,7 @@ const Timetable = () => {
                 ) : isStudent ? (
                   <>
                     <span style={{ display: 'block', fontSize: '14px', fontWeight: '800', color: 'var(--chronos-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>Personal Learning Axis</span>
-                     {displayGrade(user?.grade)}{mapSectionName(user?.section)} <span>Chronos Node</span>
+                     {displayGrade(user?.grade)} <span>Chronos Node</span>
                   </>
                 ) : isTeacher ? (
                   <>
@@ -730,15 +728,7 @@ const Timetable = () => {
                       placeholder="Select Level"
                     />
                   </div>
-                  <div className="control-item" style={{ minWidth: '120px' }}>
-                    <label className="premium-label">Stream</label>
-                    <PremiumSelect 
-                      value={selectedSection || ''} 
-                      onChange={(e) => setSelectedSection(e.target.value)}
-                      options={sections.map(s => ({ value: s, label: mapSectionName(s) }))}
-                      placeholder="Select Node"
-                    />
-                  </div>
+                  
                 </>
               )}
 

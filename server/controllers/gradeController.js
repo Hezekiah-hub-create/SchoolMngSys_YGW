@@ -287,22 +287,28 @@ const bulkCreateGrades = asyncHandler(async (req, res) => {
           isAllowed = true;
         }
 
+        let classData = null;
         if (!isAllowed && teacherProfile.coordinator_block) {
           const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
-          const classData = await supabaseService.getById(COLLECTIONS.ACADEMIC_CLASSES, courseData.class_id);
+          classData = await supabaseService.getById(COLLECTIONS.ACADEMIC_CLASSES, courseData.class_id);
           if (classData && classData.name && classData.name.toLowerCase().includes(block)) {
             isAllowed = true;
           }
         }
 
         if (!isAllowed) {
-          const { data: mastered } = await supabase
-            .from(COLLECTIONS.SECTIONS)
-            .select('id')
-            .eq('class_id', courseData.class_id)
-            .eq('class_master_id', teacherProfile.id);
-          if (mastered && mastered.length > 0) {
-            isAllowed = true;
+          if (!classData) {
+            classData = await supabaseService.getById(COLLECTIONS.ACADEMIC_CLASSES, courseData.class_id);
+          }
+          if (classData && classData.name) {
+            const { data: mastered } = await supabase
+              .from(COLLECTIONS.GRADE_MASTERS)
+              .select('id')
+              .eq('grade', classData.name)
+              .eq('teacher_id', teacherProfile.id);
+            if (mastered && mastered.length > 0) {
+              isAllowed = true;
+            }
           }
         }
       } else {

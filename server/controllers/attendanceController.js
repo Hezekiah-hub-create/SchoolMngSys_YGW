@@ -2,7 +2,6 @@ const { supabaseService, COLLECTIONS } = require('../services/supabaseService');
 const supabase = require('../config/supabase');
 const { asyncHandler } = require('../middleware/errorMiddleware');
 const smsService = require('../services/smsService');
-const { normalizeSection } = require('../utils/sectionHelper');
 
 // Get all attendance with optimized filtering
 const getAllAttendance = asyncHandler(async (req, res) => {
@@ -17,13 +16,13 @@ const getAllAttendance = asyncHandler(async (req, res) => {
     if (teacherProfile) {
       const teacherId = teacherProfile.id;
       
-      // Get sections where they are Class Master OR teach subjects
-      const { data: masterSections } = await supabase.from(COLLECTIONS.SECTIONS).select('name, class:class_id(name)').eq('class_master_id', teacherId);
-      const { data: subjectSections } = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).select('section, class:class_id(name)').eq('teacher_id', teacherId);
+      // Get grades where they are Class Master OR teach subjects
+      const { data: masterGrades } = await supabase.from(COLLECTIONS.GRADE_MASTERS).select('grade').eq('teacher_id', teacherId);
+      const { data: subjectSections } = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).select('class:class_id(name)').eq('teacher_id', teacherId);
       
       const assignments = [
-        ...(masterSections || []).map(s => ({ grade: s.class?.name, section: s.name })),
-        ...(subjectSections || []).map(s => ({ grade: s.class?.name, section: s.section }))
+        ...(masterGrades || []).map(s => ({ grade: s.grade })),
+        ...(subjectSections || []).map(s => ({ grade: s.class?.name }))
       ];
 
       if (assignments.length > 0) {
@@ -41,17 +40,13 @@ const getAllAttendance = asyncHandler(async (req, res) => {
         for (const a of assignments) {
           if (!a.grade) continue;
           const gradesToSearch = getGradeVariations(a.grade);
-          const targetSec = normalizeSection(a.section);
 
           const { data: st } = await supabase
             .from(COLLECTIONS.STUDENTS)
-            .select('id, section')
+            .select('id')
             .in('grade', gradesToSearch);
             
-          const matched = (st || []).filter(s => {
-            return normalizeSection(s.section) === targetSec;
-          });
-          assignedStudents.push(...matched);
+          assignedStudents.push(...(st || []));
         }
 
         const studentIds = [...new Set(assignedStudents.map(s => s.id))];
@@ -153,23 +148,21 @@ const recordAttendance = asyncHandler(async (req, res) => {
     if (!academicClass) return res.status(403).json({ message: `Class mapping not found for student grade: ${studentGrade}` });
     const classId = academicClass.id;
 
-    // Check if teacher is master of student's section OR teaches subjects in this class/section
+    // Check if teacher is master of student's grade OR teaches subjects in this class
     const { data: isMaster } = await supabase
-      .from(COLLECTIONS.SECTIONS)
+      .from(COLLECTIONS.GRADE_MASTERS)
       .select('id')
-      .eq('class_id', classId)
-      .eq('name', studentData.section)
-      .eq('class_master_id', teacherId);
+      .eq('grade', studentGrade)
+      .eq('teacher_id', teacherId);
     
     const { data: teachesSubject } = await supabase
       .from(COLLECTIONS.CLASS_SUBJECTS)
       .select('id')
       .eq('class_id', classId)
-      .eq('section', studentData.section)
       .eq('teacher_id', teacherId);
 
     if ((!isMaster || isMaster.length === 0) && (!teachesSubject || teachesSubject.length === 0)) {
-        return res.status(403).json({ message: 'Access denied. You can only mark attendance for classes or sections assigned to you.' });
+        return res.status(403).json({ message: 'Access denied. You can only mark attendance for classes assigned to you.' });
     }
   }
 
@@ -201,12 +194,12 @@ const recordAttendance = asyncHandler(async (req, res) => {
   // Automated Phone Push Notification (SMS)
   if (['absent', 'late'].includes(String(status).toLowerCase())) {
     supabase.from(COLLECTIONS.STUDENTS)
-      .select('first_name, last_name, phone, guardian_phone, parent:parent_id(phone)')
+      .select('first_name, last_name, phone, emergency_contact, parent_ids')
       .eq('id', student)
       .single()
       .then(({ data: st }) => {
         if (st) {
-          const parentPhone = st.guardian_phone || st.phone || st.parent?.phone;
+          const parentPhone = st.emergency_contact?.phone || st.phone;
           const studentName = `${st.first_name || ''} ${st.last_name || ''}`.trim();
           smsService.sendAttendanceAlert({
             studentName,
@@ -277,11 +270,11 @@ const bulkRecordAttendance = asyncHandler(async (req, res) => {
   if (flagged.length > 0) {
     const studentIds = flagged.map(r => r.student_id);
     supabase.from(COLLECTIONS.STUDENTS)
-      .select('id, first_name, last_name, phone, guardian_phone, parent:parent_id(phone)')
+      .select('id, first_name, last_name, phone, emergency_contact, parent_ids')
       .in('id', studentIds)
       .then(({ data: stList }) => {
         (stList || []).forEach(st => {
-          const parentPhone = st.guardian_phone || st.phone || st.parent?.phone;
+          const parentPhone = st.emergency_contact?.phone || st.phone;
           const rec = flagged.find(r => r.student_id === st.id);
           if (rec && parentPhone) {
             const studentName = `${st.first_name || ''} ${st.last_name || ''}`.trim();

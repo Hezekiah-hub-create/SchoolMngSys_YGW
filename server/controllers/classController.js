@@ -19,11 +19,9 @@ const getAllClasses = asyncHandler(async (req, res) => {
   
   if (teacherProfile) {
     // Get class IDs where the teacher is assigned
-    const { data: sectionAssignments } = await supabase.from(COLLECTIONS.SECTIONS).select('class_id').eq('class_master_id', teacherProfile.id);
     const { data: subjectAssignments } = await supabase.from(COLLECTIONS.CLASS_SUBJECTS).select('class_id').eq('teacher_id', teacherProfile.id);
     
     const classIds = new Set([
-      ...(sectionAssignments || []).map(s => s.class_id),
       ...(subjectAssignments || []).map(s => s.class_id)
     ]);
 
@@ -40,12 +38,7 @@ const getAllClasses = asyncHandler(async (req, res) => {
 
   // Enrich classes with sections and subjects using joins
   const enrichedClasses = await Promise.all(classes.map(async (cls) => {
-    // 1. Fetch sections
-    let sectionsQuery = supabase.from(COLLECTIONS.SECTIONS).select('*').eq('class_id', cls.id);
-    const { data: sectionsData } = await sectionsQuery;
-    let sections = sectionsData || [];
-
-    // 2. Fetch subject assignments with details
+    // 1. Fetch subject assignments with details
     const { data: classSubjects } = await supabase
       .from(COLLECTIONS.CLASS_SUBJECTS)
       .select(`
@@ -57,15 +50,6 @@ const getAllClasses = asyncHandler(async (req, res) => {
     
     const assignments = classSubjects || [];
 
-    // Filter sections for teachers
-    if (teacherProfile) {
-      const assignedSectionNames = assignments
-        .filter(a => a.teacher_id === teacherProfile.id)
-        .map(a => a.section);
-      
-      sections = sections.filter(s => s.class_master_id === teacherProfile.id || assignedSectionNames.includes(s.name));
-    }
-
     // Group subjects
     const groupedSubjects = [];
     const processedSubjectIds = new Set();
@@ -75,8 +59,7 @@ const getAllClasses = asyncHandler(async (req, res) => {
         if (!processedSubjectIds.has(item.subject.id)) {
           groupedSubjects.push({
             ...item.subject,
-            teachers: item.teacher ? [item.teacher] : [],
-            sections: [item.section]
+            teachers: item.teacher ? [item.teacher] : []
           });
           processedSubjectIds.add(item.subject.id);
         } else {
@@ -84,16 +67,12 @@ const getAllClasses = asyncHandler(async (req, res) => {
           if (item.teacher && !existing.teachers.find(t => t.id === item.teacher.id)) {
             existing.teachers.push(item.teacher);
           }
-          if (!existing.sections.includes(item.section)) {
-            existing.sections.push(item.section);
-          }
         }
       }
     });
 
     return {
       ...cls,
-      sections,
       subjects: groupedSubjects
     };
   }));
@@ -177,22 +156,16 @@ const assignSubjects = asyncHandler(async (req, res) => {
       .in('subject_id', subjectsToRemove);
   }
 
-  // 4. Add new subjects for all sections
+  // 4. Add new subjects
   if (subjectsToAdd.length > 0) {
-    const { data: sections } = await supabase.from(COLLECTIONS.SECTIONS).select('name').eq('class_id', classId);
-    const sectionNames = sections && sections.length > 0 ? sections.map(s => s.name) : ['A'];
-
     for (const subjectId of subjectsToAdd) {
-      for (const sectionName of sectionNames) {
-        try {
-          await supabaseService.create(COLLECTIONS.CLASS_SUBJECTS, {
-            class_id: classId,
-            subject_id: subjectId,
-            section: sectionName
-          });
-        } catch (err) {
-          // Ignore conflict errors
-        }
+      try {
+        await supabaseService.create(COLLECTIONS.CLASS_SUBJECTS, {
+          class_id: classId,
+          subject_id: subjectId
+        });
+      } catch (err) {
+        // Ignore conflict errors
       }
     }
   }

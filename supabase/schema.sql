@@ -38,7 +38,6 @@ CREATE TABLE IF NOT EXISTS students (
   religion TEXT,
   -- Grade level: KG1, KG2, Basic 1-6, JHS 1-3
   grade TEXT NOT NULL CHECK (grade IN ('KG 1','KG 2','KG 3','Basic 1','Basic 2','Basic 3','Basic 4','Basic 5','Basic 6','Basic 7','Basic 8','Basic 9','SSS 1','SSS 2','SSS 3','JHS 1','JHS 2','JHS 3')),
-  section TEXT DEFAULT 'A',
   academic_year TEXT NOT NULL,
   date_of_admission DATE DEFAULT CURRENT_DATE,
   previous_school TEXT,                -- Transfer students
@@ -85,7 +84,6 @@ CREATE TABLE IF NOT EXISTS teachers (
   address JSONB DEFAULT '{}',
   -- emergencyContact: {name, relationship, phone, email}
   emergency_contact JSONB DEFAULT '{}',
-  salary NUMERIC DEFAULT 0,
   -- bankAccount: {bankName, accountNumber, accountName, branch}
   bank_account JSONB DEFAULT '{}',
   social_security TEXT,
@@ -122,7 +120,6 @@ CREATE TABLE IF NOT EXISTS staff (
   position TEXT,
   date_of_employment DATE DEFAULT CURRENT_DATE,
   contract_type TEXT DEFAULT 'permanent' CHECK (contract_type IN ('permanent', 'contract', 'part_time')),
-  salary NUMERIC DEFAULT 0,
   -- bankAccount: {bankName, accountNumber, accountName}
   bank_account JSONB DEFAULT '{}',
   -- address: {street, city, region, country}
@@ -180,20 +177,6 @@ ALTER TABLE academic_classes ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all for authenticated" ON academic_classes;
 CREATE POLICY "Enable all for authenticated" ON academic_classes FOR ALL USING (true);
 
--- ==================== SECTIONS TABLE ====================
-CREATE TABLE IF NOT EXISTS sections (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  class_master_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  academic_year TEXT NOT NULL DEFAULT '2024/2025',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE sections ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Enable all for authenticated" ON sections;
-CREATE POLICY "Enable all for authenticated" ON sections FOR ALL USING (true);
 
 -- ==================== SUBJECTS TABLE ====================
 CREATE TABLE IF NOT EXISTS subjects (
@@ -216,10 +199,9 @@ CREATE TABLE IF NOT EXISTS class_subjects (
   class_id UUID REFERENCES academic_classes(id) ON DELETE CASCADE,
   subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
   teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  section TEXT NOT NULL DEFAULT 'A',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (class_id, subject_id, section)
+  UNIQUE (class_id, subject_id)
 );
 
 ALTER TABLE class_subjects ENABLE ROW LEVEL SECURITY;
@@ -411,7 +393,6 @@ CREATE TABLE IF NOT EXISTS report_cards (
   academic_year TEXT NOT NULL,
   term TEXT NOT NULL CHECK (term IN ('1st', '2nd', '3rd', '4th')),
   grade TEXT NOT NULL,
-  section TEXT,
   -- subjectResults: [{course, totalScore, letterGrade, gradePoint, classPosition, teacherRemarks}]
   subject_results JSONB DEFAULT '[]',
   total_marks NUMERIC DEFAULT 0,
@@ -444,7 +425,6 @@ CREATE TABLE IF NOT EXISTS timetable (
   academic_year TEXT NOT NULL,
   term TEXT NOT NULL CHECK (term IN ('1st', '2nd', '3rd', '4th')),
   grade TEXT NOT NULL,
-  section TEXT DEFAULT 'A',
   day TEXT NOT NULL CHECK (day IN ('monday', 'tuesday', 'wednesday', 'thursday', 'friday')),
   period INTEGER NOT NULL CHECK (period BETWEEN 1 AND 10),
   start_time TEXT NOT NULL,            -- e.g. "07:30"
@@ -457,7 +437,7 @@ CREATE TABLE IF NOT EXISTS timetable (
   created_by UUID REFERENCES users(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (academic_year, term, grade, section, day, period)
+  UNIQUE (academic_year, term, grade, day, period)
 );
 
 ALTER TABLE timetable ENABLE ROW LEVEL SECURITY;
