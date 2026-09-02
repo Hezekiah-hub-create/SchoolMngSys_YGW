@@ -434,12 +434,21 @@ const getStudentGrades = asyncHandler(async (req, res) => {
     grades = [];
   } else if (grades) {
     // Map the joined data so frontend gets subject and courseName
-    grades = grades.map(g => ({
-      ...g,
-      subject: g.course?.subject?.name || 'General Subject',
-      courseName: g.course?.subject?.name || 'General Subject',
-      className: g.course?.class?.name || g.term
-    }));
+    grades = grades.map(g => {
+      const rawTot = Number(g.total_score ?? g.score ?? 0);
+      const percentage = Number(g.percentage ?? (rawTot > 100 ? Math.round(rawTot / 2) : rawTot));
+      return {
+        ...g,
+        score: percentage,
+        totalScore: percentage,
+        percentage: percentage,
+        rawScore: percentage,
+        maxScore: 100,
+        subject: g.course?.subject?.name || g.subject || g.course_name || 'General Subject',
+        courseName: g.course?.subject?.name || g.subject || g.course_name || 'General Subject',
+        className: g.course?.class?.name || g.term
+      };
+    });
   }
 
   if (academicYear) {

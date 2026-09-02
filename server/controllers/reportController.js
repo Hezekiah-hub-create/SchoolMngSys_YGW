@@ -277,6 +277,8 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     const cat = (cs.subject?.category || 'CORE').toUpperCase();
     subjectMap.set(sName, {
       id: cs.subject_id || cs.id,
+      classSubjectId: cs.id,
+      subjectId: cs.subject_id,
       name: sName,
       category: cat.includes('ELECTIVE') ? 'ELECTIVE' : 'CORE'
     });
@@ -315,6 +317,7 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       const cat = (gsDetail?.subject?.category || 'CORE').toUpperCase();
       subjectMap.set(sName, {
         id: g.course_id,
+        classSubjectId: g.course_id,
         name: sName,
         category: cat.includes('ELECTIVE') ? 'ELECTIVE' : 'CORE'
       });
@@ -326,13 +329,21 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
     const sNameNorm = String(sInfo.name || '').toLowerCase().trim();
     const grade = grades.find(g => {
       const gCourseId = String(g.course_id || g.course || '');
-      const gCourseName = String(g.course_name || g.subject_name || g.course || '').toLowerCase().trim();
+      const gCourseName = String(g.course_name || g.subject_name || '').toLowerCase().trim();
       const gsName = String(gradeSubjectNames.find(gs => String(gs.id) === gCourseId)?.subject?.name || '').toLowerCase().trim();
       
-      return (gCourseId && gCourseId === String(sInfo.id)) ||
-             gCourseName === sNameNorm ||
-             gsName === sNameNorm ||
-             (sNameNorm.length > 3 && (gCourseName.includes(sNameNorm) || sNameNorm.includes(gCourseName)));
+      // Match by exact IDs
+      if (gCourseId && (
+        gCourseId === String(sInfo.id) || 
+        gCourseId === String(sInfo.classSubjectId) || 
+        gCourseId === String(sInfo.subjectId)
+      )) return true;
+      
+      // Match by exact or partial subject name ONLY if name is non-empty
+      if (gsName && (gsName === sNameNorm || (gsName.length > 3 && sNameNorm.includes(gsName)) || (sNameNorm.length > 3 && gsName.includes(sNameNorm)))) return true;
+      if (gCourseName && (gCourseName === sNameNorm || (gCourseName.length > 3 && sNameNorm.includes(gCourseName)) || (sNameNorm.length > 3 && gCourseName.includes(sNameNorm)))) return true;
+
+      return false;
     });
     
     let classScore = Number(grade?.class_score ?? 0);

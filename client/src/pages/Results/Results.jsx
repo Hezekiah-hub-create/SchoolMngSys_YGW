@@ -314,8 +314,14 @@ const Results = () => {
             <>
               {isParent && <StatCard title="Children" value={children.length} icon={<Icons.Award />} color="var(--brand-green)" />}
               <StatCard title="Records" value={displayResults.length} icon={<Icons.FileText />} color="var(--brand-yellow)" />
-              <StatCard title="Overall Avg" value={`${displayResults.length > 0 ? Math.round(displayResults.reduce((a, g) => a + (Number(g.score) || Number(g.totalScore) || 0), 0) / displayResults.length) : 0}%`} icon={<Icons.TrendingUp />} color="#0ea5e9" />
-              <StatCard title="Status" value={displayResults.length > 0 ? (displayResults.reduce((a, g) => a + (Number(g.score) || 0), 0) / displayResults.length >= 50 ? 'On Track' : 'Needs Support') : 'No Records'} icon={<Icons.Activity />} color="#8b5cf6" />
+              <StatCard title="Overall Avg" value={`${displayResults.length > 0 ? Math.round(displayResults.reduce((a, g) => {
+                const raw = Number(g.score || g.totalScore || g.percentage || 0);
+                return a + Number(g.percentage ?? (raw > 100 ? Math.round(raw / 2) : raw));
+              }, 0) / displayResults.length) : 0}%`} icon={<Icons.TrendingUp />} color="#0ea5e9" />
+              <StatCard title="Status" value={displayResults.length > 0 ? (displayResults.reduce((a, g) => {
+                const raw = Number(g.score || g.totalScore || g.percentage || 0);
+                return a + Number(g.percentage ?? (raw > 100 ? Math.round(raw / 2) : raw));
+              }, 0) / displayResults.length >= 50 ? 'On Track' : 'Needs Support') : 'No Records'} icon={<Icons.Activity />} color="#8b5cf6" />
             </>
           ) : (
             <>
@@ -362,7 +368,8 @@ const Results = () => {
                 {displayResults.length > 0 ? displayResults.map((r, i) => {
                   const sId = r.studentId || r.student?._id || r.student?.id;
                   const student = children.find(c => (c.id || c._id) === sId) || r.student;
-                  const score = Number(r.score || r.totalScore || r.percentage || 0);
+                  const rawScore = Number(r.score || r.totalScore || r.percentage || 0);
+                  const score = Number(r.percentage ?? (rawScore > 100 ? Math.round(rawScore / 2) : rawScore));
                   return (
                     <div key={r.id || i} style={{ padding: '20px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.borderColor = '#00843e'} onMouseOut={(e) => e.currentTarget.style.borderColor = '#f1f5f9'}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -374,7 +381,7 @@ const Results = () => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <p style={{ fontSize: '18px', fontWeight: '800', color: score >= 70 ? '#00843e' : score >= 50 ? '#f59e0b' : '#ef4444', margin: 0 }}>
-                          {r.rawScore !== undefined ? `${r.rawScore} / ${r.maxScore || 100} (${score}%)` : `${score}%`}
+                          {score}%
                         </p>
                         <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>Grade: {r.grade || (score >= 70 ? 'A' : score >= 60 ? 'B' : score >= 50 ? 'C' : 'F')}</p>
                       </div>

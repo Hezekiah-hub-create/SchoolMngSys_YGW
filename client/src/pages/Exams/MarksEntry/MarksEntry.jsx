@@ -113,7 +113,7 @@ const MarksEntry = () => {
         setSettings(settingsRes.data.settings);
         setFilters(prev => ({ 
           ...prev, 
-          term: settingsRes.data.settings.currentTerm || '1st'
+          term: settingsRes.data.settings.current_term || settingsRes.data.settings.currentTerm || '1st'
         }));
       }
 

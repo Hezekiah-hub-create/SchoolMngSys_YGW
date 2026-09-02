@@ -366,13 +366,15 @@ const getMyChildrenGrades = asyncHandler(async (req, res) => {
   // 1. Terminal Grades
   (grades || []).forEach(g => {
     if (studentIds.includes(g.student_id)) {
-      const numericScore = Number(g.score || g.total_score || 0);
-      const letterGrade = g.letter_grade || (numericScore >= 70 ? 'A' : numericScore >= 60 ? 'B' : numericScore >= 50 ? 'C' : 'F');
+      const rawTot = Number(g.total_score ?? g.score ?? 0);
+      const percentage = Number(g.percentage ?? (rawTot > 100 ? Math.round(rawTot / 2) : rawTot));
+      const letterGrade = g.letter_grade || g.grade || (percentage >= 70 ? 'A' : percentage >= 60 ? 'B' : percentage >= 50 ? 'C' : 'F');
       flatGrades.push({
         id: g.id,
         subject: g.subject_name || g.subject || courseMap[g.course_id] || 'Academic Subject',
-        score: numericScore,
-        rawScore: numericScore,
+        score: percentage,
+        percentage: percentage,
+        rawScore: percentage,
         maxScore: 100,
         grade: letterGrade,
         term: g.term || '1st Term',
