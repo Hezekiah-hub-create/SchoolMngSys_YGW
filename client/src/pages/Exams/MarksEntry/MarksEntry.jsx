@@ -56,6 +56,8 @@ const MarksEntry = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', title, message }
   
+  const currentYear = settings?.currentSession || settings?.academicYear || settings?.academic_year || settings?.current_session || '2024/2025';
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -291,9 +293,6 @@ const MarksEntry = () => {
   const submitMarks = async () => {
     try {
       setSaving(true);
-      const currentYear = settings?.currentSession || '2024/2025';
-      console.log('Submitting marks with academic_year:', currentYear, 'term:', filters.term);
-      
       const isKG = filters.grade?.toUpperCase().includes('KG');
       const selectedCourseName = courses.find(c => (c.id === filters.courseId || c._id === filters.courseId))?.name || '';
       
@@ -336,17 +335,12 @@ const MarksEntry = () => {
         };
       });
 
-
-      console.log('Grades to submit:', gradesToSubmit);
-      
       const response = await gradeAPI.submitBatch({ grades: gradesToSubmit });
-      console.log('Submit response:', response.data);
       if (response.data.success) {
         const count = response.data.count;
         const failed = response.data.failed || [];
         if (failed.length > 0) {
-          console.error('Failed grades:', failed);
-          showToast('error', 'Partial Sync', `${count} records saved, but ${failed.length} failed. Check console for details.`);
+          showToast('error', 'Partial Sync', `${count} records saved, but ${failed.length} failed. Please verify the entries.`);
         } else {
           showToast('success', 'Synchronization Complete', `${count} student record${count !== 1 ? 's' : ''} successfully committed to the ledger.`);
         }
