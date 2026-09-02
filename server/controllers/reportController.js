@@ -119,9 +119,10 @@ const mapSubjectRows = (grades) => {
   const rows = grades.map((grade) => {
     // Assessments are stored in a JSON field in Supabase
     const assessments = grade.assessments || {};
-    const classScore = Number(assessments.classwork || 0) + Number(assessments.homework || 0) + Number(assessments.midterm || 0);
-    const examScore = Number(assessments.finalExam || assessments.final || 0);
-    const total = Number(grade.total_score ?? grade.total ?? (classScore + examScore));
+    const classScore = Number(grade.class_score ?? (Number(assessments.classwork || 0) + Number(assessments.homework || 0) + Number(assessments.midterm || 0)));
+    const examScore = Number(grade.exam_score ?? (assessments.finalExam || assessments.final || 0));
+    const rawTotal = classScore + examScore;
+    const total = Number(grade.percentage ?? (rawTotal > 100 ? Math.round(rawTotal / 2) : rawTotal));
     
     return {
       name: grade.course_name || grade.subject_name || 'Subject',
@@ -371,10 +372,10 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
       }
     }
 
-    // rawTotal is out of 200; grade on percentage (rawTotal/2)
+    // rawTotal is out of 200; total & grade on percentage (rawTotal/2)
     const rawTotal = classScore + examScore;
-    const total = Number(grade?.total_score ?? rawTotal);
-    const percentage = Math.round(total / 2);
+    const percentage = Number(grade?.percentage ?? (rawTotal > 100 ? Math.round(rawTotal / 2) : (rawTotal > 0 ? Math.round(rawTotal / 2) : 0)));
+    const total = percentage;
 
     const isPlaceholderGrade = (g) => !g || String(g).trim() === '9' || String(g).trim() === '9.0' || String(g).trim() === '--';
     const computedLetter = (!isPlaceholderGrade(grade?.letter_grade) && grade?.letter_grade) 
@@ -408,8 +409,8 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
         cs = Number(g.class_score || 0);
         es = Number(g.exam_score || 0);
       }
-      const tot = Number(g.total_score ?? (cs + es));
-      const totPct = Math.round(tot / 2);
+      const rawTot = cs + es;
+      const totPct = Number(g.percentage ?? (rawTot > 100 ? Math.round(rawTot / 2) : (rawTot > 0 ? Math.round(rawTot / 2) : 0)));
       const isPlaceholder = (lg) => !lg || String(lg).trim() === '9' || String(lg).trim() === '9.0' || String(lg).trim() === '--';
       const letter = (!isPlaceholder(g.letter_grade) && g.letter_grade) ? g.letter_grade : fallbackGradeBand(totPct, settings);
 
@@ -419,7 +420,7 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
         assessments: g.assessments || [],
         classScore: cs,
         examScore: es,
-        total: tot,
+        total: totPct,
         position: toOrdinal(g.position),
         grade: letter,
         gradeValue: totPct > 0 ? getGradeValue(totPct, settings) : '--',

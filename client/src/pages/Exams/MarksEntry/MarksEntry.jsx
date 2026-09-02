@@ -695,7 +695,7 @@ const MarksEntry = () => {
 
                             <td style={{ padding: '20px 24px' }}>
                               <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{percentage}%</p>
-                              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0', fontWeight: '600' }}>Raw: {total}/200</p>
+                              <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0', fontWeight: '700' }}>Score: {percentage}/100</p>
                             </td>
                             <td style={{ padding: '20px 24px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

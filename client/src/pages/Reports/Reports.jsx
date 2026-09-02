@@ -1226,7 +1226,7 @@ const ReportTemplate = ({ data }) => {
                 <th style={{ width: '25%', textAlign: 'left', padding: getDensityStyle('headerPadding'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>CURRICULUM NODES</th>
                 {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>CLASS [100]</th>}
                 <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>EXAM [{isMidTerm ? '100' : '100'}]</th>
-                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>TOTAL [200]</th>}
+                {!isMidTerm && <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>TOTAL [100%]</th>}
                 <th style={{ width: '10%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>POS.</th>
                 <th style={{ width: '8%', textAlign: 'center', padding: getDensityStyle('headerSize'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>GRADE</th>
                 <th style={{ width: '22%', textAlign: 'left', padding: getDensityStyle('headerPadding'), fontSize: getDensityStyle('headerSize'), fontWeight: '900' }}>INTERPRETATION</th>
