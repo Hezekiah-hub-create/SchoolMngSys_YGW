@@ -1037,18 +1037,20 @@ const Timetable = () => {
                         const isBreak = period.isBreak || periodData?.isBreak;
                         const subjectName = periodData ? getCourseName(periodData.subject) : (isBreak ? period.name : '');
                         const color = getSubjectColor(subjectName);
+                        const isToday = todayName === day && !isTodayWeekend;
+                        const isPeriodLive = active && isToday && !isBreak && periodData;
                         
                         return (
                           <div 
                             key={day} 
-                            className={`period-card-premium ${isBreak ? 'is-break' : ''} ${active && !isBreak && periodData ? 'is-active' : ''}`}
+                            className={`period-card-premium ${isBreak ? 'is-break' : ''} ${isPeriodLive ? 'is-active' : ''}`}
                             style={{ 
                               cursor: canEdit && !isBreak ? 'pointer' : 'default',
                               borderTop: (isBreak || periodData) ? `6px solid ${color}` : undefined,
                             }}
                             onClick={() => canEdit && !isBreak && openEditModal(day, period.period)}
                           >
-                            {active && !isBreak && periodData && (
+                            {isPeriodLive && (
                               <div className="live-indicator">
                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', animation: 'pulse 1.5s infinite' }}></span>
                                 LIVE
