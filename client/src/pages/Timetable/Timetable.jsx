@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { timetableAPI, teacherAPI, courseAPI, parentAPI, academicSubjectsAPI, settingsAPI } from '../../services/api';
@@ -64,6 +64,13 @@ const Timetable = () => {
   const [currentSession, setCurrentSession] = useState('2024-2025');
   
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const [selectedDay, setSelectedDay] = useState('All'); // 'All' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday'
+
+  const visibleDays = useMemo(() => {
+    if (selectedDay === 'All') return days;
+    return [selectedDay];
+  }, [selectedDay]);
+
   const [periods, setPeriods] = useState(DEFAULT_PERIODS);
   const [periodModalOpen, setPeriodModalOpen] = useState(false);
   
@@ -661,29 +668,29 @@ const Timetable = () => {
               <div style={{
                 backgroundColor: '#fffbeb',
                 border: '1px solid #fde68a',
-                borderRadius: '24px',
-                padding: '20px 32px',
+                borderRadius: '20px',
+                padding: '14px 24px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '20px',
-                animation: 'chronosSlideUp 0.6s ease-out forwards',
-                boxShadow: '0 10px 30px rgba(217, 119, 6, 0.08)'
+                gap: '14px',
+                boxShadow: '0 4px 12px rgba(217, 119, 6, 0.05)'
               }}>
                 <div style={{
-                  width: '48px',
-                  height: '48px',
+                  width: '36px',
+                  height: '36px',
                   backgroundColor: '#f59e0b',
-                  borderRadius: '16px',
+                  borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'white'
+                  color: 'white',
+                  flexShrink: 0
                 }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#92400e', textTransform: 'uppercase', letterSpacing: '1px' }}>Weekend Mode Active</h4>
-                  <p style={{ margin: '4px 0 0', fontSize: '14px', fontWeight: '600', color: '#b45309' }}>The institutional chronos matrix is currently off-cycle. Systems will resume normal temporal flow on Monday.</p>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '900', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Weekend (Off-Cycle)</h4>
+                  <p style={{ margin: '2px 0 0', fontSize: '13px', fontWeight: '600', color: '#b45309' }}>Viewing institutional schedules in reference mode. Full operational flow resumes on Monday.</p>
                 </div>
               </div>
             )}
@@ -777,7 +784,7 @@ const Timetable = () => {
 
               <div style={{ flex: 1 }}></div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 {isAdmin && (
                   <>
                     <button 
@@ -805,10 +812,10 @@ const Timetable = () => {
                   </>
                 )}
                 {isAdmin && (
-                  <button onClick={fetchData} disabled={isTodayWeekend} className="premium-btn-primary" style={{ padding: '12px 24px', height: 'auto', opacity: isTodayWeekend ? 0.6 : 1, cursor: isTodayWeekend ? 'not-allowed' : 'pointer' }}>Sync Matrix</button>
+                  <button onClick={fetchData} className="premium-btn-primary" style={{ padding: '12px 24px', height: 'auto', cursor: 'pointer' }}>Sync Matrix</button>
                 )}
                 {!isAdmin && (
-                  <button onClick={fetchData} disabled={isTodayWeekend} className="premium-btn-primary" style={{ padding: '12px 24px', height: 'auto', opacity: isTodayWeekend ? 0.6 : 1, cursor: isTodayWeekend ? 'not-allowed' : 'pointer' }}>Refresh</button>
+                  <button onClick={fetchData} className="premium-btn-primary" style={{ padding: '12px 24px', height: 'auto', cursor: 'pointer' }}>Refresh</button>
                 )}
                 {isAdmin && timetableId && (
                   <button onClick={handleResetTimetable} disabled={resetting} style={{ padding: '12px 20px', borderRadius: '16px', border: 'none', backgroundColor: '#fee2e2', color: '#dc2626', fontSize: '13px', fontWeight: '800', cursor: resetting ? 'not-allowed' : 'pointer' }}>{resetting ? 'Purging...' : 'Purge'}</button>
@@ -817,24 +824,169 @@ const Timetable = () => {
             </div>
           )}
 
+          {/* Day Scope Filter Bar */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '28px',
+            backgroundColor: 'var(--chronos-glass)',
+            backdropFilter: 'blur(12px)',
+            padding: '12px 20px',
+            borderRadius: '24px',
+            border: '1px solid var(--chronos-glass-border)',
+            boxShadow: 'var(--chronos-card-shadow)',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: '900', color: 'var(--chronos-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginRight: '6px' }}>
+                Schedule Scope:
+              </span>
+              
+              <button
+                onClick={() => setSelectedDay('All')}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '16px',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease',
+                  backgroundColor: selectedDay === 'All' ? 'var(--chronos-primary)' : 'white',
+                  color: selectedDay === 'All' ? 'white' : 'var(--chronos-text-muted)',
+                  boxShadow: selectedDay === 'All' ? '0 6px 16px rgba(0, 132, 62, 0.25)' : 'none'
+                }}
+              >
+                Full Week (All Days)
+              </button>
+
+              {days.map(day => {
+                const isSelected = selectedDay === day;
+                const isToday = todayName === day;
+
+                return (
+                  <button
+                    key={day}
+                    onClick={() => setSelectedDay(day)}
+                    style={{
+                      padding: '10px 18px',
+                      borderRadius: '16px',
+                      border: isToday && !isSelected ? '1.5px solid var(--chronos-primary)' : 'none',
+                      fontSize: '13px',
+                      fontWeight: '900',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                      backgroundColor: isSelected ? 'var(--chronos-primary)' : 'white',
+                      color: isSelected ? 'white' : (isToday ? 'var(--chronos-primary)' : 'var(--chronos-text-muted)'),
+                      boxShadow: isSelected ? '0 6px 16px rgba(0, 132, 62, 0.25)' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    {day}
+                    {isToday && (
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: '900',
+                        padding: '2px 6px',
+                        borderRadius: '8px',
+                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'hsla(var(--chronos-primary-hsl), 0.1)',
+                        color: isSelected ? 'white' : 'var(--chronos-primary)',
+                        textTransform: 'uppercase'
+                      }}>
+                        Today
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedDay !== 'All' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  onClick={() => {
+                    const idx = days.indexOf(selectedDay);
+                    const prevIdx = (idx - 1 + days.length) % days.length;
+                    setSelectedDay(days[prevIdx]);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    backgroundColor: 'white',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    color: 'var(--chronos-text-main)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  ← Previous Day
+                </button>
+
+                <span style={{ fontSize: '13px', fontWeight: '900', color: 'var(--chronos-primary)' }}>
+                  {selectedDay}
+                </span>
+
+                <button
+                  onClick={() => {
+                    const idx = days.indexOf(selectedDay);
+                    const nextIdx = (idx + 1) % days.length;
+                    setSelectedDay(days[nextIdx]);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    backgroundColor: 'white',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    color: 'var(--chronos-text-main)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  Next Day →
+                </button>
+              </div>
+            )}
+          </div>
+
           {loading ? (
             <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--chronos-glass)', borderRadius: '40px', border: '1px solid var(--chronos-glass-border)' }}>
               <div className="premium-loader"></div>
             </div>
           ) : (
             <div className="timetable-grid-wrapper">
-              <div className="day-headers">
+              <div className="day-headers" style={{ gridTemplateColumns: visibleDays.length === 1 ? '180px 1fr' : `180px repeat(${visibleDays.length}, 1fr)` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingLeft: '20px' }}>
                   <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--chronos-primary)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 12px 24px rgba(0, 132, 62, 0.25)' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </div>
                   <div>
                     <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--chronos-text-muted)', textTransform: 'uppercase', letterSpacing: '2px', display: 'block' }}>Chronos</span>
-                    <span style={{ fontSize: '16px', fontWeight: '900', color: 'var(--chronos-text-main)' }}>Axis</span>
+                    <span style={{ fontSize: '16px', fontWeight: '900', color: 'var(--chronos-text-main)' }}>
+                      {selectedDay === 'All' ? 'Axis' : `${selectedDay}`}
+                    </span>
                   </div>
                 </div>
-                {days.map(day => (
-                  <div key={day} className={`day-header-card ${todayName === day ? 'is-today' : ''}`}>{day}</div>
+                {visibleDays.map(day => (
+                  <div key={day} className={`day-header-card ${todayName === day ? 'is-today' : ''}`}>
+                    {day}
+                    {todayName === day && (
+                      <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', marginTop: '4px', color: 'var(--chronos-primary)', textTransform: 'uppercase' }}>
+                        • Today •
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
 
@@ -843,6 +995,7 @@ const Timetable = () => {
                   const active = isPeriodActive(period.time);
                   return (
                     <div key={period.period} className="temporal-row" style={{ 
+                      gridTemplateColumns: visibleDays.length === 1 ? '180px 1fr' : `180px repeat(${visibleDays.length}, 1fr)`,
                       animation: `chronosSlideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards ${pIndex * 0.05}s`,
                       opacity: 0
                     }}>
@@ -879,7 +1032,7 @@ const Timetable = () => {
                         </div>
                       </div>
 
-                      {days.map(day => {
+                      {visibleDays.map(day => {
                         const periodData = getPeriodData(day, period.period);
                         const isBreak = period.isBreak || periodData?.isBreak;
                         const subjectName = periodData ? getCourseName(periodData.subject) : (isBreak ? period.name : '');
@@ -903,31 +1056,73 @@ const Timetable = () => {
                             )}
 
                             {(periodData || isBreak) ? (
-                              <>
-                                <div>
-                                  <div className="node-label" style={{ color: isBreak ? 'var(--chronos-text-muted)' : `${color}bb` }}>{period.name}</div>
-                                  <div className="subject-badge-premium">
-                                    {subjectName}
+                              visibleDays.length === 1 ? (
+                                /* Single-Day Detailed Layout */
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '20px', flexWrap: 'wrap' }}>
+                                  <div>
+                                    <div className="node-label" style={{ color: isBreak ? 'var(--chronos-text-muted)' : `${color}bb`, marginBottom: '4px' }}>
+                                      {period.name} {period.time ? `• ${period.time}` : ''}
+                                    </div>
+                                    <div className="subject-badge-premium" style={{ fontSize: '22px' }}>
+                                      {subjectName}
+                                    </div>
                                   </div>
-                                </div>
-                                
-                                <div className="teacher-info">
-                                  {periodData?.teacher && !isBreak && (
-                                    <>
-                                      <div className="teacher-avatar-small" style={{ backgroundColor: `${color}15`, color: color, borderColor: `${color}30` }}>
-                                        {periodData.teacher.split(' ').map(n => n[0]).join('').toUpperCase()}
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+                                    {periodData?.teacher && !isBreak && (
+                                      <div className="teacher-info" style={{ margin: 0 }}>
+                                        <div className="teacher-avatar-small" style={{ backgroundColor: `${color}15`, color: color, borderColor: `${color}30`, width: '34px', height: '34px', fontSize: '13px' }}>
+                                          {periodData.teacher.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <span style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>Educator</span>
+                                          <span style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>{periodData.teacher}</span>
+                                        </div>
                                       </div>
-                                      {periodData.teacher}
-                                    </>
-                                  )}
-                                </div>
-                                {periodData?.room && !isBreak && (
-                                  <div className="room-info">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                    Node {periodData.room}
+                                    )}
+
+                                    {periodData?.room && !isBreak && (
+                                      <div className="room-info" style={{ margin: 0, padding: '8px 16px', backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: '12px' }}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        <span style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>Node {periodData.room}</span>
+                                      </div>
+                                    )}
+
+                                    {canEdit && !isBreak && (
+                                      <div style={{ padding: '8px 14px', backgroundColor: 'hsla(var(--chronos-primary-hsl), 0.08)', color: 'var(--chronos-primary)', borderRadius: '12px', fontSize: '12px', fontWeight: '900' }}>
+                                        Edit Period ✎
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </>
+                                </div>
+                              ) : (
+                                /* Full-Week Compact Grid Layout */
+                                <>
+                                  <div>
+                                    <div className="node-label" style={{ color: isBreak ? 'var(--chronos-text-muted)' : `${color}bb` }}>{period.name}</div>
+                                    <div className="subject-badge-premium">
+                                      {subjectName}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="teacher-info">
+                                    {periodData?.teacher && !isBreak && (
+                                      <>
+                                        <div className="teacher-avatar-small" style={{ backgroundColor: `${color}15`, color: color, borderColor: `${color}30` }}>
+                                          {periodData.teacher.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                        </div>
+                                        {periodData.teacher}
+                                      </>
+                                    )}
+                                  </div>
+                                  {periodData?.room && !isBreak && (
+                                    <div className="room-info">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                      Node {periodData.room}
+                                    </div>
+                                  )}
+                                </>
+                              )
                             ) : (
                               <div className="open-slot" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                 <span className="node-label" style={{ margin: 0, opacity: 0.2 }}>{period.name}</span>

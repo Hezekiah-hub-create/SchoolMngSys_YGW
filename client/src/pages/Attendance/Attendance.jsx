@@ -154,6 +154,18 @@ const Attendance = () => {
     }
   }, []);
 
+  const [parentAllRecords, setParentAllRecords] = useState([]);
+  const [parentSummaries, setParentSummaries] = useState({});
+  const [parentStatusFilter, setParentStatusFilter] = useState('all');
+  const [parentSearchQuery, setParentSearchQuery] = useState('');
+  const [parentSelectedCalendarDate, setParentSelectedCalendarDate] = useState(null);
+
+  const mapSectionName = (name) => {
+    if (!name) return '';
+    const str = String(name).trim();
+    return str.replace(/^section\s+/i, '');
+  };
+
   const isStudent = currentUser?.role === 'student';
 
   const [summary, setSummary] = useState(null);
@@ -169,52 +181,69 @@ const Attendance = () => {
 
       if (isStudent) {
         const studentId = currentUser.studentId || currentUser.id;
-        const [studentRes, summaryRes] = await Promise.all([
+        const [studentRes, summaryRes, attRes] = await Promise.all([
           studentAPI.getById(studentId),
-          attendanceAPI.getSummary(studentId)
+          attendanceAPI.getSummary(studentId),
+          attendanceAPI.getStudentAttendance(studentId)
         ]);
         if (studentRes.data?.success) targetStudents = [studentRes.data.data];
         if (summaryRes.data?.success) summaryData = summaryRes.data.data;
+        if (attRes.data?.success) setRecords(attRes.data.data || []);
       } else if (isParent) {
-        if (linkedStudents.length === 0) {
-          const parentRes = await parentAPI.getMyChildren();
-          if (parentRes.data?.success) {
-            const children = parentRes.data.data;
-            setLinkedStudents(children);
-            const initialChildId = selectedChildId || children[0]?.id;
-            targetStudents = children.filter(s => s.id === initialChildId);
-            
-            if (initialChildId) {
-              const summaryRes = await attendanceAPI.getSummary(initialChildId);
-              if (summaryRes.data?.success) summaryData = summaryRes.data.data;
-            }
-          }
-        } else {
-          targetStudents = linkedStudents.filter(s => !selectedChildId || s.id === selectedChildId);
-          if (selectedChildId) {
-            const summaryRes = await attendanceAPI.getSummary(selectedChildId);
-            if (summaryRes.data?.success) summaryData = summaryRes.data.data;
+        const [childrenRes, attRes] = await Promise.all([
+          parentAPI.getMyChildren(),
+          parentAPI.getMyChildrenAttendance()
+        ]);
+
+        let children = [];
+        if (childrenRes.data?.success) {
+          children = childrenRes.data.data || [];
+          setLinkedStudents(children);
+        }
+
+        const childId = selectedChildId || (children.length > 0 ? children[0].id : '');
+        if (!selectedChildId && childId) {
+          setSelectedChildId(childId);
+        }
+
+        if (attRes.data?.success) {
+          const allRecs = attRes.data.data || [];
+          setParentAllRecords(allRecs);
+          const summariesMap = attRes.data.summaries || {};
+          setParentSummaries(summariesMap);
+
+          // Filter for active child
+          const childRecs = allRecs.filter(r => r.studentId === childId || r.student_id === childId);
+          setRecords(childRecs);
+
+          if (summariesMap[childId]) {
+            setSummary(summariesMap[childId]);
+          } else if (childId) {
+            // Calculate on the fly if needed
+            const total = childRecs.length;
+            const present = childRecs.filter(r => ['present', 'Present'].includes(r.status)).length;
+            const late = childRecs.filter(r => ['late', 'Late'].includes(r.status)).length;
+            const absent = childRecs.filter(r => ['absent', 'Absent'].includes(r.status)).length;
+            const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
+            setSummary({ total, present, late, absent, percentage, presentDays: present, lateDays: late, absentDays: absent, attendancePercentage: percentage });
           }
         }
-      }
-
-      // 2. Fetch Records & Global Student List
-      const [attRes, studentsRes] = await Promise.all([
-        attendanceAPI.getByDate(selectedDate),
-        (isParent || isStudent)
-          ? Promise.resolve({ data: { data: targetStudents } })
-          : (isTeacher && !selectedClass)
+      } else {
+        // Teacher / Admin
+        const [attRes, studentsRes] = await Promise.all([
+          attendanceAPI.getByDate(selectedDate),
+          (isTeacher && !selectedClass)
             ? Promise.resolve({ data: { data: [] } })
             : studentAPI.getAll({ page, limit, grade: selectedClass })
-      ]);
+        ]);
 
-      setStudents((isParent || isStudent) ? targetStudents : (studentsRes?.data?.data || []));
-      setRecords(attRes?.data?.data || []);
-      setSummary(summaryData);
-      
-      const pagination = studentsRes?.data?.pagination || {};
-      setTotalPages(pagination.pages || 1);
-      setTotalStudents(pagination.total || (isParent || isStudent ? targetStudents.length : 0));
+        setStudents(studentsRes?.data?.data || []);
+        setRecords(attRes?.data?.data || []);
+        
+        const pagination = studentsRes?.data?.pagination || {};
+        setTotalPages(pagination.pages || 1);
+        setTotalStudents(pagination.total || 0);
+      }
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -222,6 +251,18 @@ const Attendance = () => {
       setLoading(false);
     }
   }
+
+  const handleChildSelect = (childId) => {
+    setSelectedChildId(childId);
+    setParentSelectedCalendarDate(null);
+    if (parentAllRecords.length > 0) {
+      const childRecs = parentAllRecords.filter(r => r.studentId === childId || r.student_id === childId);
+      setRecords(childRecs);
+    }
+    if (parentSummaries[childId]) {
+      setSummary(parentSummaries[childId]);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate('/login', { replace: true });
@@ -438,6 +479,463 @@ const Attendance = () => {
       .map(name => ({ value: name, label: name }));
   }, [dbClasses]);
 
+  const filteredParentRecords = useMemo(() => {
+    if (!isParent) return [];
+    return records.filter(r => {
+      if (parentStatusFilter !== 'all' && r.status?.toLowerCase() !== parentStatusFilter.toLowerCase()) {
+        return false;
+      }
+      if (parentSelectedCalendarDate && r.date !== parentSelectedCalendarDate) {
+        return false;
+      }
+      if (parentSearchQuery) {
+        const q = parentSearchQuery.toLowerCase();
+        const matchDate = r.date?.toLowerCase().includes(q);
+        const matchPeriod = r.period?.toLowerCase().includes(q);
+        const matchNotes = (r.notes || r.remarks || '').toLowerCase().includes(q);
+        if (!matchDate && !matchPeriod && !matchNotes) return false;
+      }
+      return true;
+    });
+  }, [isParent, records, parentStatusFilter, parentSelectedCalendarDate, parentSearchQuery]);
+
+  const activeChild = linkedStudents.find(c => c.id === selectedChildId) || linkedStudents[0] || null;
+  const activeChildSummary = parentSummaries[selectedChildId] || summary || {
+    total: records.length,
+    present: records.filter(r => ['present', 'Present'].includes(r.status)).length,
+    late: records.filter(r => ['late', 'Late'].includes(r.status)).length,
+    absent: records.filter(r => ['absent', 'Absent'].includes(r.status)).length,
+    percentage: records.length > 0 ? Math.round(((records.filter(r => ['present', 'Present', 'late', 'Late'].includes(r.status)).length) / records.length) * 100) : 100
+  };
+
+  // Dedicated Parent Attendance Experience
+  if (isParent) {
+    const rate = activeChildSummary.percentage ?? 100;
+    const isHigh = rate >= 90;
+    const isMed = rate >= 80 && rate < 90;
+    const rateColor = isHigh ? '#059669' : (isMed ? '#d97706' : '#dc2626');
+    const rateBg = isHigh ? '#ecfdf5' : (isMed ? '#fffbeb' : '#fef2f2');
+
+    return (
+      <div style={{ animation: 'fadeIn 0.5s ease-out', padding: '10px 0 60px 0' }}>
+        {/* 1. Header Hub */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <span style={{ padding: '6px 14px', backgroundColor: 'var(--brand-green)', color: 'white', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Family Governance
+              </span>
+              <span style={{ color: '#94a3b8' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg></span>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Scholar Attendance Monitoring
+              </span>
+            </div>
+            <h1 style={{ fontSize: '42px', fontWeight: '950', color: '#0f172a', margin: 0, letterSpacing: '-1.5px', fontFamily: 'Outfit, sans-serif' }}>
+              Scholar <span style={{ color: 'var(--brand-green)' }}>Attendance Hub</span>
+            </h1>
+            <p style={{ fontSize: '16px', color: '#64748b', marginTop: '8px', fontWeight: '500' }}>
+              Comprehensive real-time tracking of institutional presence, check-in timestamps, and fidelity metrics.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={() => navigate('/results')} className="premium-btn-secondary" style={{ padding: '12px 20px', fontSize: '13px' }}>
+              Academic Results
+            </button>
+            <button onClick={() => navigate('/reports/academic')} className="premium-btn-primary" style={{ padding: '12px 22px', fontSize: '13px' }}>
+              Terminal Reports
+            </button>
+          </div>
+        </div>
+
+        {/* 2. Ward Selector Tabs */}
+        {linkedStudents.length > 0 && (
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>
+              Select Scholar Node
+            </div>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              {linkedStudents.map(child => {
+                const isSelected = selectedChildId === child.id;
+                const cSummary = parentSummaries[child.id] || {};
+                const cRate = cSummary.percentage ?? 100;
+                const cIsHigh = cRate >= 90;
+                const cIsMed = cRate >= 80 && cRate < 90;
+                const cRateColor = cIsHigh ? '#059669' : (cIsMed ? '#d97706' : '#dc2626');
+                const cRateBg = cIsHigh ? '#ecfdf5' : (cIsMed ? '#fffbeb' : '#fef2f2');
+
+                return (
+                  <div
+                    key={child.id}
+                    onClick={() => handleChildSelect(child.id)}
+                    style={{
+                      flex: '1 1 280px',
+                      maxWidth: '380px',
+                      padding: '20px 24px',
+                      backgroundColor: isSelected ? '#ffffff' : '#f8fafc',
+                      borderRadius: '22px',
+                      border: isSelected ? '2.5px solid var(--brand-green)' : '1.5px solid #e2e8f0',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 12px 28px rgba(0, 132, 62, 0.12)' : 'none',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {isSelected && (
+                      <div style={{ position: 'absolute', top: 0, right: 0, width: '36px', height: '36px', backgroundColor: 'var(--brand-green)', clipPath: 'polygon(100% 0, 0 0, 100% 100%)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: '3px' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '16px',
+                        backgroundColor: isSelected ? 'var(--brand-green)' : '#e2e8f0',
+                        color: isSelected ? 'white' : '#475569',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '900',
+                        fontSize: '17px',
+                        flexShrink: 0
+                      }}>
+                        {(child.firstName || child.first_name)?.[0]}{(child.lastName || child.last_name)?.[0]}
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '950', color: '#0f172a', letterSpacing: '-0.3px' }}>
+                          {child.firstName || child.first_name} {child.lastName || child.last_name}
+                        </h3>
+                        <p style={{ margin: '3px 0 0', fontSize: '13px', fontWeight: '700', color: '#64748b' }}>
+                          {displayGrade(child.grade)} {child.section ? `• Section ${mapSectionName(child.section)}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {child.rollNumber ? `ID: ${child.rollNumber}` : 'Enrolled Scholar'}
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: '900', color: cRateColor, backgroundColor: cRateBg, padding: '4px 12px', borderRadius: '12px' }}>
+                        {cRate}% Fidelity
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Executive Metric KPI Cards */}
+        <div className="responsive-grid-4" style={{ marginBottom: '32px' }}>
+          <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '18px' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '16px', backgroundColor: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icons.Check />
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Attendance Rate</span>
+              <p style={{ fontSize: '30px', fontWeight: '950', color: '#0f172a', margin: '4px 0 0', letterSpacing: '-1px' }}>
+                {rate}%
+              </p>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: rateColor }}>
+                {isHigh ? '🌟 Excellent Fidelity' : (isMed ? '👍 Standard Performance' : '⚠️ Attention Needed')}
+              </span>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '18px' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '16px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icons.Users />
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>On-Time Present</span>
+              <p style={{ fontSize: '30px', fontWeight: '950', color: '#0f172a', margin: '4px 0 0', letterSpacing: '-1px' }}>
+                {activeChildSummary.present || 0} <span style={{ fontSize: '14px', fontWeight: '700', color: '#94a3b8' }}>Days</span>
+              </p>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>Recorded Morning & Class</span>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '18px' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '16px', backgroundColor: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icons.Clock />
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Late Check-ins</span>
+              <p style={{ fontSize: '30px', fontWeight: '950', color: '#0f172a', margin: '4px 0 0', letterSpacing: '-1px' }}>
+                {activeChildSummary.late || 0} <span style={{ fontSize: '14px', fontWeight: '700', color: '#94a3b8' }}>Days</span>
+              </p>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#d97706' }}>Past Grace Window</span>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '18px' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '16px', backgroundColor: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icons.X />
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recorded Absences</span>
+              <p style={{ fontSize: '30px', fontWeight: '950', color: '#0f172a', margin: '4px 0 0', letterSpacing: '-1px' }}>
+                {activeChildSummary.absent || 0} <span style={{ fontSize: '14px', fontWeight: '700', color: '#94a3b8' }}>Days</span>
+              </p>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#dc2626' }}>
+                {activeChildSummary.total ? `Out of ${activeChildSummary.total} sessions` : 'No absences'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Main 2-Column Responsive Workspace */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px', alignItems: 'start' }}>
+          {/* Left Column: Presence Audit Feed */}
+          <div className="glass-card" style={{ padding: '32px', overflow: 'hidden' }}>
+            {/* Filter & Search Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', paddingBottom: '20px', borderBottom: '1px solid #f1f5f9' }}>
+              {/* Status Filter Buttons */}
+              <div style={{ display: 'flex', gap: '8px', backgroundColor: '#f1f5f9', padding: '5px', borderRadius: '14px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'all', label: `All (${records.length})` },
+                  { id: 'present', label: `Present (${records.filter(r => ['present', 'Present'].includes(r.status)).length})`, color: '#059669' },
+                  { id: 'late', label: `Late (${records.filter(r => ['late', 'Late'].includes(r.status)).length})`, color: '#d97706' },
+                  { id: 'absent', label: `Absent (${records.filter(r => ['absent', 'Absent'].includes(r.status)).length})`, color: '#dc2626' }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setParentStatusFilter(tab.id)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      backgroundColor: parentStatusFilter === tab.id ? '#ffffff' : 'transparent',
+                      color: parentStatusFilter === tab.id ? (tab.color || 'var(--brand-green)') : '#64748b',
+                      boxShadow: parentStatusFilter === tab.id ? '0 2px 8px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div style={{ position: 'relative', minWidth: '220px' }}>
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                  <Icons.Search />
+                </span>
+                <input
+                  type="text"
+                  value={parentSearchQuery}
+                  onChange={(e) => setParentSearchQuery(e.target.value)}
+                  placeholder="Search date or remark..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 36px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #e2e8f0',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Active Calendar Date Filter Notification */}
+            {parentSelectedCalendarDate && (
+              <div style={{ padding: '12px 18px', backgroundColor: '#f0fdf4', border: '1px solid var(--brand-green-light)', borderRadius: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', fontWeight: '800', color: '#166534' }}>
+                  📅 Filtering by date: {new Date(parentSelectedCalendarDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => setParentSelectedCalendarDate(null)}
+                  style={{ background: 'none', border: 'none', color: '#15803d', fontWeight: '900', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  Clear Date Filter
+                </button>
+              </div>
+            )}
+
+            {/* List of Records */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {loading ? (
+                [...Array(4)].map((_, i) => (
+                  <div key={i} style={{ height: '75px', backgroundColor: '#f8fafc', borderRadius: '16px', animation: 'pulse 1.5s infinite' }} />
+                ))
+              ) : filteredParentRecords.length === 0 ? (
+                <div style={{ padding: '60px 20px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1.5px dashed #e2e8f0' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#e2e8f0', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                    <Icons.Clock />
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>No Attendance Records Found</h4>
+                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
+                    {parentSelectedCalendarDate ? 'No attendance session was logged on this specific date.' : 'No records match your selected filter criteria.'}
+                  </p>
+                  {parentSelectedCalendarDate && (
+                    <button
+                      onClick={() => setParentSelectedCalendarDate(null)}
+                      className="premium-btn-secondary"
+                      style={{ marginTop: '16px', padding: '8px 18px', fontSize: '12px' }}
+                    >
+                      Show All Logs
+                    </button>
+                  )}
+                </div>
+              ) : (
+                filteredParentRecords.map((record, i) => {
+                  const isRecPresent = record.status === 'present' || record.status === 'Present';
+                  const isRecLate = record.status === 'late' || record.status === 'Late';
+                  const recBg = isRecPresent ? '#f0fdf4' : (isRecLate ? '#fffbeb' : '#fef2f2');
+                  const recColor = isRecPresent ? '#059669' : (isRecLate ? '#d97706' : '#dc2626');
+                  const recIcon = isRecPresent ? <Icons.Check /> : (isRecLate ? <Icons.Clock /> : <Icons.X />);
+
+                  return (
+                    <div
+                      key={record.id || i}
+                      style={{
+                        padding: '18px 24px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '18px',
+                        border: '1px solid #f1f5f9',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '20px',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--brand-green-light)'}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = '#f1f5f9'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                        <div style={{
+                          width: '46px',
+                          height: '46px',
+                          borderRadius: '14px',
+                          backgroundColor: recBg,
+                          color: recColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {recIcon}
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: '900', color: '#0f172a' }}>
+                              {record.period || 'General Session'}
+                            </span>
+                            <span style={{ fontSize: '10px', fontWeight: '900', color: '#64748b', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '8px', textTransform: 'uppercase' }}>
+                              {record.term || '1st Term'}
+                            </span>
+                          </div>
+                          <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
+                            {new Date(record.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
+                          {(record.notes || record.remarks) && (
+                            <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', padding: '4px 10px', borderRadius: '8px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '800', color: '#92400e' }}>Remark:</span>
+                              <span style={{ fontSize: '12px', fontWeight: '600', color: '#78350f' }}>{record.notes || record.remarks}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '6px 14px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '900',
+                          backgroundColor: recBg,
+                          color: recColor,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.8px'
+                        }}>
+                          {record.status}
+                        </span>
+                        <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#94a3b8', fontWeight: '700' }}>
+                          {record.arrivalTime || record.arrival_time ? `Arrival: ${record.arrivalTime || record.arrival_time}` : 'Scheduled Session'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Operational Calendar & Punctuality */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Interactive Calendar Card */}
+            <div className="glass-card" style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>Attendance Calendar</h4>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Pick a day to inspect log</p>
+                </div>
+                <span style={{ fontSize: '10px', fontWeight: '900', color: 'var(--brand-green)', backgroundColor: '#f0fdf4', padding: '4px 10px', borderRadius: '12px', letterSpacing: '1px' }}>
+                  OPERATIONAL
+                </span>
+              </div>
+              <PremiumCalendar 
+                value={parentSelectedCalendarDate || selectedDate} 
+                onChange={(val) => {
+                  setParentSelectedCalendarDate(val);
+                }} 
+              />
+            </div>
+
+            {/* Punctuality Matrix Card */}
+            <div className="glass-card" style={{ padding: '24px' }}>
+              <h4 style={{ margin: '0 0 16px', fontSize: '15px', fontWeight: '900', color: '#0f172a' }}>Punctuality Breakdown</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b' }}>On-Time Arrivals</span>
+                    <span style={{ fontSize: '13px', fontWeight: '900', color: '#059669' }}>
+                      {activeChildSummary.total ? Math.round(((activeChildSummary.present || 0) / activeChildSummary.total) * 100) : 100}%
+                    </span>
+                  </div>
+                  <div style={{ height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${activeChildSummary.total ? Math.round(((activeChildSummary.present || 0) / activeChildSummary.total) * 100) : 100}%`, backgroundColor: '#059669', borderRadius: '4px' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b' }}>Late Transitions</span>
+                    <span style={{ fontSize: '13px', fontWeight: '900', color: '#d97706' }}>
+                      {activeChildSummary.total ? Math.round(((activeChildSummary.late || 0) / activeChildSummary.total) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div style={{ height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${activeChildSummary.total ? Math.round(((activeChildSummary.late || 0) / activeChildSummary.total) * 100) : 0}%`, backgroundColor: '#f59e0b', borderRadius: '4px' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Assistance Card */}
+            <div style={{ backgroundColor: '#0f172a', borderRadius: '24px', padding: '24px', color: 'white', boxShadow: '0 12px 30px rgba(15,23,42,0.1)' }}>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
+                <Icons.Clock />
+              </div>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>Attendance Protocol</h4>
+              <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '8px', lineHeight: '1.6', fontWeight: '500' }}>
+                Daily morning assemblies commence at 07:30 AM. For excused absences or medical notifications, please contact the administration office.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>

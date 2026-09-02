@@ -365,19 +365,20 @@ const getStudentAttendanceSummary = asyncHandler(async (req, res) => {
   if (error) throw error;
   
   const total = data.length;
-  // Legacy support: count 'late' as 'present' if any exist in DB
-  const present = data.filter(r => ['present', 'Present', 'late', 'Late'].includes(r.status)).length;
+  const present = data.filter(r => ['present', 'Present'].includes(r.status)).length;
+  const late = data.filter(r => ['late', 'Late'].includes(r.status)).length;
   const absent = data.filter(r => ['absent', 'Absent'].includes(r.status)).length;
   
-  const percentage = total > 0 ? (present / total) * 100 : 100;
+  const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
   
   res.json({
     success: true,
     data: {
       total,
       present,
+      late,
       absent,
-      percentage: Math.round(percentage)
+      percentage
     }
   });
 });

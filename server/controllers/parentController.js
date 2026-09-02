@@ -421,27 +421,68 @@ const getMyChildrenAttendance = asyncHandler(async (req, res) => {
   if (!parent || parent.length === 0) return res.status(404).json({ message: 'Parent profile not found' });
   
   const studentIds = parent[0].student_ids || [];
-  if (studentIds.length === 0) return res.json({ success: true, data: [] });
+  if (studentIds.length === 0) return res.json({ success: true, data: [], summaries: {} });
 
-  const attendance = await supabaseService.getAll(COLLECTIONS.ATTENDANCE);
-  const students = await Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id)));
+  const { data: attendance, error } = await supabase
+    .from(COLLECTIONS.ATTENDANCE)
+    .select('*')
+    .in('student_id', studentIds)
+    .order('date', { ascending: false });
+
+  if (error) throw error;
+
+  const rawStudents = await Promise.all(studentIds.map(id => supabaseService.getById(COLLECTIONS.STUDENTS, id)));
   const studentMap = {};
-  students.filter(Boolean).forEach(s => {
-    studentMap[s.id] = { id: s.id, firstName: s.first_name, lastName: s.last_name };
+  const summaries = {};
+
+  rawStudents.filter(Boolean).forEach(s => {
+    studentMap[s.id] = {
+      id: s.id,
+      firstName: s.first_name,
+      lastName: s.last_name,
+      grade: s.grade,
+      section: s.section,
+      rollNumber: s.roll_number || s.scholar_identity || s.id_number,
+      profileImage: s.profile_image
+    };
+
+    const sRecords = (attendance || []).filter(a => a.student_id === s.id);
+    const total = sRecords.length;
+    const present = sRecords.filter(r => ['present', 'Present'].includes(r.status)).length;
+    const late = sRecords.filter(r => ['late', 'Late'].includes(r.status)).length;
+    const absent = sRecords.filter(r => ['absent', 'Absent'].includes(r.status)).length;
+    const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
+
+    summaries[s.id] = {
+      total,
+      present,
+      late,
+      absent,
+      percentage,
+      presentDays: present,
+      lateDays: late,
+      absentDays: absent,
+      attendancePercentage: percentage
+    };
   });
 
-  const flatAttendance = attendance
-    .filter(a => studentIds.includes(a.student_id))
-    .map(a => ({
-      id: a.id,
-      date: a.date,
-      status: a.status,
-      remarks: a.remarks,
-      studentId: a.student_id,
-      student: studentMap[a.student_id]
-    }));
+  const flatAttendance = (attendance || []).map(a => ({
+    id: a.id,
+    date: a.date,
+    status: a.status,
+    notes: a.notes || a.remarks || '',
+    remarks: a.remarks || a.notes || '',
+    arrivalTime: a.arrival_time || null,
+    arrival_time: a.arrival_time || null,
+    period: a.period || 'General Session',
+    academicYear: a.academic_year || '2024-2025',
+    term: a.term || '1st',
+    studentId: a.student_id,
+    student_id: a.student_id,
+    student: studentMap[a.student_id] || null
+  }));
   
-  res.json({ success: true, data: flatAttendance });
+  res.json({ success: true, data: flatAttendance, summaries });
 });
 
 // @desc    Get current parent's children's assignments
