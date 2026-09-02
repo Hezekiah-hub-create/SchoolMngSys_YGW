@@ -39,8 +39,13 @@ import {
 import RLogo from '../../assets/R.png';
 import UbsLogo from '../../assets/UBS.png';
 import { kgAssessments } from '../../utils/kgAssessments';
-import { mapSectionName } from '../../utils/sectionHelper';
 import './Reports.css';
+
+const mapSectionName = (name) => {
+  if (!name) return '';
+  const str = String(name).trim();
+  return str.replace(/^section\s+/i, '');
+};
 
 
 const Reports = () => {

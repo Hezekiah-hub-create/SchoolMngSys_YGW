@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { academicClassesAPI, academicSectionsAPI, studentAPI, teacherAPI, settingsAPI } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
-import { mapSectionName } from '../../utils/sectionHelper';
+
+const mapSectionName = (name) => {
+  if (!name) return '';
+  const str = String(name).trim();
+  return str.replace(/^section\s+/i, '');
+};
 
 const normalizeGrade = (g) => {
   if (!g) return '';

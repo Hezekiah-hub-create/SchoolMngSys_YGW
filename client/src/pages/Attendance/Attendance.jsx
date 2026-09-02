@@ -490,9 +490,21 @@ const Attendance = () => {
                       <>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Assigned Master Class</span>
-                          <div style={{ padding: '14px 20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
-                            {selectedClass ? `${selectedClass}` : 'No Master Class Assigned'}
-                          </div>
+                          {teacherCourses.length > 1 ? (
+                            <PremiumSelect
+                              value={selectedClass}
+                              onChange={(e) => setSelectedClass(e.target.value)}
+                              options={teacherCourses.map(mc => ({
+                                value: mc.name || mc.grade,
+                                label: mc.name || mc.grade
+                              }))}
+                              placeholder="Select Assigned Class"
+                            />
+                          ) : (
+                            <div style={{ padding: '14px 20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', fontSize: '15px', fontWeight: '700', color: '#1e293b' }}>
+                              {selectedClass ? `${selectedClass}` : 'No Master Class Assigned'}
+                            </div>
+                          )}
                         </div>
                         
                         <button 
