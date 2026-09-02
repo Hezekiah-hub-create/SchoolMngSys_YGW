@@ -31,8 +31,8 @@ const getGradeMasterByGrade = asyncHandler(async (req, res) => {
 const assignGradeMaster = asyncHandler(async (req, res) => {
   const { grade, teacherId, academicYear = '2024/2025' } = req.body;
 
-  if (!grade || !teacherId) {
-    return res.status(400).json({ message: 'Grade and Teacher ID are required' });
+  if (!grade) {
+    return res.status(400).json({ message: 'Grade is required' });
   }
 
   // Check if mapping already exists
@@ -42,28 +42,30 @@ const assignGradeMaster = asyncHandler(async (req, res) => {
   if (existingMapping) {
     // Update existing
     result = await supabaseService.update(COLLECTIONS.GRADE_MASTERS, existingMapping.id, {
-      teacher_id: teacherId,
+      teacher_id: teacherId || null,
       academic_year: academicYear
     });
   } else {
     // Create new
     result = await supabaseService.create(COLLECTIONS.GRADE_MASTERS, {
       grade,
-      teacher_id: teacherId,
+      teacher_id: teacherId || null,
       academic_year: academicYear
     });
   }
 
   // Also update teacher's class_teacher_of field for better visibility
-  try {
-    const teacher = await supabaseService.getById(COLLECTIONS.TEACHERS, teacherId);
-    if (teacher) {
-      await supabaseService.update(COLLECTIONS.TEACHERS, teacherId, {
-        class_teacher_of: grade // This might be overwritten if they are master of multiple things, but usually it's one grade
-      });
+  if (teacherId) {
+    try {
+      const teacher = await supabaseService.getById(COLLECTIONS.TEACHERS, teacherId);
+      if (teacher) {
+        await supabaseService.update(COLLECTIONS.TEACHERS, teacherId, {
+          class_teacher_of: grade
+        });
+      }
+    } catch (err) {
+      console.warn('Could not update teacher profile:', err.message);
     }
-  } catch (err) {
-    console.warn('Could not update teacher profile:', err.message);
   }
 
   res.json({

@@ -55,25 +55,16 @@ const StudentDashboard = () => {
       setLoading(true);
       try {
         const grade = currentUser?.grade || currentUser?.class;
-        console.log('[DEBUG] Student Dashboard Fetch:', { studentId, grade });
         
         const [profRes, courseRes, gradeRes, attRes, asgRes, feeRes, evtRes, summRes] = await Promise.allSettled([
           studentId ? studentAPI.getById(studentId) : Promise.resolve(null),
           grade ? courseAPI.getAll({ grade }) : courseAPI.getAll({ limit: 20 }),
           studentId ? gradeAPI.getByStudent(studentId) : gradeAPI.getAll({ studentId, limit: 20 }),
-          studentId ? attendanceAPI.getByStudent(studentId) : attendanceAPI.getAll({ studentId, limit: 100 }),
+          attendanceAPI ? (studentId ? attendanceAPI.getByStudent(studentId) : attendanceAPI.getAll({ studentId, limit: 100 })) : Promise.resolve(null),
           studentId ? assignmentAPI.getByStudent(studentId) : assignmentAPI.getAll({ limit: 20 }),
           eventAPI ? eventAPI.getUpcoming() : Promise.resolve(null),
           studentId ? attendanceAPI.getSummary(studentId) : Promise.resolve(null)
         ]);
-
-        console.log('[DEBUG] API Results:', { 
-          prof: profRes.status, 
-          course: courseRes.status, 
-          att: attRes.status, 
-          asg: asgRes.status,
-          summ: (summRes && summRes.status) || 'N/A'
-        });
 
         if (profRes.status === 'fulfilled' && profRes.value?.data)
           setProfile(profRes.value.data.data || profRes.value.data);

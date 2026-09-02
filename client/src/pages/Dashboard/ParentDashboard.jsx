@@ -82,6 +82,7 @@ const ParentDashboard = () => {
 
   const [selectedChildId, setSelectedChildId] = useState('all');
   const [allChildren, setAllChildren] = useState([]);
+  const [parentNotifications, setParentNotifications] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('authUser');
@@ -92,12 +93,13 @@ const ParentDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [childrenRes, gradesRes, attendRes, assignRes, announceRes] = await Promise.allSettled([
+      const [childrenRes, gradesRes, attendRes, assignRes, announceRes, notifsRes] = await Promise.allSettled([
         parentAPI.getMyChildren(),
         parentAPI.getMyChildrenGrades(),
         parentAPI.getMyChildrenAttendance(),
         parentAPI.getMyChildrenAssignments(),
-        parentAPI.getMyChildrenAnnouncements()
+        parentAPI.getMyChildrenAnnouncements(),
+        parentAPI.getMyNotifications()
       ]);
 
       if (childrenRes.status === 'fulfilled' && childrenRes.value?.data) {
@@ -125,6 +127,10 @@ const ParentDashboard = () => {
       if (announceRes.status === 'fulfilled' && announceRes.value?.data) {
         setAnnouncements(announceRes.value.data.data || []);
       }
+
+      if (notifsRes.status === 'fulfilled' && notifsRes.value?.data?.data) {
+        setParentNotifications(notifsRes.value.data.data);
+      }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
@@ -145,10 +151,12 @@ const ParentDashboard = () => {
 
   const currentUser = storedUser || user;
 
+  const unreadReportNotif = parentNotifications.find(n => n.type === 'report' && !n.read && !n.isRead);
+
   return (
     <div className="parent-dashboard-content">
       <div style={{ padding: '0 0 40px 0', animation: 'fadeIn 0.5s ease-out' }}>
-          <div className="page-header" style={{ marginBottom: '48px' }}>
+          <div className="page-header" style={{ marginBottom: '36px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <span style={{ padding: '4px 12px', backgroundColor: '#fefce8', color: '#854d0e', borderRadius: '20px', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Family Governance</span>
@@ -163,6 +171,44 @@ const ParentDashboard = () => {
             </div>
           </div>
 
+          {unreadReportNotif && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(0,132,62,0.1), rgba(0,132,62,0.03))',
+              border: '1.5px solid var(--brand-green)',
+              borderRadius: '20px',
+              padding: '20px 28px',
+              marginBottom: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '20px',
+              boxShadow: '0 8px 24px rgba(0,132,62,0.08)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--brand-green)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>
+                    {unreadReportNotif.title}
+                  </h4>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#475569', fontWeight: '500', lineHeight: '1.4' }}>
+                    {unreadReportNotif.message}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  if (unreadReportNotif.id) parentAPI.markMyNotificationRead(unreadReportNotif.id).catch(() => {});
+                  navigate('/exams/results');
+                }}
+                className="premium-btn-primary" 
+                style={{ padding: '12px 24px', fontSize: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                View Terminal Results
+              </button>
+            </div>
+          )}
 
           <div className="responsive-grid-2" style={{ marginBottom: '48px' }}>
             <StatCard icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand-green)" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>} title="Scholar Count" value={stats.children} color="var(--brand-green)" loading={loading} subtitle="Registered Scholars" onClick={() => navigate('/students')} />

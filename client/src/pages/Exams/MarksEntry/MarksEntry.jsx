@@ -173,10 +173,6 @@ const MarksEntry = () => {
     try {
       setLoading(true);
       setCurrentPage(1);
-      const currentYear = settings?.currentSession || '2024/2025';
-
-      console.log('[DEBUG] loadStudents with filters:', filters);
-
       // Find all courses with the same name in this grade to merge their grades
       const selectedCourse = courses.find(c => c.id === filters.courseId || c._id === filters.courseId);
       const matchingCourseIds = selectedCourse
@@ -184,8 +180,6 @@ const MarksEntry = () => {
             c.name.toLowerCase().trim() === selectedCourse.name.toLowerCase().trim()
           ).map(c => c.id || c._id)
         : filters.courseId ? [filters.courseId] : [];
-
-      console.log('[DEBUG] selectedCourse:', selectedCourse, 'matchingCourseIds:', matchingCourseIds);
 
       const studentParams = { grade: filters.grade, limit: 'none' };
 
@@ -630,8 +624,8 @@ const MarksEntry = () => {
                         <th className="premium-th">Cat2 (25)</th>
                         <th className="premium-th">PW (25)</th>
                         <th className="premium-th">Exam (100)</th>
-                        <th className="premium-th">Total (200)</th>
-                        <th className="premium-th">Grade (%)</th>
+                        <th className="premium-th">Weighted Score (100%)</th>
+                        <th className="premium-th">Grade</th>
                       </>
                     )}
                   </tr>
@@ -641,6 +635,7 @@ const MarksEntry = () => {
                     const sId = s.id || s._id;
                     const total = calculateTotal(sId);
                     const grade = getGrade(total);
+                    const percentage = Math.round(total / 2);
                     return (
                       <tr key={sId} className="premium-row" style={{ borderBottom: '1px solid var(--brand-slate-100)' }}>
                         <td style={{ padding: '20px 24px' }}>
@@ -705,8 +700,8 @@ const MarksEntry = () => {
                             </td>
 
                             <td style={{ padding: '20px 24px' }}>
-                              <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{total}<span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>/200</span></p>
-                              <p style={{ fontSize: '12px', color: 'var(--brand-green)', margin: '4px 0 0', fontWeight: '800' }}>{Math.round(total / 2)}%</p>
+                              <p style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>{percentage}%</p>
+                              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0', fontWeight: '600' }}>Raw: {total}/200</p>
                             </td>
                             <td style={{ padding: '20px 24px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -715,11 +710,11 @@ const MarksEntry = () => {
                                   borderRadius: '12px', 
                                   fontSize: '12px', 
                                   fontWeight: '900',
-                                  backgroundColor: total >= 70 ? '#ecfdf5' : total >= 50 ? '#fefce8' : '#fef2f2',
-                                  color: total >= 70 ? '#10b981' : total >= 50 ? '#ca8a04' : '#ef4444',
-                                  border: `1px solid ${total >= 70 ? '#d1fae5' : total >= 50 ? '#fef08a' : '#fee2e2'}`
+                                  backgroundColor: percentage >= 70 ? '#ecfdf5' : percentage >= 50 ? '#fefce8' : '#fef2f2',
+                                  color: percentage >= 70 ? '#10b981' : percentage >= 50 ? '#ca8a04' : '#ef4444',
+                                  border: `1px solid ${percentage >= 70 ? '#d1fae5' : percentage >= 50 ? '#fef08a' : '#fee2e2'}`
                                 }}>{grade}</span>
-                                {total >= 40 && <div style={{ color: '#10b981' }}><Icons.Check /></div>}
+                                {percentage >= 40 && <div style={{ color: '#10b981' }}><Icons.Check /></div>}
                               </div>
                             </td>
                           </>

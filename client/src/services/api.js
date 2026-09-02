@@ -108,7 +108,9 @@ export const parentAPI = {
   getMyChildrenGrades: () => api.get('/api/parents/me/children/grades'),
   getMyChildrenAttendance: () => api.get('/api/parents/me/children/attendance'),
   getMyChildrenAssignments: () => api.get('/api/parents/me/children/assignments'),
-  getMyChildrenAnnouncements: () => api.get('/api/parents/me/children/announcements')
+  getMyChildrenAnnouncements: () => api.get('/api/parents/me/children/announcements'),
+  getMyNotifications: () => api.get('/api/parents/me/notifications'),
+  markMyNotificationRead: (notificationId) => api.put(`/api/parents/me/notifications/${notificationId}`)
 };
 
 // ==================== COURSES API ====================

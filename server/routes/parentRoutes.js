@@ -23,6 +23,10 @@ router.get('/me/children/assignments', parentController.getMyChildrenAssignments
 // Get current parent children's announcements
 router.get('/me/children/announcements', parentController.getMyChildrenAnnouncements);
 
+// Get current parent notifications
+router.get('/me/notifications', parentController.getNotifications);
+router.put('/me/notifications/:notificationId', parentController.markNotificationRead);
+
 // Get parent by ID
 router.get('/:id', parentController.getParentById);
 

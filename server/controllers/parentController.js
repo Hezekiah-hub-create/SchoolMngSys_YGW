@@ -541,9 +541,61 @@ const getMyChildrenAnnouncements = asyncHandler(async (req, res) => {
   res.json({ success: true, data: announcements });
 });
 
-const getNotifications = asyncHandler(async (req, res) => res.json({ success: true, data: [] }));
+const getNotifications = asyncHandler(async (req, res) => {
+  let parentId = req.params.id;
+  let parent;
+
+  if (parentId && parentId !== 'me') {
+    parent = await supabaseService.getById(COLLECTIONS.PARENTS, parentId);
+  } else {
+    const parents = await supabaseService.query(COLLECTIONS.PARENTS, 'user_id', '==', req.user.id);
+    parent = parents?.[0];
+  }
+
+  if (!parent && req.user?.email) {
+    const { data } = await supabase.from(COLLECTIONS.PARENTS).select('*').eq('email', req.user.email).maybeSingle();
+    parent = data;
+  }
+
+  const notifications = parent?.notifications || [];
+  const sorted = Array.isArray(notifications)
+    ? [...notifications].sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0))
+    : [];
+
+  res.json({ success: true, data: sorted });
+});
+
+const markNotificationRead = asyncHandler(async (req, res) => {
+  let parentId = req.params.id;
+  const { notificationId } = req.params;
+  let parent;
+
+  if (parentId && parentId !== 'me') {
+    parent = await supabaseService.getById(COLLECTIONS.PARENTS, parentId);
+  } else {
+    const parents = await supabaseService.query(COLLECTIONS.PARENTS, 'user_id', '==', req.user.id);
+    parent = parents?.[0];
+  }
+
+  if (!parent && req.user?.email) {
+    const { data } = await supabase.from(COLLECTIONS.PARENTS).select('*').eq('email', req.user.email).maybeSingle();
+    parent = data;
+  }
+
+  if (parent) {
+    let notifications = Array.isArray(parent.notifications) ? parent.notifications : [];
+    if (notificationId === 'all') {
+      notifications = notifications.map(n => ({ ...n, read: true, isRead: true }));
+    } else {
+      notifications = notifications.map(n => String(n.id) === String(notificationId) ? { ...n, read: true, isRead: true } : n);
+    }
+    await supabase.from(COLLECTIONS.PARENTS).update({ notifications }).eq('id', parent.id);
+  }
+
+  res.json({ success: true, message: 'Notification marked as read' });
+});
+
 const migrateParentsFromStudents = asyncHandler(async (req, res) => res.json({ success: true }));
-const markNotificationRead = asyncHandler(async (req, res) => res.json({ success: true }));
 const getChildrenTimetable = asyncHandler(async (req, res) => {
   const parent = await supabaseService.query(COLLECTIONS.PARENTS, 'user_id', '==', req.user.id);
   if (!parent || parent.length === 0) return res.status(404).json({ message: 'Parent profile not found' });

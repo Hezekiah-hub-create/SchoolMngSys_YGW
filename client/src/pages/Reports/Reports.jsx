@@ -119,15 +119,11 @@ const Reports = () => {
     setIsLoadingStudents(true);
     try {
       const res = await reportAPI.getPublishedReports();
-      console.log('[DEBUG] Published reports response:', res.data);
       if (res.data?.success) {
         setPublishedReports(res.data.data || []);
-        console.log('[DEBUG] Reports set:', res.data.data?.length, 'items');
-      } else {
-        console.warn('[DEBUG] API returned success=false:', res.data);
       }
     } catch (err) {
-      console.error('[DEBUG] Published reports fetch error:', err?.response?.status, err?.response?.data || err.message);
+      console.error('Published reports fetch error:', err?.response?.status, err?.response?.data || err.message);
     } finally {
       setIsLoadingStudents(false);
     }

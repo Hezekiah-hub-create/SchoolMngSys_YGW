@@ -522,6 +522,88 @@ const buildStudentReportPayload = async ({ student, reportType, term: rawTerm, a
 };
 
 // @desc    Generate student report payload
+const checkTeacherAccessToGrade = async (user, targetGrade, targetClassId, targetStudent) => {
+  if (!user || ['admin', 'superadmin', 'headmaster', 'principal', 'academic_officer'].includes(user.role)) {
+    return true;
+  }
+
+  const teacherProfile = await supabaseService.getTeacherProfile(user);
+  if (!teacherProfile) return false;
+
+  const teacherId = teacherProfile.id;
+  const userId = user.id;
+
+  const normalizeGrade = (g) => String(g || '').toLowerCase()
+    .replace(/primary|basic/g, 'basic')
+    .replace(/kindergarten|kg/g, 'kg')
+    .replace(/\s+/g, '')
+    .trim();
+
+  const isGradeMatch = (g1, g2) => {
+    if (!g1 || !g2) return false;
+    const n1 = normalizeGrade(g1);
+    const n2 = normalizeGrade(g2);
+    return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+  };
+
+  const studentGrade = targetStudent?.grade || targetGrade;
+
+  // 1. Grade Masters check
+  const { data: masterGrades } = await supabase
+    .from(COLLECTIONS.GRADE_MASTERS)
+    .select('grade')
+    .or(`teacher_id.eq.${teacherId},teacher_id.eq.${userId}`);
+  if (masterGrades && masterGrades.some(g => isGradeMatch(g.grade, studentGrade))) {
+    return true;
+  }
+
+  // 2. Class Subjects (Courses) check
+  const { data: subjectGrades } = await supabase
+    .from(COLLECTIONS.CLASS_SUBJECTS)
+    .select('class_id, section, class:class_id(name)')
+    .or(`teacher_id.eq.${teacherId},teacher_id.eq.${userId}`);
+  if (subjectGrades && subjectGrades.some(s => 
+    isGradeMatch(s.class?.name, studentGrade) || 
+    (targetClassId && String(s.class_id) === String(targetClassId)) ||
+    (targetStudent?.class_id && String(s.class_id) === String(targetStudent.class_id))
+  )) {
+    return true;
+  }
+
+  // 3. Coordinator Block check (e.g., Primary, JHS, KG)
+  if (teacherProfile.coordinator_block && studentGrade) {
+    const block = String(teacherProfile.coordinator_block).toLowerCase().trim();
+    const gr = String(studentGrade).toLowerCase().trim();
+    if (gr.includes(block) || (block === 'primary' && gr.includes('basic')) || (block === 'kg' && (gr.includes('kindergarten') || gr.includes('kg')))) {
+      return true;
+    }
+  }
+
+  // 4. Assigned classes or grade on teacher profile
+  const assigned = teacherProfile.assigned_classes || teacherProfile.classes || [];
+  if (Array.isArray(assigned) && assigned.some(g => isGradeMatch(g, studentGrade))) {
+    return true;
+  }
+  if (teacherProfile.grade && isGradeMatch(teacherProfile.grade, studentGrade)) {
+    return true;
+  }
+
+  // 5. Section check (legacy)
+  const { data: masteredSections } = await supabase
+    .from(COLLECTIONS.SECTIONS)
+    .select('id, name, class_id, class:class_id(name)')
+    .or(`class_master_id.eq.${teacherId},class_master_id.eq.${userId}`);
+  if (masteredSections && masteredSections.some(s => 
+    isGradeMatch(s.class?.name, studentGrade) || 
+    (targetClassId && String(s.class_id) === String(targetClassId))
+  )) {
+    return true;
+  }
+
+  return false;
+};
+
+// @desc    Generate student report payload
 // @route   GET /api/reports/student/:studentId
 // @access  Private
 const getStudentReport = asyncHandler(async (req, res) => {
@@ -537,35 +619,8 @@ const getStudentReport = asyncHandler(async (req, res) => {
   // Security check for teachers
   const user = req.user;
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getTeacherProfile(user);
-    if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
-    
-    // Check if the student belongs to the section the teacher is Class Master of OR teaches subjects to
-    const { data: masteredSections } = await supabase
-      .from(COLLECTIONS.SECTIONS)
-      .select('id, name, class_id, class:class_id(name)')
-      .eq('class_master_id', teacherProfile.id);
-    
-    const { data: subjectSections } = await supabase
-      .from(COLLECTIONS.CLASS_SUBJECTS)
-      .select('id, section, class_id, class:class_id(name)')
-      .eq('teacher_id', teacherProfile.id);
-    
-    const allTeacherSections = [
-      ...(masteredSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.name })),
-      ...(subjectSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.section }))
-    ];
-    
-    const isTeacherOfStudent = allTeacherSections.some(s => {
-      const matchesGrade = String(s.class?.name).toLowerCase() === String(student.grade).toLowerCase() || String(s.class_id) === String(student.class_id);
-      
-      const dbSec = String(s.name || '').toLowerCase().replace('section', '').trim();
-      const stSec = String(student.section || '').toLowerCase().replace('section', '').trim();
-      
-      return matchesGrade && (dbSec === stSec || !dbSec || !stSec);
-    });
-
-    if (!isTeacherOfStudent) {
+    const hasAccess = await checkTeacherAccessToGrade(user, student.grade, student.class_id, student);
+    if (!hasAccess) {
       return res.status(403).json({ message: 'Access denied. You can only generate reports for students in classes or sections assigned to you.' });
     }
   }
@@ -615,36 +670,8 @@ const getClassReport = asyncHandler(async (req, res) => {
 
   // Security check for teachers
   if (user.role === 'teacher' || user.role === 'staff') {
-    const teacherProfile = await supabaseService.getTeacherProfile(user);
-    if (!teacherProfile) return res.status(403).json({ message: 'Teacher profile not found' });
-    
-    // Check if teacher teaches this grade OR is Class Master for a section in this grade
-    const { data: masteredSections } = await supabase
-      .from(COLLECTIONS.SECTIONS)
-      .select('id, name, class_id, class:class_id(name)')
-      .eq('class_master_id', teacherProfile.id);
-    
-    const { data: subjectSections } = await supabase
-      .from(COLLECTIONS.CLASS_SUBJECTS)
-      .select('id, section, class_id, class:class_id(name)')
-      .eq('teacher_id', teacherProfile.id);
-
-    const allTeacherSections = [
-      ...(masteredSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.name })),
-      ...(subjectSections || []).map(s => ({ class: s.class, class_id: s.class_id, name: s.section }))
-    ];
-    
-    const isTeacherOfGrade = allTeacherSections.some(s => {
-      const matchesGrade = String(s.class?.name).toLowerCase() === String(grade).toLowerCase() || String(s.class_id) === String(grade);
-      if (section && section !== 'All') {
-        const targetSec = String(section).toLowerCase().replace('section', '').trim();
-        const dbSec = String(s.name || '').toLowerCase().replace('section', '').trim();
-        return matchesGrade && (dbSec === targetSec || !dbSec);
-      }
-      return matchesGrade;
-    });
-
-    if (!isTeacherOfGrade) {
+    const hasAccess = await checkTeacherAccessToGrade(user, grade, null, null);
+    if (!hasAccess) {
       return res.status(403).json({ message: 'Access denied. You can only generate reports for the class and section assigned to you.' });
     }
   }
@@ -883,16 +910,56 @@ const sendReportToParents = asyncHandler(async (req, res) => {
     });
   }
 
-  // Automated Phone Push Notification (SMS) on Report Dispatch
+  // In-App Notification & Automated SMS Alert to Parents
   try {
+    const crypto = require('crypto');
     const smsService = require('../services/smsService');
-    reports.forEach(r => {
-      const sId = r.studentId || r.student_id;
-      if (!sId) return;
-      const sName = r.studentName || `${r.student?.first_name || ''} ${r.student?.last_name || ''}`.trim() || 'your ward';
-      const term = r.term || 'current term';
-      const academicYear = r.year || r.academic_year || 'current session';
+    const { data: allParents } = await supabase.from(COLLECTIONS.PARENTS).select('*');
 
+    for (const r of reports) {
+      const sId = r.studentId || r.student_id;
+      if (!sId) continue;
+      const sName = r.studentName || `${r.student?.first_name || ''} ${r.student?.last_name || ''}`.trim() || 'your ward';
+      const rawTerm = r.term || 'First Term';
+      const academicYear = (r.year || r.academic_year || '2024-2025').replace('/', '-');
+      const grade = r.class || r.studentGrade || r.grade || 'N/A';
+
+      // 1. In-App Notification creation for linked parents
+      const linkedParents = (allParents || []).filter(p => {
+        const sIds = p.student_ids || p.studentIds || [];
+        return Array.isArray(sIds) && (sIds.includes(sId) || sIds.some(id => String(id) === String(sId)));
+      });
+
+      const reportNotification = {
+        id: crypto.randomUUID(),
+        type: 'report',
+        title: `Academic Report Released: ${sName}`,
+        message: `The ${rawTerm} (${academicYear}) terminal academic report for ${sName} (${grade}) is now available for viewing.`,
+        student_id: sId,
+        student_name: sName,
+        term: rawTerm,
+        academic_year: academicYear,
+        grade,
+        read: false,
+        link: '/results',
+        created_at: new Date().toISOString()
+      };
+
+      for (const p of linkedParents) {
+        try {
+          const currentNotifs = Array.isArray(p.notifications) ? p.notifications : [];
+          // Avoid duplicate notification for same student, term, and academic year
+          const hasExisting = currentNotifs.some(n => n.type === 'report' && n.student_id === sId && n.term === rawTerm && n.academic_year === academicYear);
+          if (!hasExisting) {
+            const updated = [reportNotification, ...currentNotifs].slice(0, 50);
+            await supabase.from(COLLECTIONS.PARENTS).update({ notifications: updated }).eq('id', p.id);
+          }
+        } catch (pErr) {
+          console.warn(`[REPORT NOTIF ERROR] Parent ${p.id}:`, pErr.message);
+        }
+      }
+
+      // 2. Automated SMS Alert Dispatch
       supabase.from(COLLECTIONS.STUDENTS)
         .select('phone, emergency_contact, parent_ids')
         .eq('id', sId)
@@ -904,15 +971,15 @@ const sendReportToParents = asyncHandler(async (req, res) => {
               smsService.sendReportAlert({
                 studentName: sName,
                 parentPhone,
-                term,
+                term: rawTerm,
                 academicYear
               }).catch(e => console.warn('[SMS REPORT ALERT ERROR]', e.message));
             }
           }
         }).catch(e => console.warn('[SMS REPORT LOOKUP ERROR]', e.message));
-    });
-  } catch (smsErr) {
-    console.warn('[SMS DISPATCH ERROR]', smsErr.message);
+    }
+  } catch (notifErr) {
+    console.warn('[REPORT DISPATCH NOTIFICATION ERROR]', notifErr.message);
   }
 
   res.json({

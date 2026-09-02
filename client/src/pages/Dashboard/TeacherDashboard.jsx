@@ -160,7 +160,6 @@ const TeacherDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      console.log('[DEBUG] studentAPI:', !!studentAPI);
       const [coursesRes, pendingRes, settingsRes] = await Promise.allSettled([
         teacherAPI.getMyCourses(),
         teacherAPI.getPendingGrading(),

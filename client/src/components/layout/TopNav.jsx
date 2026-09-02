@@ -27,9 +27,31 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
           setSettings(settingsRes.data.settings);
         }
         
-        if (eventsRes.data?.success) {
-          setNotifications(eventsRes.data.data || []);
+        let allNotifs = [];
+        if (currentUser?.role === 'parent') {
+          try {
+            const { parentAPI } = await import('../../services/api');
+            const pRes = await parentAPI.getMyNotifications();
+            if (pRes.data?.success) {
+              allNotifs = pRes.data.data || [];
+            }
+          } catch (pe) {
+            console.warn('Could not fetch parent notifications', pe);
+          }
         }
+
+        if (eventsRes.data?.success) {
+          const eventNotifs = (eventsRes.data.data || []).map(e => ({
+            id: e.id,
+            title: e.title || 'Upcoming Event',
+            description: e.description || e.message,
+            created_at: e.date || e.created_at,
+            type: 'event'
+          }));
+          allNotifs = [...allNotifs, ...eventNotifs];
+        }
+
+        setNotifications(allNotifs);
       } catch (error) {
         console.error('Error fetching TopNav data:', error);
       }
@@ -188,7 +210,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
           </svg>
-          {notifications.length > 0 && (
+          {notifications.filter(n => !n.read && !n.isRead).length > 0 && (
             <span style={{
               position: 'absolute',
               top: '6px',
@@ -206,7 +228,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
               justifyContent: 'center',
               padding: '2px'
             }}>
-              {notifications.length}
+              {notifications.filter(n => !n.read && !n.isRead).length}
             </span>
           )}
           </div>
@@ -216,7 +238,7 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
               position: 'absolute',
               top: 'calc(100% + 8px)',
               right: 0,
-              width: '320px',
+              width: '340px',
               backgroundColor: 'white',
               borderRadius: '16px',
               boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
@@ -227,25 +249,73 @@ const TopNav = ({ user, onLogout, title, onSearch }) => {
             }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>Notifications</h4>
-                {notifications.length > 0 && <span style={{ fontSize: '12px', color: '#3b82f6', fontWeight: '700', cursor: 'pointer' }} onClick={() => setNotifications([])}>Mark all as read</span>}
+                {notifications.length > 0 && (
+                  <span 
+                    style={{ fontSize: '12px', color: '#3b82f6', fontWeight: '700', cursor: 'pointer' }} 
+                    onClick={() => {
+                      if (currentUser?.role === 'parent') {
+                        import('../../services/api').then(m => m.parentAPI.markMyNotificationRead('all')).catch(() => {});
+                      }
+                      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+                    }}
+                  >
+                    Mark all as read
+                  </span>
+                )}
               </div>
               <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
                 {notifications.length > 0 ? (
-                  notifications.map((notif, index) => (
-                    <div key={index} style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
-                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6', marginTop: '6px' }}></div>
-                        <div>
-                          <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{notif.title}</p>
-                          <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>{notif.description || notif.message}</p>
-                          <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginTop: '6px', fontWeight: '500' }}>{new Date(notif.date || notif.created_at).toLocaleDateString()}</span>
+                  notifications.map((notif, index) => {
+                    const isUnread = !notif.read && !notif.isRead;
+                    return (
+                      <div 
+                        key={notif.id || index} 
+                        style={{ 
+                          padding: '16px 20px', 
+                          borderBottom: '1px solid #f1f5f9', 
+                          cursor: 'pointer',
+                          backgroundColor: isUnread ? '#f0fdf4' : 'transparent',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onClick={() => {
+                          if (currentUser?.role === 'parent' && notif.id) {
+                            import('../../services/api').then(m => m.parentAPI.markMyNotificationRead(notif.id)).catch(() => {});
+                          }
+                          setNotifications(prev => prev.map(n => (n.id === notif.id ? { ...n, read: true, isRead: true } : n)));
+                          setShowNotifications(false);
+                          if (notif.link) {
+                            navigate(notif.link);
+                          } else if (notif.type === 'report') {
+                            navigate('/results');
+                          }
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = isUnread ? '#e2fbe8' : '#f8fafc'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = isUnread ? '#f0fdf4' : 'transparent'}
+                      >
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                          <div style={{ 
+                            width: '8px', 
+                            height: '8px', 
+                            borderRadius: '50%', 
+                            backgroundColor: notif.type === 'report' ? 'var(--brand-green)' : '#3b82f6', 
+                            marginTop: '6px',
+                            flexShrink: 0
+                          }}></div>
+                          <div>
+                            <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: isUnread ? '800' : '600', color: '#1e293b' }}>
+                              {notif.title}
+                            </p>
+                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.4' }}>
+                              {notif.description || notif.message}
+                            </p>
+                            <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginTop: '6px', fontWeight: '500' }}>
+                              {new Date(notif.date || notif.created_at || Date.now()).toLocaleDateString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div style={{ padding: '32px 20px', textAlign: 'center' }}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>

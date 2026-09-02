@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { academicClassesAPI, academicSubjectsAPI, teacherAPI, courseAPI } from '../../services/api';
+import { academicClassesAPI, academicSubjectsAPI, teacherAPI, courseAPI, gradeMasterAPI, settingsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PremiumSelect from '../../components/common/PremiumSelect';
 import { useAlert } from '../../context/AlertContext';
@@ -18,17 +18,21 @@ const displayGrade = (g) => {
 const Classes = () => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'ITSupport';
+  const isAdmin = user?.role === 'admin' || user?.role === 'staff' || user?.role === 'ITSupport' || user?.role === 'headmaster' || user?.role === 'superadmin';
   const isTeacher = user?.role === 'teacher';
   const [activeMenu, setActiveMenu] = useState('Academic');
   const [loading, setLoading] = useState(true);
-  const [classes, setClasses] = useState([])
+  const [classes, setClasses] = useState([]);
   const [teacherClassNames, setTeacherClassNames] = useState(new Set()); // grades the teacher is assigned to
   const [teachers, setTeachers] = useState([]);
   const [allSubjects, setAllSubjects] = useState([]);
+  const [gradeMasters, setGradeMasters] = useState([]);
+  const [currentAcademicYear, setCurrentAcademicYear] = useState('2024/2025');
   const [showClassModal, setShowClassModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [showMasterModal, setShowMasterModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedMasterTeacherId, setSelectedMasterTeacherId] = useState('');
   const [saving, setSaving] = useState(false);
   
   const [classFormData, setClassFormData] = useState({ name: '', class_master_id: '', academic_year: '2024/2025' });
@@ -42,15 +46,27 @@ const Classes = () => {
   const fetchData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [classesRes, teachersRes, subjectsRes] = await Promise.all([
+      const [classesRes, teachersRes, subjectsRes, mastersRes, settingsRes] = await Promise.all([
         academicClassesAPI.getAll(),
         teacherAPI.getAll({ limit: 500 }),
-        academicSubjectsAPI.getAll()
+        academicSubjectsAPI.getAll(),
+        gradeMasterAPI.getAll().catch(() => ({ data: { data: [] } })),
+        settingsAPI.getSettings().catch(() => ({ data: { data: null } }))
       ]);
       
       setClasses(classesRes.data?.data || []);
       setTeachers(teachersRes.data?.data || []);
       setAllSubjects(subjectsRes.data?.data || []);
+      
+      const rawMasters = mastersRes.data?.data || mastersRes.data || [];
+      setGradeMasters(Array.isArray(rawMasters) ? rawMasters : []);
+
+      const settingsData = settingsRes.data?.settings || settingsRes.data?.data || settingsRes.data;
+      if (settingsData?.current_session) {
+        const session = settingsData.current_session.replace('-', '/');
+        setCurrentAcademicYear(session);
+        setClassFormData(prev => ({ ...prev, academic_year: session }));
+      }
 
       // If teacher role, fetch their assigned courses to know which classes belong to them
       if (isTeacher) {
@@ -76,7 +92,7 @@ const Classes = () => {
     try {
       await academicClassesAPI.create(classFormData);
       setShowClassModal(false);
-      setClassFormData({ name: '', class_master_id: '', academic_year: '2024/2025' });
+      setClassFormData({ name: '', class_master_id: '', academic_year: currentAcademicYear });
       fetchData();
     } catch (error) {
       showAlert({
@@ -89,7 +105,62 @@ const Classes = () => {
     }
   };
 
+  const handleAssignMasterSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedClass) return;
+    setSaving(true);
+    try {
+      await gradeMasterAPI.assign({
+        grade: selectedClass.name,
+        teacherId: selectedMasterTeacherId || null,
+        academicYear: currentAcademicYear
+      });
+      setShowMasterModal(false);
+      showAlert({
+        title: 'Class Master Assigned',
+        message: `Successfully updated Class Master for ${displayGrade(selectedClass.name)}.`,
+        type: 'success'
+      });
+      fetchData(true);
+    } catch (err) {
+      showAlert({
+        title: 'Assignment Failed',
+        message: err.response?.data?.message || 'Failed to assign Class Master.',
+        type: 'error'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
+  const handleUnassignMaster = async (gradeName) => {
+    showAlert({
+      title: 'Unassign Class Master',
+      message: `Are you sure you want to remove the Class Master for ${displayGrade(gradeName)}?`,
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          await gradeMasterAPI.assign({
+            grade: gradeName,
+            teacherId: null,
+            academicYear: currentAcademicYear
+          });
+          showAlert({
+            title: 'Class Master Removed',
+            message: `Class Master unassigned for ${displayGrade(gradeName)}.`,
+            type: 'success'
+          });
+          fetchData(true);
+        } catch (err) {
+          showAlert({
+            title: 'Error',
+            message: 'Failed to unassign Class Master.',
+            type: 'error'
+          });
+        }
+      }
+    });
+  };
 
   const handleSubjectAssign = async (e) => {
     e.preventDefault();
@@ -134,7 +205,7 @@ const Classes = () => {
 
   const handleAutoAllocateGES = async (gradeName) => {
     try {
-      const res = await courseAPI.autoAllocate({ grade: gradeName, academicYear: '2024/2025' });
+      const res = await courseAPI.autoAllocate({ grade: gradeName, academicYear: currentAcademicYear });
       if (res.data?.success) {
         showAlert({
           title: 'GES Curriculum Mapped',
@@ -182,8 +253,6 @@ const Classes = () => {
     });
   };
 
-
-
   const handleLogout = async () => {
     try { await logout(); } finally { 
       localStorage.removeItem('authUser'); 
@@ -191,17 +260,15 @@ const Classes = () => {
     }
   };
 
-  const getTeacherName = (id) => {
-    const t = teachers.find(t => t.id === id);
-    if (!t) return 'Not Assigned';
-    return `${t.firstName || t.first_name || ''} ${t.lastName || t.last_name || ''}`.trim() || 'Unnamed Faculty';
-  };
-
   const displayedClasses = isTeacher
     ? classes.filter(cls => {
         const nameMatch = teacherClassNames.has(cls.name?.toLowerCase()?.trim()) ||
           teacherClassNames.has(displayGrade(cls.name)?.toLowerCase()?.trim());
-        return nameMatch;
+        const isMaster = gradeMasters.some(m => 
+          (String(m.teacher_id) === String(user?.id) || String(m.teacher_id) === String(user?.teacher_id) || String(m.teacher_id) === String(user?.profileId)) &&
+          (m.grade?.toLowerCase()?.trim() === cls.name?.toLowerCase()?.trim() || m.grade?.toLowerCase()?.trim() === displayGrade(cls.name)?.toLowerCase()?.trim())
+        );
+        return nameMatch || isMaster;
       })
     : classes;
 
@@ -241,82 +308,176 @@ const Classes = () => {
           </div>
         ) : (
           <div className="responsive-grid-2" style={{ gap: '32px' }}>
-            {displayedClasses.map((cls) => (
-              <div key={cls.id} className="class-node">
-                {isAdmin && (
-                  <button onClick={() => handleClassDelete(cls.id, cls.name)} className="node-delete-trigger" title="Remove Class">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  </button>
-                )}
+            {displayedClasses.map((cls) => {
+              const master = gradeMasters.find(m => m.grade?.toLowerCase().trim() === cls.name?.toLowerCase().trim() || m.grade?.toLowerCase().trim() === displayGrade(cls.name)?.toLowerCase().trim());
+              const masterTeacher = teachers.find(t => t.id === master?.teacher_id || t.user_id === master?.teacher_id);
+              
+              return (
+                <div key={cls.id} className="class-node">
+                  {isAdmin && (
+                    <button onClick={() => handleClassDelete(cls.id, cls.name)} className="node-delete-trigger" title="Remove Class">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  )}
 
-                <div className="node-header">
-                  <div className="node-icon">
-                    {cls.name.toLowerCase().includes('basic') ? 'B' : 
-                     cls.name.toLowerCase().includes('jhs') ? 'J' : 
-                     cls.name.toLowerCase().includes('primary') ? 'P' :
-                     cls.name.toLowerCase().includes('kg') ? 'K' :
-                     cls.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="node-title">{displayGrade(cls.name)}</h3>
-                    <div className="node-meta">
-                      <span className="academic-year-badge">{cls.academic_year}</span>
-                      <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand-slate-200)' }}></div>
-                      <span className="meta-tag">Grade System</span>
+                  <div className="node-header">
+                    <div className="node-icon">
+                      {cls.name.toLowerCase().includes('basic') ? 'B' : 
+                       cls.name.toLowerCase().includes('jhs') ? 'J' : 
+                       cls.name.toLowerCase().includes('primary') ? 'P' :
+                       cls.name.toLowerCase().includes('kg') ? 'K' :
+                       cls.name.charAt(0).toUpperCase()}
                     </div>
-                  </div>
-                </div>
-
-                <div className="node-content">
-
-
-                  {/* Curriculum Segment */}
-                  <div className="content-segment">
-                    <div className="segment-header">
-                      <div className="segment-info">
-                        <div className="segment-icon" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                        </div>
-                        <span className="segment-label">Academic Curriculum</span>
+                    <div>
+                      <h3 className="node-title">{displayGrade(cls.name)}</h3>
+                      <div className="node-meta">
+                        <span className="academic-year-badge">{cls.academic_year || currentAcademicYear}</span>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand-slate-200)' }}></div>
+                        <span className="meta-tag">Grade System</span>
                       </div>
-                      {isAdmin && (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button 
-                            onClick={() => handleAutoAllocateGES(cls.name)} 
-                            className="segment-add-btn" 
-                            title="Auto-map GES subjects"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                          </button>
-                          <button onClick={() => { setSelectedClass(cls); setSubjectFormData({ subjectIds: (cls.subjects || []).map(s => s.id) }); setShowSubjectModal(true); }} className="segment-add-btn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                          </button>
-                        </div>
-                      )}
                     </div>
-                    <div className="badge-grid">
-                      {cls.subjects && cls.subjects.length > 0 ? cls.subjects.map(s => (
-                        <div key={s.id} className="premium-badge" style={{ padding: '8px 12px' }}>
-                          <div className="badge-dot" style={{ background: '#3b82f6' }}></div>
-                          <span className="badge-text" style={{ fontSize: '12px' }}>{s.name}</span>
-                          {isAdmin && (
-                            <button onClick={(e) => { e.stopPropagation(); handleSubjectRemove(cls.id, s.id, s.name); }} className="badge-delete">
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                            </button>
-                          )}
+                  </div>
+
+                  <div className="node-content">
+
+                    {/* Class Master Segment */}
+                    <div className="content-segment" style={{ marginBottom: '20px' }}>
+                      <div className="segment-header">
+                        <div className="segment-info">
+                          <div className="segment-icon" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          </div>
+                          <span className="segment-label">Class Master (Grade Master)</span>
                         </div>
-                      )) : <span className="empty-state">Curriculum mapping pending</span>}
+                        {isAdmin && (
+                          <button 
+                            onClick={() => {
+                              setSelectedClass(cls);
+                              setSelectedMasterTeacherId(master?.teacher_id || '');
+                              setShowMasterModal(true);
+                            }} 
+                            className="segment-add-btn"
+                            title="Assign Class Master"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: 'var(--brand-green)', cursor: 'pointer', transition: 'all 0.2s' }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ marginTop: '8px' }}>
+                        {masterTeacher ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--brand-green-soft)', color: 'var(--brand-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '13px' }}>
+                                {(masterTeacher.first_name || masterTeacher.name || 'T').charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p style={{ margin: 0, fontWeight: '800', fontSize: '13px', color: '#0f172a' }}>
+                                  {`${masterTeacher.title || ''} ${masterTeacher.first_name || ''} ${masterTeacher.last_name || ''}`.trim() || masterTeacher.name || masterTeacher.email}
+                                </p>
+                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>{masterTeacher.email || 'Assigned Class Master'}</p>
+                              </div>
+                            </div>
+                            {isAdmin && (
+                              <button 
+                                onClick={() => handleUnassignMaster(cls.name)} 
+                                title="Unassign Class Master" 
+                                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="empty-state">No Class Master assigned</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Curriculum Segment */}
+                    <div className="content-segment">
+                      <div className="segment-header">
+                        <div className="segment-info">
+                          <div className="segment-icon" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                          </div>
+                          <span className="segment-label">Academic Curriculum</span>
+                        </div>
+                        {isAdmin && (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button 
+                              onClick={() => handleAutoAllocateGES(cls.name)} 
+                              className="segment-add-btn" 
+                              title="Auto-map GES subjects"
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                            </button>
+                            <button onClick={() => { setSelectedClass(cls); setSubjectFormData({ subjectIds: (cls.subjects || []).map(s => s.id) }); setShowSubjectModal(true); }} className="segment-add-btn">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="badge-grid">
+                        {cls.subjects && cls.subjects.length > 0 ? cls.subjects.map(s => (
+                          <div key={s.id} className="premium-badge" style={{ padding: '8px 12px' }}>
+                            <div className="badge-dot" style={{ background: '#3b82f6' }}></div>
+                            <span className="badge-text" style={{ fontSize: '12px' }}>{s.name}</span>
+                            {isAdmin && (
+                              <button onClick={(e) => { e.stopPropagation(); handleSubjectRemove(cls.id, s.id, s.name); }} className="badge-delete">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                              </button>
+                            )}
+                          </div>
+                        )) : <span className="empty-state">Curriculum mapping pending</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
 
       {/* Modals */}
+      {showMasterModal && selectedClass && (
+        <div className="premium-modal-overlay">
+          <div className="premium-modal-content" style={{ width: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+              <div>
+                <h3 className="modal-title">Assign Class Master</h3>
+                <p className="modal-subtitle">Designate a lead educator for {displayGrade(selectedClass.name)} ({currentAcademicYear})</p>
+              </div>
+              <button onClick={() => setShowMasterModal(false)} className="premium-close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <form onSubmit={handleAssignMasterSubmit}>
+              <div style={{ marginBottom: '24px' }}>
+                <label className="premium-label">Select Educator</label>
+                <PremiumSelect
+                  name="teacherId"
+                  value={selectedMasterTeacherId}
+                  onChange={(e) => setSelectedMasterTeacherId(e.target.value)}
+                  options={[
+                    { value: '', label: '-- None (Unassigned) --' },
+                    ...teachers.map(t => ({
+                      value: t.id,
+                      label: `${t.title || ''} ${t.first_name || t.firstName || ''} ${t.last_name || t.lastName || ''}`.trim() || t.name || t.email
+                    }))
+                  ]}
+                  placeholder="Select Class Master..."
+                />
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setShowMasterModal(false)} className="premium-btn-secondary" style={{ flex: 1 }}>Dismiss</button>
+                <button type="submit" disabled={saving} className="premium-btn-primary" style={{ flex: 2 }}>{saving ? 'Assigning...' : 'Save Class Master'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showClassModal && (
         <div className="premium-modal-overlay">
           <div className="premium-modal-content" style={{ width: '500px' }}>
